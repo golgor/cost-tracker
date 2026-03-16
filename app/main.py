@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -36,6 +37,9 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)  # type: i
 app.add_middleware(RequestLoggingMiddleware)  # type: ignore[arg-type]
 app.add_middleware(CSRFMiddleware)  # type: ignore[arg-type]
 app.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
+
+# Static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Routers
 app.include_router(web_router)
