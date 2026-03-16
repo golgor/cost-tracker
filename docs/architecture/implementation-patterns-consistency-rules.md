@@ -3,7 +3,8 @@
 ## Pattern Categories Defined
 
 **Critical Conflict Points Identified:**
-15 areas where AI agents could make different choices, organized across naming, structure, format, communication, and process patterns.
+15 areas where AI agents could make different choices, organized across naming, structure, format, communication, and
+process patterns.
 
 ## Naming Patterns
 
@@ -69,7 +70,8 @@ tests/
     expense_routes_test.py
 ```
 
-- Root `conftest.py`: SQLite in-memory engine, `Session` factory, `UnitOfWork` factory. Used by `domain/` and `adapters/` tests
+- Root `conftest.py`: SQLite in-memory engine, `Session` factory, `UnitOfWork` factory. Used by `domain/` and
+  `adapters/` tests
 - `integration/conftest.py`: PostgreSQL engine (from `TEST_DATABASE_URL` env var). Isolated from unit test fixtures
 - `web/conftest.py`: FastAPI `TestClient`, template assertion helpers
 
@@ -146,7 +148,8 @@ def create_expense(
 - Domain layer does NOT log — raises errors or uses `AuditPort`
 - Adapters log: DB query timings, connection events
 - Middleware logs: request/response lifecycle, authentication events
-- Log levels: `debug` (development detail), `info` (business events), `warning` (recoverable issues), `error` (failures requiring attention)
+- Log levels: `debug` (development detail), `info` (business events), `warning` (recoverable issues), `error` (failures
+  requiring attention)
 - Bound context: always include `request_id`, `user_id` where available
 
 **Audit Trail Patterns:**

@@ -135,12 +135,16 @@ class ExpensePort(Protocol):
 | `api/v1/` | fastapi + pydantic + domain (models/errors) |
 | `dependencies.py` | everything (composition root) |
 
-Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure logging (request timing, DB query stats) happens in middleware and adapters only. Domain models use SQLModel for validation; ORM models inherit from domain models with `table=True`.
+Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure logging (request timing, DB query stats)
+happens in middleware and adapters only. Domain models use SQLModel for validation; ORM models inherit from domain
+models with `table=True`.
 
 ## Testing Strategy (Updated)
 
-- **Unit tests** (`@pytest.mark.unit`, SQLAlchemy + SQLite in-memory): Domain logic through real adapters, split calculations, validation, state transitions
-- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL in CI): Settlement concurrency (`SELECT FOR UPDATE`), unique constraint idempotency, transactional rollback
+- **Unit tests** (`@pytest.mark.unit`, SQLAlchemy + SQLite in-memory): Domain logic through real adapters, split
+  calculations, validation, state transitions
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL in CI): Settlement concurrency (`SELECT FOR
+  UPDATE`), unique constraint idempotency, transactional rollback
 - **Contract tests** (`@pytest.mark.contract`, no DB needed): Verify ORM models inherit all domain base fields correctly
 - **Architectural tests** (`architecture_test.py`): Domain import purity (AST-based), `queries.py` read-only enforcement
 - **CI schema drift check**: After `alembic upgrade head`, verify schema matches `Base.metadata.create_all()` output
@@ -190,21 +194,26 @@ Note: Implementation stories should reference PRD Phase 1 scope and feature boun
 
 **Status:** Accepted (Amended 2026-03-16)
 **Context:** Need clean separation between business logic and infrastructure for long-term scalability.
-**Decision:** Domain layer uses `Protocol` interfaces (ports). Adapters implement ports using SQLModel/SQLAlchemy. Domain may import external validation libraries (SQLModel, Pydantic) but must not import internal application modules (adapters, web, auth, api).
-**Consequences:** Cleaner testability. Use cases reusable across route layers. Framework changes localized to adapters. External validation libs in domain enable SQLModel pattern (see ADR-011).
+**Decision:** Domain layer uses `Protocol` interfaces (ports). Adapters implement ports using SQLModel/SQLAlchemy.
+Domain may import external validation libraries (SQLModel, Pydantic) but must not import internal application modules
+(adapters, web, auth, api).
+**Consequences:** Cleaner testability. Use cases reusable across route layers. Framework changes localized to adapters.
+External validation libs in domain enable SQLModel pattern (see ADR-011).
 
 ### ADR-002: Declarative ORM with Adapter Separation
 
 **Status:** Superseded by ADR-011 (2026-03-16)
 **Context:** Need ORM for migration support. Imperative mapping has sparse documentation.
-**Decision:** ~~Declarative `XxxRow(Base)` models internal to adapters. Domain models are `@dataclass`. Each adapter contains `_to_domain()` / `_to_row()` helpers.~~
+**Decision:** ~~Declarative `XxxRow(Base)` models internal to adapters. Domain models are `@dataclass`. Each adapter
+contains `_to_domain()` / `_to_row()` helpers.~~
 **Consequences:** ~~Two models per entity + mapping functions.~~ See ADR-011 for current approach.
 
 ### ADR-003: UnitOfWork as Domain Port
 
 **Status:** Accepted
 **Context:** Settlement flow requires atomic operations across expenses + settlements + audit.
-**Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single `Session`.
+**Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single
+`Session`.
 **Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection.
 
 ### ADR-004: Audit Logging as Domain Concern
@@ -225,7 +234,8 @@ Note: Implementation stories should reference PRD Phase 1 scope and feature boun
 
 **Status:** Accepted
 **Context:** Dashboard queries need joins/aggregations. Creating ports for every read would cause protocol explosion.
-**Decision:** `adapters/sqlalchemy/queries.py` for read-only view queries. Routes import directly. Writes always go through domain ports.
+**Decision:** `adapters/sqlalchemy/queries.py` for read-only view queries. Routes import directly. Writes always go
+through domain ports.
 **Consequences:** Controlled bypass of hexagonal boundary. Enforced read-only by architectural test.
 
 ### ADR-007: API Routes Deferred Past MVP
@@ -239,7 +249,8 @@ Note: Implementation stories should reference PRD Phase 1 scope and feature boun
 
 **Status:** Accepted
 **Context:** Need machine-parseable logs in production and readable logs in dev.
-**Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors or uses AuditPort.
+**Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors or uses
+AuditPort.
 **Consequences:** One library, two output modes. Infrastructure logging in middleware/adapters only.
 
 ### ADR-009: Split CI Workflows by Path
@@ -253,13 +264,15 @@ Note: Implementation stories should reference PRD Phase 1 scope and feature boun
 
 **Status:** Accepted
 **Context:** App runs on k3s with env vars from Secrets/ConfigMaps.
-**Decision:** Single `Settings` class via `pydantic-settings`. `.env` for local dev (gitignored). `.env.example` committed.
+**Decision:** Single `Settings` class via `pydantic-settings`. `.env` for local dev (gitignored). `.env.example`
+committed.
 **Consequences:** Simple, standard. Fails fast on missing config.
 
 ### ADR-011: SQLModel for Domain and ORM Models
 
 **Status:** Accepted (2026-03-16)
-**Context:** ADR-002 required separate domain dataclasses and ORM Row models with manual mapping. SQLModel unifies these while maintaining separation via `table=True` flag.
+**Context:** ADR-002 required separate domain dataclasses and ORM Row models with manual mapping. SQLModel unifies these
+while maintaining separation via `table=True` flag.
 **Decision:**
 
 - Domain models: `SQLModel` classes without `table=True` (pure data + validation)

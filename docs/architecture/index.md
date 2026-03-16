@@ -7,12 +7,14 @@
     - [Requirements Overview](./project-context-analysis.md#requirements-overview)
     - [Technical Constraints & Dependencies](./project-context-analysis.md#technical-constraints-dependencies)
     - [Cross-Cutting Concerns Identified](./project-context-analysis.md#cross-cutting-concerns-identified)
-    - [Architectural Principles (from First Principles Analysis)](./project-context-analysis.md#architectural-principles-from-first-principles-analysis)
+    - [Architectural Principles (from First Principles
+      Analysis)](./project-context-analysis.md#architectural-principles-from-first-principles-analysis)
     - [Critical Failure Modes Identified](./project-context-analysis.md#critical-failure-modes-identified)
   - [Starter Template Evaluation](./starter-template-evaluation.md)
     - [Primary Technology Domain](./starter-template-evaluation.md#primary-technology-domain)
     - [Starter Options Considered](./starter-template-evaluation.md#starter-options-considered)
-    - [Selected Approach: Custom Scaffolding with Ports & Adapters](./starter-template-evaluation.md#selected-approach-custom-scaffolding-with-ports-adapters)
+    - [Selected Approach: Custom Scaffolding with Ports &
+      Adapters](./starter-template-evaluation.md#selected-approach-custom-scaffolding-with-ports-adapters)
   - [Core Architectural Decisions](./core-architectural-decisions.md)
     - [Decision Priority Analysis](./core-architectural-decisions.md#decision-priority-analysis)
     - [Data Architecture](./core-architectural-decisions.md#data-architecture)
@@ -25,16 +27,22 @@
     - [Architectural Guardrails (Consolidated)](./core-architectural-decisions.md#architectural-guardrails-consolidated)
     - [Decision Impact Analysis](./core-architectural-decisions.md#decision-impact-analysis)
     - [Architecture Decision Records](./core-architectural-decisions.md#architecture-decision-records)
-      - [ADR-001: Ports & Adapters (Hexagonal Architecture)](./core-architectural-decisions.md#adr-001-ports-adapters-hexagonal-architecture)
-      - [ADR-002: Declarative ORM with Adapter Separation](./core-architectural-decisions.md#adr-002-declarative-orm-with-adapter-separation)
+      - [ADR-001: Ports & Adapters (Hexagonal
+        Architecture)](./core-architectural-decisions.md#adr-001-ports-adapters-hexagonal-architecture)
+      - [ADR-002: Declarative ORM with Adapter
+        Separation](./core-architectural-decisions.md#adr-002-declarative-orm-with-adapter-separation)
       - [ADR-003: UnitOfWork as Domain Port](./core-architectural-decisions.md#adr-003-unitofwork-as-domain-port)
-      - [ADR-004: Audit Logging as Domain Concern](./core-architectural-decisions.md#adr-004-audit-logging-as-domain-concern)
+      - [ADR-004: Audit Logging as Domain
+        Concern](./core-architectural-decisions.md#adr-004-audit-logging-as-domain-concern)
       - [ADR-005: Sync SQLAlchemy for MVP](./core-architectural-decisions.md#adr-005-sync-sqlalchemy-for-mvp)
-      - [ADR-006: View Queries Bypass Domain Ports](./core-architectural-decisions.md#adr-006-view-queries-bypass-domain-ports)
+      - [ADR-006: View Queries Bypass Domain
+        Ports](./core-architectural-decisions.md#adr-006-view-queries-bypass-domain-ports)
       - [ADR-007: API Routes Deferred Past MVP](./core-architectural-decisions.md#adr-007-api-routes-deferred-past-mvp)
-      - [ADR-008: Structured Logging with structlog](./core-architectural-decisions.md#adr-008-structured-logging-with-structlog)
+      - [ADR-008: Structured Logging with
+        structlog](./core-architectural-decisions.md#adr-008-structured-logging-with-structlog)
       - [ADR-009: Split CI Workflows by Path](./core-architectural-decisions.md#adr-009-split-ci-workflows-by-path)
-      - [ADR-010: pydantic-settings for Configuration](./core-architectural-decisions.md#adr-010-pydantic-settings-for-configuration)
+      - [ADR-010: pydantic-settings for
+        Configuration](./core-architectural-decisions.md#adr-010-pydantic-settings-for-configuration)
   - [Implementation Patterns & Consistency Rules](./implementation-patterns-consistency-rules.md)
     - [Pattern Categories Defined](./implementation-patterns-consistency-rules.md#pattern-categories-defined)
     - [Naming Patterns](./implementation-patterns-consistency-rules.md#naming-patterns)

@@ -24,7 +24,8 @@
     - [Emotional Design Principles](./desired-emotional-response.md#emotional-design-principles)
   - [UX Pattern Analysis & Inspiration](./ux-pattern-analysis-inspiration.md)
     - [Inspiring Products Analysis](./ux-pattern-analysis-inspiration.md#inspiring-products-analysis)
-    - [Transferable UX Patterns (By Screen/Flow)](./ux-pattern-analysis-inspiration.md#transferable-ux-patterns-by-screenflow)
+    - [Transferable UX Patterns (By
+      Screen/Flow)](./ux-pattern-analysis-inspiration.md#transferable-ux-patterns-by-screenflow)
     - [Anti-Patterns to Avoid](./ux-pattern-analysis-inspiration.md#anti-patterns-to-avoid)
     - [Design Inspiration Strategy](./ux-pattern-analysis-inspiration.md#design-inspiration-strategy)
   - [Design System Foundation](./design-system-foundation.md)
