@@ -2,7 +2,7 @@
 
 ## Complete Project Directory Structure
 
-```
+```text
 cost-tracker/
 ├── pyproject.toml                          # Project metadata, pytest, ruff, ty config
 ├── uv.lock                                 # Locked dependencies for reproducible builds
@@ -253,7 +253,7 @@ in `alembic/env.py`.
 
 **Data Flow (write path):**
 
-```
+```text
 Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWork
   → ExpensePort.save() → SqlAlchemyExpenseAdapter → Session
   → AuditPort.log() → SqlAlchemyAuditAdapter → Session
@@ -262,7 +262,7 @@ Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWo
 
 **Data Flow (read path — view query):**
 
-```
+```text
 Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
   → Session.execute(SELECT ...) → PostgreSQL
   → DashboardData → Jinja2 template → HTML fragment

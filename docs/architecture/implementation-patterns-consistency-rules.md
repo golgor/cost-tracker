@@ -51,7 +51,7 @@ process patterns.
 
 **Conftest Hierarchy:**
 
-```
+```text
 tests/
   conftest.py               # Shared fixtures: SQLite engine, session factory, UoW factory
   architecture_test.py      # Domain purity + queries.py enforcement

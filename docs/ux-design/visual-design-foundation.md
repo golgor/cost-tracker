@@ -8,7 +8,7 @@ The color system serves three purposes: warmth (this is a home tool), clarity (i
 (balance direction). Colors are defined as Tailwind design tokens in `tailwind.config.js`. All colors within the palette
 share warm undertones for temperature consistency.
 
-**Primary Accent — Warm Terracotta/Clay**
+### Primary Accent — Warm Terracotta/Clay
 
 - `primary-500`: A warm terracotta (~`#C27B5A`) — the main interactive color for buttons, active nav, links, FAB
 - `primary-600`: Darker variant (~`#A8654A`) for hover states
@@ -34,7 +34,7 @@ screen (checkmark, success message).
 **Page background:** Barely warm off-white (~`#FAF8F6`) — warm enough to feel cohesive with terracotta, neutral enough
 that the accent stands out as intentional and distinctive. Not so warm it becomes an Instagram filter.
 
-**Semantic Colors — Reserved and purposeful**
+### Semantic Colors — Reserved and purposeful
 
 - **Balance green** (~`#2E7D5B` — warm forest/emerald, not mint/lime): "You are owed" side of the balance bar. Must lean
   warm to harmonize with the terracotta palette. Used exclusively for positive balance direction.
@@ -87,7 +87,7 @@ colors: {
 
 ## Typography System
 
-**Font: System font stack (no custom web font)**
+### Font: System font stack (no custom web font)
 
 ```css
 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -117,7 +117,7 @@ layout — not typeface. If a custom font is desired later, Inter is the natural
 
 ## Spacing & Layout Foundation
 
-**Base unit: 4px (Tailwind default)**
+### Base unit: 4px (Tailwind default)
 
 The spacing system uses Tailwind's default scale (`1` = 4px, `2` = 8px, `3` = 12px, `4` = 16px, `6` = 24px, `8` = 32px).
 No custom scale needed.

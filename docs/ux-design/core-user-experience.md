@@ -28,7 +28,7 @@ continued use.
 
 ## Platform Strategy
 
-**Web application — responsive, server-rendered (FastAPI + Jinja2 + HTMX + Tailwind CSS)**
+**Web application — responsive, server-rendered (FastAPI + Jinja2 + HTMX + Tailwind CSS):**
 
 - **Mobile browser (phone):** Primary context for expense capture. Large touch targets, FAB for "Add Expense," minimal
   scrolling needed for the core action. No native app — browser bookmark is sufficient for the usage frequency. Consider

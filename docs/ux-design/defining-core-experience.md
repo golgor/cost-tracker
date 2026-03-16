@@ -2,7 +2,7 @@
 
 ## Defining Experience
 
-**"Log it in 15 seconds, settle it together in 10 minutes."**
+> *"Log it in 15 seconds, settle it together in 10 minutes."*
 
 Cost-tracker's defining experience is **managing shared spending as a natural household rhythm** — not splitting debts,
 not tracking who owes whom, but maintaining a shared picture of where money goes and squaring up together each month.

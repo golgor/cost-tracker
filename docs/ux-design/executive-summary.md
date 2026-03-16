@@ -17,14 +17,14 @@ features. The app should feel like a shared notebook — quick to jot in, easy t
 
 ## Target Users
 
-**Golgor (Primary — On-the-go logger)**
+### Golgor (Primary — On-the-go logger)
 
 - Logs expenses immediately after purchase, typically on phone
 - Initiates and drives the monthly settlement process (desktop, co-located with Partner)
 - Also the system admin/deployer
 - Wants: fast entry, clear balance visibility, confident settlement flow
 
-**Partner (Primary — Batch reviewer)**
+### Partner (Primary — Batch reviewer)
 
 - Accumulates receipts during the week, enters them in a batch session on laptop
 - Reviews settlements co-located with Golgor — they sit together and go through it

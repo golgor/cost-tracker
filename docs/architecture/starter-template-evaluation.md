@@ -23,14 +23,14 @@ scaffolding is the correct approach.
 **Rationale:** The project requires a hexagonal architecture pattern that no existing FastAPI starter provides. Custom
 scaffolding ensures clean domain boundaries from day one, avoiding costly restructuring later.
 
-**Architectural Pattern: Ports & Adapters (Hexagonal Architecture)**
+### Architectural Pattern: Ports & Adapters (Hexagonal Architecture)
 
 Inspired by ArjanCodes' examples. The domain layer contains pure business logic with no framework imports.
 Infrastructure concerns are pushed to adapters that implement domain-defined Protocol interfaces.
 
 **Project Structure:**
 
-```
+```text
 app/
   domain/                    # Pure business logic — NO framework imports
     models.py                # Domain dataclasses (@dataclass, not Pydantic)
