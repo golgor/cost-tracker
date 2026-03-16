@@ -23,7 +23,6 @@ class UserRow(UserBase, table=True):
     __tablename__ = "users"
 
     id: int | None = Field(default=None, primary_key=True)
-    oidc_sub: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)
 
