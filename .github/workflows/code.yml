@@ -109,4 +109,5 @@ jobs:
       - name: Run integration tests
         run: uv run pytest tests/integration/ -v
         env:
+          DATABASE_URL: postgresql://costtracker:costtracker@localhost:5432/costtracker
           TEST_DATABASE_URL: postgresql://costtracker:costtracker@localhost:5432/costtracker
