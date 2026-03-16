@@ -1,9 +1,14 @@
 """Test fixtures for unit tests (SQLite in-memory) and optional integration tests (PostgreSQL)."""
 
 import os
+import sys
 
 # Set test environment variables BEFORE any app imports (pydantic-settings reads at import time)
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Only use SQLite for unit tests, integration tests use PostgreSQL via TEST_DATABASE_URL
+# Detect integration tests by checking if 'integration' is in the pytest arguments
+if not any("integration" in arg for arg in sys.argv):
+    os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("OIDC_ISSUER", "https://test.example.com")
 os.environ.setdefault("OIDC_CLIENT_ID", "test-client")
