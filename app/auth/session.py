@@ -20,7 +20,7 @@ def decode_session(cookie: str, max_age: int | None = None) -> dict | None:
         Session data dict with user_id, or None if invalid/expired
     """
     if max_age is None:
-        max_age = getattr(settings, "SESSION_MAX_AGE", 86400)
+        max_age = settings.SESSION_MAX_AGE
 
     serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
     try:
