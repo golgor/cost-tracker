@@ -17,12 +17,12 @@ class TestCSRFTokenGeneration:
 
     def test_csrf_cookie_set_on_first_request(self, client: TestClient):
         """CSRF cookie is set on first request."""
-        response = client.get("/health")
+        response = client.get("/health/live")
         assert "csrf_token" in response.cookies
 
     def test_csrf_token_is_long_enough(self, client: TestClient):
         """CSRF token has sufficient entropy."""
-        response = client.get("/health")
+        response = client.get("/health/live")
         token = response.cookies.get("csrf_token")
         assert token is not None
         assert len(token) >= 32  # At least 32 chars for security
@@ -39,7 +39,7 @@ class TestCSRFValidation:
         # the CSRF check would apply
 
         # Get initial CSRF cookie
-        client.get("/health")
+        client.get("/health/live")
 
         # POST without CSRF token - would fail CSRF check after auth
         # Since we're not authenticated, we get redirected to login
@@ -50,12 +50,12 @@ class TestCSRFValidation:
     def test_public_routes_skip_csrf_validation(self, client: TestClient):
         """Public routes don't require CSRF validation."""
         # Health endpoint is public
-        response = client.get("/health")
+        response = client.get("/health/live")
         assert response.status_code == 200
 
     def test_csrf_cookie_is_httponly(self, client: TestClient):
         """CSRF cookie has httponly flag."""
-        response = client.get("/health")
+        response = client.get("/health/live")
         # Check raw Set-Cookie header for httponly
         set_cookie = response.headers.get("set-cookie", "")
         if "csrf_token" in set_cookie:

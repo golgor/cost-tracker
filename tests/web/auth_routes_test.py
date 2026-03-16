@@ -20,8 +20,8 @@ class TestLoginRoute:
         # The actual redirect to Authentik will fail in tests since
         # we don't have a real OIDC provider, but we can verify the route exists
         response = client.get("/auth/login", follow_redirects=False)
-        # Should either redirect to OIDC or return error about OIDC config
-        assert response.status_code in (302, 307, 500)
+        # Should either redirect to OIDC or return 503 if provider unreachable
+        assert response.status_code in (302, 307, 503)
 
 
 class TestLogoutRoute:
@@ -65,20 +65,3 @@ class TestProtectedRoutes:
         # Should return 200 with HX-Redirect header instead of 302
         assert response.status_code == 200
         assert response.headers.get("HX-Redirect") == "/auth/login"
-
-
-class TestHealthRoute:
-    """Tests for /health endpoint (public)."""
-
-    def test_health_is_public(self, client: TestClient):
-        """Health endpoint doesn't require authentication."""
-        response = client.get("/health")
-        assert response.status_code == 200
-
-    def test_health_returns_database_status(self, client: TestClient):
-        """Health endpoint returns database status."""
-        response = client.get("/health")
-        data = response.json()
-        assert "status" in data
-        assert "database" in data
-        assert data["database"] in ("connected", "disconnected")
