@@ -96,6 +96,7 @@ tests/
 - `mise run dev` — uvicorn with reload + tailwindcss --watch
 - `mise run test` — pytest (unit tests, SQLite)
 - `mise run lint` — ruff check + ruff format --check + ty
+- `mise run lint:docs` — markdownlint-cli2 on `docs/**/*.md`
 - `mise run migrate` — alembic upgrade head
 - `mise run db` — docker-compose up -d (PostgreSQL)
 
@@ -117,6 +118,7 @@ Use the project sub-agents (`.claude/agents/`) to delegate specialized work inst
 - `pr-reviewer` — review code changes against architecture rules and CLAUDE.md before committing
 - `tester` — run tests, check architecture enforcement, identify missing coverage
 - `tech-writer` — create or update documentation in `docs/`
+- `docs-linter` — run markdownlint on `docs/` and auto-fix violations. Use after editing docs or before committing
 
 ## Planning Artifacts
 
