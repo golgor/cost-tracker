@@ -29,8 +29,10 @@
     {% include "_card.html" %}
 #}
 
-{# Placeholder - actual implementation in future story #}
-<div class="card {% if card_clickable %}hover:shadow-md cursor-pointer transition-shadow{% endif %}">
+{# Padding variants: sm=p-2, md=p-4 (default), lg=p-6 #}
+{% set padding_class = "p-2" if card_padding == 'sm' else "p-6" if card_padding == 'lg' else "p-4" %}
+
+<div class="bg-surface-card {{ padding_class }} rounded-lg shadow-sm {% if card_clickable %}hover:shadow-md cursor-pointer transition-shadow focus-ring{% endif %}">
   {% if card_title %}
     <h3 class="text-lg font-medium text-stone-800 mb-3">{{ card_title }}</h3>
   {% endif %}

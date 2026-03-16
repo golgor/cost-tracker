@@ -29,19 +29,26 @@
     {% include "_button.html" %}
 #}
 
-{# Placeholder - actual implementation in future story #}
+{# Renders as <a> if button_href is set, otherwise <button> #}
+{% set button_classes = "px-4 py-2 rounded-lg font-medium focus-ring touch-target inline-flex items-center justify-center gap-2 transition-colors " ~ 
+  ("bg-stone-100 text-stone-700 hover:bg-stone-200" if button_variant == 'secondary' else 
+   "bg-balance-neg text-white hover:opacity-90" if button_variant == 'danger' else 
+   "bg-primary-500 text-white hover:bg-primary-600") %}
+
+{% if button_href %}
+<a
+  href="{{ button_href }}"
+  class="{{ button_classes }}"
+>
+  {{ button_text | default('Button') }}
+</a>
+{% else %}
 <button
   type="{{ button_type | default('button') }}"
-  class="px-4 py-2 rounded-lg font-medium focus-ring touch-target inline-flex items-center justify-center gap-2 transition-colors
-    {% if button_variant == 'secondary' %}
-      bg-stone-100 text-stone-700 hover:bg-stone-200
-    {% elif button_variant == 'danger' %}
-      bg-balance-neg text-white hover:opacity-90
-    {% else %}
-      bg-primary-500 text-white hover:bg-primary-600
-    {% endif %}"
+  class="{{ button_classes }}"
   {% if button_disabled %}disabled{% endif %}
   hx-disabled-elt="this"
 >
   {{ button_text | default('Button') }}
 </button>
+{% endif %}
