@@ -1,0 +1,40 @@
+name: Docs
+
+on:
+  push:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+
+jobs:
+  markdownlint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint-cli2
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "docs/**/*.md"
+
+  mkdocs-build:
+    name: MkDocs Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install docs dependencies
+        run: uv sync --locked --group docs || uv add --group docs mkdocs mkdocs-material
+
+      - name: Build docs (strict)
+        run: uv run mkdocs build --strict

@@ -1,0 +1,47 @@
+site_name: Cost Tracker
+site_description: Self-hosted household expense-sharing app documentation
+repo_url: https://github.com/golgor/cost-tracker
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Architecture:
+    - Overview: architecture/index.md
+    - Core Decisions: architecture/core-architectural-decisions.md
+    - Project Structure: architecture/project-structure-boundaries.md
+    - Implementation Patterns: architecture/implementation-patterns-consistency-rules.md
+    - Starter Template Evaluation: architecture/starter-template-evaluation.md
+    - Architecture Validation: architecture/architecture-validation-results.md
+    - Project Context Analysis: architecture/project-context-analysis.md
+  - UX Design:
+    - Overview: ux-design/index.md
+    - Executive Summary: ux-design/executive-summary.md
+    - Core User Experience: ux-design/core-user-experience.md
+    - Defining Core Experience: ux-design/defining-core-experience.md
+    - Desired Emotional Response: ux-design/desired-emotional-response.md
+    - Design Direction: ux-design/design-direction-decision.md
+    - Design System Foundation: ux-design/design-system-foundation.md
+    - Visual Design Foundation: ux-design/visual-design-foundation.md
+    - User Journey Flows: ux-design/user-journey-flows.md
+    - UX Pattern Analysis: ux-design/ux-pattern-analysis-inspiration.md

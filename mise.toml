@@ -1,0 +1,41 @@
+[tools]
+python = "3.14"
+uv = "latest"
+"npm:markdownlint-cli2" = "latest"
+
+[tasks.dev]
+description = "Start development server with reload (run dev:css in separate terminal)"
+run = "uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+
+[tasks."dev:css"]
+description = "Watch and compile Tailwind CSS (run alongside dev task)"
+run = "uv run tailwindcss --input app/static/src/input.css --output app/static/css/output.css --watch"
+
+[tasks.test]
+description = "Run unit tests with SQLite"
+run = "uv run pytest tests/ -v --ignore=tests/integration"
+
+[tasks."test:integration"]
+description = "Run integration tests against PostgreSQL"
+run = "uv run pytest tests/integration/ -v"
+env = { TEST_DATABASE_URL = "${TEST_DATABASE_URL:-postgresql://costtracker:costtracker@localhost:5432/costtracker}" }
+
+[tasks.lint]
+description = "Run ruff check, ruff format --check, and ty"
+run = [
+    "uv run ruff check app/ tests/",
+    "uv run ruff format --check app/ tests/",
+    "uv run ty check app/",
+]
+
+[tasks."lint:docs"]
+description = "Lint markdown documentation"
+run = "markdownlint-cli2 docs/**/*.md"
+
+[tasks.migrate]
+description = "Run Alembic migrations"
+run = "uv run alembic upgrade head"
+
+[tasks.db]
+description = "Start local PostgreSQL container"
+run = "docker-compose up -d"
