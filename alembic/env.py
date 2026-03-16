@@ -1,16 +1,20 @@
 import os
 from logging.config import fileConfig
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+
+# Load .env file from project root
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Import SQLModel metadata for Alembic auto-generation
 from sqlmodel import SQLModel
 
 # Import all ORM models to register them with SQLModel.metadata
-# Add imports here as models are created in Story 1.4+
-# from app.adapters.sqlalchemy.orm_models import ExpenseRow, SettlementRow, ...
+from app.adapters.sqlalchemy.orm_models import UserRow  # noqa: F401
 
 config = context.config
 

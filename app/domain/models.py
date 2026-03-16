@@ -19,4 +19,22 @@
 #       id: int
 #       created_at: datetime
 
+from datetime import datetime
+
 from sqlmodel import Field, SQLModel  # noqa: F401
+
+
+class UserBase(SQLModel):
+    """Domain base for User — validation + business data. No table."""
+
+    oidc_sub: str = Field(index=True, unique=True)
+    email: str = Field(max_length=255)
+    display_name: str = Field(max_length=255)
+
+
+class UserPublic(UserBase):
+    """Output schema for User — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime

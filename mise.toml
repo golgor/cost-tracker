@@ -12,7 +12,11 @@ description = "Watch and compile Tailwind CSS (run alongside dev task)"
 run = "uv run tailwindcss --input app/static/src/input.css --output app/static/css/output.css --watch"
 
 [tasks.test]
-description = "Run unit tests with SQLite"
+description = "Run all tests (unit + integration if TEST_DATABASE_URL set)"
+run = "uv run pytest tests/ -v"
+
+[tasks."test:unit"]
+description = "Run unit tests only (no database required)"
 run = "uv run pytest tests/ -v --ignore=tests/integration"
 
 [tasks."test:integration"]

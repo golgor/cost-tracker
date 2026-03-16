@@ -4,9 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Cost Tracker - Household expense sharing made simple">
+  <meta name="csrf-token" content="{{ csrf_token | default('') }}">
   <title>{% block title %}Cost Tracker{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='css/output.css') }}">
   <script src="{{ url_for('static', path='js/htmx.min.js') }}" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.addEventListener('htmx:configRequest', function(event) {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        if (csrfToken) {
+          event.detail.headers['X-CSRF-Token'] = csrfToken;
+        }
+      });
+    });
+  </script>
 </head>
 <body class="min-h-screen flex flex-col" hx-boost="true">
   <!-- Skip to content link for keyboard users -->

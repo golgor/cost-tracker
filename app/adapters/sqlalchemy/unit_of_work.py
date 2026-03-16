@@ -1,12 +1,14 @@
-# Skeleton — UnitOfWork will be expanded in Stories 1.5, 2.1+
-from sqlalchemy.orm import Session
+from sqlmodel import Session
+
+from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
 
 
 class UnitOfWork:
-    """Shared SQLAlchemy Session across adapters. Skeleton for now."""
+    """Shared SQLAlchemy Session across adapters."""
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self.users = SqlAlchemyUserAdapter(session)
 
     def commit(self) -> None:
         self.session.commit()
