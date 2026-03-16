@@ -141,10 +141,10 @@ models with `table=True`.
 
 ## Testing Strategy (Updated)
 
-- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Domain logic
-  through real adapters, split calculations, validation, state transitions, concurrency tests
-- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement concurrency (`SELECT FOR
-  UPDATE`), unique constraint idempotency, transactional rollback, health checks
+- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix):
+  Domain logic through real adapters, split calculations, validation, state transitions, concurrency tests
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement
+  concurrency (`SELECT FOR UPDATE`), unique constraint idempotency, transactional rollback, health checks
 - **Contract tests** (`@pytest.mark.contract`, no DB needed): Verify ORM models inherit all domain base fields correctly
 - **Architectural tests** (`architecture_test.py`): Domain import purity (AST-based), `queries.py` read-only enforcement
 - **CI schema drift check**: After `alembic upgrade head`, verify schema matches `Base.metadata.create_all()` output

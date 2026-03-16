@@ -114,10 +114,10 @@ class UnitOfWork(Protocol):
 
 **Testing Strategy:**
 
-- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Domain logic
-  through real adapters, split calculations, validation, state transitions
-- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement concurrency (`SELECT FOR
-  UPDATE`), unique constraint idempotency, transactional rollback behavior
+- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix):
+  Domain logic through real adapters, split calculations, validation, state transitions
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement
+  concurrency (`SELECT FOR UPDATE`), unique constraint idempotency, transactional rollback behavior
 - **End-to-end**: Full request cycle through routes → use cases → adapters → DB
 - **Architectural test** (`architecture_test.py`): Walks `domain/` AST, asserts no forbidden framework imports
 

@@ -29,7 +29,8 @@
 - **Reliability**: Stateless app with persistent DB, backwards-compatible migrations, graceful shutdown, HTMX error
   handling
 - **Observability**: Structured JSON logs with request context, health check endpoint, audit trail
-- **Testing**: PostgreSQL for all tests with `_test` database suffix (auto-derived from `DATABASE_URL`). Test database auto-created if needed
+- **Testing**: PostgreSQL for all tests with `_test` database suffix (auto-derived from `DATABASE_URL`).
+  Test database auto-created if needed
 
 **Scale & Complexity:**
 
