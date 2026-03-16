@@ -1,9 +1,9 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
-from app.domain.models import UserBase
+from app.domain.models import GroupBase, MemberRole, UserBase
 
 # SQLModel.metadata serves as the declarative base for Alembic migrations.
 # Table models (XxxRow) inherit from domain models with table=True.
@@ -26,6 +26,34 @@ class UserRow(UserBase, table=True):
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)
 
+    memberships: list["MembershipRow"] = Relationship(back_populates="user")
+
+
+class GroupRow(GroupBase, table=True):
+    """ORM model for Group — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "groups"
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+    members: list["MembershipRow"] = Relationship(back_populates="group")
+
+
+class MembershipRow(SQLModel, table=True):
+    """User-Group membership join table with role."""
+
+    __tablename__ = "group_memberships"
+
+    user_id: int = Field(foreign_key="users.id", primary_key=True)
+    group_id: int = Field(foreign_key="groups.id", primary_key=True)
+    role: MemberRole = Field(default=MemberRole.USER)
+    joined_at: datetime = Field(default_factory=_utc_now)
+
+    user: UserRow = Relationship(back_populates="memberships")
+    group: GroupRow = Relationship(back_populates="members")
+
 
 # Re-export SQLModel for Alembic env.py
-__all__ = ["SQLModel", "UserRow"]
+__all__ = ["SQLModel", "UserRow", "GroupRow", "MembershipRow"]

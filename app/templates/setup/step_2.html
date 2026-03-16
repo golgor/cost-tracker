@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Create Household - Cost Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <!-- Step indicator -->
+  <div class="mb-8">
+    <div class="flex items-center justify-center gap-2 text-sm text-neutral-600">
+      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500 text-white font-medium">✓</span>
+      <span class="w-8 h-0.5 bg-primary-500"></span>
+      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500 text-white font-medium">2</span>
+      <span class="w-8 h-0.5 bg-neutral-300"></span>
+      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 text-neutral-500 font-medium">3</span>
+    </div>
+    <p class="text-center text-sm text-neutral-500 mt-2">Step {{ current_step }} of {{ total_steps }}</p>
+  </div>
+
+  <!-- Card -->
+  <div class="bg-white rounded-2xl shadow-card p-6 md:p-8">
+    <h1 class="text-2xl font-bold text-neutral-900 mb-2">Set up your household</h1>
+    <p class="text-neutral-600 mb-6">Give your household a name. This helps identify your expense group.</p>
+
+    <form method="POST" action="/setup/step-2" class="space-y-6">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      
+      <!-- Household name input -->
+      <div>
+        <label for="household_name" class="block text-sm font-medium text-neutral-700 mb-1">
+          Household name
+        </label>
+        <input
+          type="text"
+          id="household_name"
+          name="household_name"
+          value="{{ household_name | default('') }}"
+          placeholder="e.g., Home, Family, Apartment"
+          class="w-full px-4 py-3 rounded-lg border {% if errors.household_name %}border-red-500{% else %}border-neutral-300{% endif %} focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          required
+          autofocus
+        >
+        {% if errors.household_name %}
+        <p class="mt-1 text-sm text-red-600">{{ errors.household_name }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Navigation buttons -->
+      <div class="flex gap-3">
+        <a href="/setup/step-1" class="flex-1 btn-secondary py-3 text-center font-semibold">
+          ← Back
+        </a>
+        <button type="submit" class="flex-1 btn-primary py-3 font-semibold">
+          Continue →
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

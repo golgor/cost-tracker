@@ -16,3 +16,7 @@
   - QA Automation (QA) — bmad-bmm-qa-automate — 🧪 Quinn (QA Engineer) — Generate automated tests
   - Code Review (CR) — bmad-bmm-code-review — 💻 Amelia (Developer Agent) — Review implementation
   - Tests?
+
+- bmad-create-story
+- bmad-dev-story
+- bmad-code-review
