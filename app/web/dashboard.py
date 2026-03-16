@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.dependencies import get_current_user_id, get_db_session, get_uow
+from app.dependencies import get_current_user_id, get_uow
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="app/templates")

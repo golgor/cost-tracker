@@ -7,7 +7,7 @@ from starlette.responses import HTMLResponse
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
-from app.dependencies import get_db_session, get_uow
+from app.dependencies import get_uow
 from app.settings import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])

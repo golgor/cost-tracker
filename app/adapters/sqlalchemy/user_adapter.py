@@ -29,9 +29,7 @@ class SqlAlchemyUserAdapter:
 
     def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
         """Create or update a user. Returns the persisted user."""
-        existing = self._session.exec(
-            select(UserRow).where(UserRow.oidc_sub == oidc_sub)
-        ).first()
+        existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).first()
 
         if existing:
             existing.email = email
