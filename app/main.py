@@ -51,12 +51,20 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
 
-@app.get("/health")
-async def health(session: DbSession) -> dict:
-    """Health check endpoint - public, no auth required."""
+@app.get("/health/live")
+async def liveness() -> dict:
+    """Liveness probe - is the app running? Shallow check, no dependencies."""
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+async def readiness(session: DbSession) -> dict | JSONResponse:
+    """Readiness probe - can the app handle traffic? Verifies DB connectivity."""
     try:
         session.connection().execute(text("SELECT 1"))
-        db_status = "connected"
+        return {"status": "ok", "database": "connected"}
     except Exception:
-        db_status = "disconnected"
-    return {"status": "ok", "database": db_status}
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unavailable", "database": "disconnected"},
+        )
