@@ -8,7 +8,7 @@ oauth.register(
     name="authentik",
     client_id=settings.OIDC_CLIENT_ID,
     client_secret=settings.OIDC_CLIENT_SECRET,
-    server_metadata_url=f"{settings.OIDC_ISSUER}/.well-known/openid-configuration",
+    server_metadata_url=f"{settings.OIDC_ISSUER.rstrip('/')}/.well-known/openid-configuration",
     client_kwargs={"scope": "openid profile email"},
 )
 
