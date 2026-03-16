@@ -1,0 +1,252 @@
+# Core Architectural Decisions
+
+## Decision Priority Analysis
+
+**Critical Decisions (Block Implementation):**
+- ORM mapping style: Declarative with domain/ORM separation via adapter pattern
+- Session-based transactions mapped to UnitOfWork port
+- Port/adapter naming: `XxxPort` (domain), `SqlAlchemyXxxAdapter` (infrastructure), `XxxRow` (ORM internal)
+- Authorization split: group membership as FastAPI dependency, business rules in use cases
+- Sync SQLAlchemy for MVP
+
+**Important Decisions (Shape Architecture):**
+- `uv` for fast, reproducible Python dependency management (`uv.lock` committed)
+- Alembic for database migrations (auto-generated from declarative models, always manually reviewed)
+- `pydantic-settings` for environment configuration
+- `structlog` for logging (JSON in production, console in dev, switchable by `LOG_FORMAT` env var)
+- FastAPI exception handlers for domain error to HTTP response mapping
+- Swagger UI enabled behind OIDC authentication
+- Jinja2 templates nested by domain area, `_` prefix for HTMX partials
+- `mise` for local dev task running and tool version management
+- Structured logging in all environments
+- CI workflows split by path filters
+- View queries in `adapters/sqlalchemy/queries.py` (read-only, enforced by architectural test)
+
+**Deferred Decisions (Post-MVP):**
+- API key authentication (evaluate Authentik client_credentials flow)
+- API route layer (`/api/v1/`) — architecture supports adding later without domain changes
+- Rate limiting
+- Caching strategy
+- CORS (not needed — same-origin browser + non-browser API clients)
+
+## Data Architecture
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Database | PostgreSQL (external Proxmox VM) | Already decided in PRD |
+| ORM | SQLModel (SQLAlchemy + Pydantic) | Domain models as `SQLModel` base classes; `XxxRow` inherits with `table=True` |
+| Transaction management | SQLAlchemy `Session` via `UnitOfWork` port | Tracks changes, commits atomically. Maps naturally to domain UoW |
+| Migrations | Alembic (auto-generate + manual review) | Standard for SQLAlchemy. Never blind upgrade — always review generated migrations |
+| Configuration | `pydantic-settings` | Reads env vars, validates types, fails fast. `.env` for local dev (gitignored), `.env.example` committed |
+| Caching | Deferred | Not needed for MVP |
+
+**Adapter Pattern (not Repository Pattern):**
+- Ports define what the domain needs: `ExpensePort(Protocol)`
+- Adapters implement ports using infrastructure: `SqlAlchemyExpenseAdapter`
+- ORM models (`ExpenseRow(DomainBase, table=True)`) inherit from domain base classes
+- Mapping via `.model_validate()` — no manual `_to_domain()` / `_to_row()` helpers needed
+
+**View Queries (`adapters/sqlalchemy/queries.py`):**
+- Read-only queries for dashboard, search, and summary views
+- Can use joins and aggregations for optimized reads
+- Must not contain `session.add()`, `session.delete()`, or `session.commit()`
+- Enforced by architectural test
+
+Example — view query vs. port usage:
+```python
+# adapters/sqlalchemy/queries.py — view query (read-only, optimized for display)
+def get_dashboard_summary(session: Session, group_id: int) -> DashboardData:
+    """Joins expenses + users for dashboard display. Not domain logic."""
+    rows = session.execute(
+        select(ExpenseRow, UserRow.display_name)
+        .join(UserRow, ExpenseRow.payer_id == UserRow.id)
+        .where(ExpenseRow.group_id == group_id, ExpenseRow.settlement_id.is_(None))
+    ).all()
+    return DashboardData(...)
+
+# domain/ports.py — port method (domain-significant operation)
+class ExpensePort(Protocol):
+    def get_for_settlement(self, expense_ids: list[int]) -> list[Expense]:
+        """Used by settlement use case. Domain operation, not a view."""
+        ...
+```
+
+## Authentication & Security
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Browser auth | OIDC via Authentik + Authlib, signed cookie (user_id + issued_at) | No tokens stored |
+| API auth | Deferred post-MVP (evaluate Authentik client_credentials) | Browser-first MVP |
+| Authorization — membership | FastAPI dependency resolves user + group context | Infrastructure concern |
+| Authorization — business rules | Checked in use cases | Domain logic in domain layer |
+| CSRF | Browser mutations only (HTMX + form POST) | API uses separate auth path |
+| CORS | Disabled (default deny) | Same-origin browser, non-browser API clients |
+
+## API & Communication Patterns
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| API style | REST at `/api/v1/` (deferred post-MVP) | Use cases ready, route layer added later |
+| HTMX style | View-oriented fragments at shared page paths | Optimized for UI |
+| API docs | Swagger UI at `/docs`, publicly viewable. API execution requires OIDC auth | Open-source project, no secrets in endpoint definitions |
+| Error handling | FastAPI exception handlers mapping domain errors to HTTP | Per-layer response format (JSON for API, HTML fragment for HTMX) |
+| Rate limiting | Deferred | Not needed at MVP scale |
+| Versioning | `/api/v1/` prefix by convention | No versioning infrastructure needed |
+
+## Frontend Architecture
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Rendering | Jinja2 server-side + HTMX partial swaps | No JavaScript framework, no Node.js |
+| Template organization | Nested by domain area, `_` prefix for partials | Visual clarity, grouped by feature |
+| Styling | Tailwind CSS, CLI build at Docker build time | No Node.js runtime dependency |
+| HTMX versioning | Vendored in `static/`, version comment in file | Manual updates, self-contained |
+| Dev tooling | `mise` (tasks + tool version management) | Runs tailwind watch + uvicorn reload |
+| HTMX error handling | Single `_error.html` partial + global `hx-on::response-error` in `base.html` | Consistent error display across all HTMX requests |
+
+## Infrastructure & Deployment
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Package manager | `uv` (Astral) | Fast, reproducible builds. `uv.lock` committed for deterministic deploys |
+| Python version | Python 3.14 | Latest stable. Docker builder image: `ghcr.io/astral-sh/uv:python3.14-bookworm-slim` |
+| Container | Single Docker image to GHCR | Multi-stage build: Tailwind CSS + app + dependencies. `uv sync --locked` for reproducibility |
+| Orchestration | ArgoCD to k3s | Already decided |
+| Database hosting | External PostgreSQL (Proxmox VM) | Separate from k3s cluster |
+| Logging | `structlog` — JSON in production, console in dev (`LOG_FORMAT` env var) | Same structured data, format switchable |
+| CI/CD | GitHub Actions, split by path filters | Code (pytest/ruff/ty), Docs (markdownlint), Docker (build/push) |
+| Health check | `/health` endpoint | K8s liveness/readiness probe |
+| Sync/Async | Sync SQLAlchemy for MVP | Simpler, sufficient for scale. Async is localized future change (adapter layer only) |
+
+## Layer Import Rules
+
+| Layer | Allowed Imports |
+|---|---|
+| `domain/` | stdlib + external validation libs (sqlmodel, pydantic, typing, decimal, datetime, enum). NO internal app imports. |
+| `adapters/` | domain + sqlmodel + structlog |
+| `auth/` | fastapi + authlib + pydantic |
+| `web/` | fastapi + jinja2 + domain (models/errors for type hints) |
+| `api/v1/` | fastapi + pydantic + domain (models/errors) |
+| `dependencies.py` | everything (composition root) |
+
+Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure logging (request timing, DB query stats) happens in middleware and adapters only. Domain models use SQLModel for validation; ORM models inherit from domain models with `table=True`.
+
+## Testing Strategy (Updated)
+
+- **Unit tests** (`@pytest.mark.unit`, SQLAlchemy + SQLite in-memory): Domain logic through real adapters, split calculations, validation, state transitions
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL in CI): Settlement concurrency (`SELECT FOR UPDATE`), unique constraint idempotency, transactional rollback
+- **Contract tests** (`@pytest.mark.contract`, no DB needed): Verify ORM models inherit all domain base fields correctly
+- **Architectural tests** (`architecture_test.py`): Domain import purity (AST-based), `queries.py` read-only enforcement
+- **CI schema drift check**: After `alembic upgrade head`, verify schema matches `Base.metadata.create_all()` output
+- **End-to-end**: Full request cycle through routes to use cases to adapters to DB
+
+## Architectural Guardrails (Consolidated)
+
+| # | Risk | Prevention | Check When |
+|---|------|-----------|------------|
+| 1 | ~~Mapping tax kills velocity~~ | Eliminated by SQLModel inheritance pattern (ADR-011) | N/A |
+| 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new port method |
+| 3 | SQLite/PostgreSQL divergence | Integration tests for transactions/constraints | Every test touching commit/rollback |
+| 4 | Framework leaking into domain | AST-based `architecture_test.py` in CI | Every PR |
+| 5 | UoW scope creep | UoW = repos + commit + rollback, nothing more | Every UoW change |
+| 6 | `.env` secrets leak | `.gitignore`, `.env.example`, log config source on startup | Project setup |
+| 7 | Migration/ORM schema drift | CI: compare Alembic output to `create_all()` | Every migration |
+| 8 | `queries.py` write creep | Architectural test for read-only enforcement | Every `queries.py` change |
+| 9 | Inconsistent HTMX errors | Single global handler + `_error.html` partial | Every HTMX endpoint |
+| 10 | `dependencies.py` god file | Split by feature if >100 lines | When file grows |
+| 11 | ~~Mapping field drift~~ | Eliminated by SQLModel inheritance — ORM inherits from domain | N/A |
+
+## Decision Impact Analysis
+
+**Implementation Sequence** (aligned with PRD Phase 1 MVP):
+1. Project scaffolding (directory structure, `mise` config, `pyproject.toml`)
+2. CI pipeline skeleton (GitHub Actions: ruff + pytest on empty test suite)
+3. Domain layer (models, errors, ports, splits)
+4. SQLAlchemy adapters (ORM models, adapters, UnitOfWork, Alembic setup)
+5. Auth infrastructure (OIDC, session middleware, CSRF)
+6. Web route layer (HTMX pages + partials, dependency wiring)
+7. Templates and static assets (Jinja2, HTMX, Tailwind)
+
+Note: Implementation stories should reference PRD Phase 1 scope and feature boundaries, not just architecture layers.
+
+**Cross-Component Dependencies:**
+- Adapters depend on domain ports (by design)
+- Routes depend on `dependencies.py` for adapter wiring
+- Alembic depends on ORM models in `adapters/sqlalchemy/orm_models.py`
+- CI workflows depend on project structure being established
+- Contract tests depend on both domain models and ORM models existing
+
+## Architecture Decision Records
+
+### ADR-001: Ports & Adapters (Hexagonal Architecture)
+**Status:** Accepted (Amended 2026-03-16)
+**Context:** Need clean separation between business logic and infrastructure for long-term scalability.
+**Decision:** Domain layer uses `Protocol` interfaces (ports). Adapters implement ports using SQLModel/SQLAlchemy. Domain may import external validation libraries (SQLModel, Pydantic) but must not import internal application modules (adapters, web, auth, api).
+**Consequences:** Cleaner testability. Use cases reusable across route layers. Framework changes localized to adapters. External validation libs in domain enable SQLModel pattern (see ADR-011).
+
+### ADR-002: Declarative ORM with Adapter Separation
+**Status:** Superseded by ADR-011 (2026-03-16)
+**Context:** Need ORM for migration support. Imperative mapping has sparse documentation.
+**Decision:** ~~Declarative `XxxRow(Base)` models internal to adapters. Domain models are `@dataclass`. Each adapter contains `_to_domain()` / `_to_row()` helpers.~~
+**Consequences:** ~~Two models per entity + mapping functions.~~ See ADR-011 for current approach.
+
+### ADR-003: UnitOfWork as Domain Port
+**Status:** Accepted
+**Context:** Settlement flow requires atomic operations across expenses + settlements + audit.
+**Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single `Session`.
+**Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection.
+
+### ADR-004: Audit Logging as Domain Concern
+**Status:** Accepted
+**Context:** Audit trail is a business requirement (FR43-44), not infrastructure.
+**Decision:** `AuditPort` on UnitOfWork. Use cases call `uow.audit.log()` explicitly. Atomic with data changes.
+**Consequences:** Audit calls visible in use case code. No complex event infrastructure.
+
+### ADR-005: Sync SQLAlchemy for MVP
+**Status:** Accepted
+**Context:** FastAPI supports async but sync is simpler for ~2-5 concurrent users.
+**Decision:** Sync everywhere for MVP. Async migration is localized to adapter layer if needed later.
+**Consequences:** Simpler code, easier debugging. Ports don't change if async is adopted later.
+
+### ADR-006: View Queries Bypass Domain Ports
+**Status:** Accepted
+**Context:** Dashboard queries need joins/aggregations. Creating ports for every read would cause protocol explosion.
+**Decision:** `adapters/sqlalchemy/queries.py` for read-only view queries. Routes import directly. Writes always go through domain ports.
+**Consequences:** Controlled bypass of hexagonal boundary. Enforced read-only by architectural test.
+
+### ADR-007: API Routes Deferred Past MVP
+**Status:** Accepted
+**Context:** MVP is browser-first. Ports & adapters makes adding API consumers trivial.
+**Decision:** HTMX/page routes for MVP. `/api/v1/` added as separate phase.
+**Consequences:** Faster MVP delivery. No domain changes needed when API is added.
+
+### ADR-008: Structured Logging with structlog
+**Status:** Accepted
+**Context:** Need machine-parseable logs in production and readable logs in dev.
+**Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors or uses AuditPort.
+**Consequences:** One library, two output modes. Infrastructure logging in middleware/adapters only.
+
+### ADR-009: Split CI Workflows by Path
+**Status:** Accepted
+**Context:** Running all checks on every push wastes time.
+**Decision:** Three workflows with `paths:` filters: Code, Docs, Docker. Schema drift check in Code workflow.
+**Consequences:** Faster CI feedback. Path filters must cover all relevant files.
+
+### ADR-010: pydantic-settings for Configuration
+**Status:** Accepted
+**Context:** App runs on k3s with env vars from Secrets/ConfigMaps.
+**Decision:** Single `Settings` class via `pydantic-settings`. `.env` for local dev (gitignored). `.env.example` committed.
+**Consequences:** Simple, standard. Fails fast on missing config.
+
+### ADR-011: SQLModel for Domain and ORM Models
+**Status:** Accepted (2026-03-16)
+**Context:** ADR-002 required separate domain dataclasses and ORM Row models with manual mapping. SQLModel unifies these while maintaining separation via `table=True` flag.
+**Decision:**
+- Domain models: `SQLModel` classes without `table=True` (pure data + validation)
+- ORM models: `SQLModel` classes with `table=True`, inheriting from domain models
+- Mapping: Use `.model_validate()` instead of manual `_to_domain()`/`_to_row()`
+**Consequences:**
+- Single field definition per entity (in domain base class)
+- ORM models inherit and add DB-specific fields (id, timestamps, foreign keys)
+- Reduced code duplication. Contract tests simplified (inheritance ensures field consistency)
+- Domain now depends on SQLModel (external library) — acceptable per amended ADR-001
