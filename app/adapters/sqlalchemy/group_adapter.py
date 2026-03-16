@@ -35,11 +35,7 @@ class SqlAlchemyGroupAdapter:
 
     def get_by_user_id(self, user_id: int) -> GroupPublic | None:
         """Retrieve group that user belongs to (MVP1: single household)."""
-        statement = (
-            select(GroupRow)
-            .join(MembershipRow)
-            .where(MembershipRow.user_id == user_id)
-        )
+        statement = select(GroupRow).join(MembershipRow).where(MembershipRow.user_id == user_id)
         row = self._session.exec(statement).first()
         if row is None:
             return None
@@ -47,7 +43,7 @@ class SqlAlchemyGroupAdapter:
 
     def get_default_group(self) -> GroupPublic | None:
         """Get the default/only household group (MVP1: single household)."""
-        statement = select(GroupRow).order_by(GroupRow.id.asc()).limit(1)
+        statement = select(GroupRow).limit(1)
         row = self._session.exec(statement).first()
         if row is None:
             return None
@@ -136,11 +132,7 @@ class SqlAlchemyGroupAdapter:
 
     def has_active_admin(self) -> bool:
         """Check if any active admin exists in the system (admin bootstrap trigger)."""
-        statement = (
-            select(MembershipRow)
-            .where(MembershipRow.role == MemberRole.ADMIN)
-            .limit(1)
-        )
+        statement = select(MembershipRow).where(MembershipRow.role == MemberRole.ADMIN).limit(1)
         row = self._session.exec(statement).first()
         return row is not None
 
@@ -150,7 +142,8 @@ class SqlAlchemyGroupAdapter:
             MembershipRow.user_id == user_id,
             MembershipRow.group_id == group_id,
         )
-        return self._session.exec(statement).first()
+        role = self._session.exec(statement).first()
+        return role if isinstance(role, MemberRole) else None
 
     def _to_public(self, row: GroupRow) -> GroupPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
