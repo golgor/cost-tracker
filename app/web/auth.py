@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated
 
+from authlib.integrations.base_client.errors import MismatchingStateError
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -45,6 +46,13 @@ async def callback(request: Request, uow: UowDep):
 
     try:
         token = await oauth.authentik.authorize_access_token(request)
+    except MismatchingStateError:
+        # Stale session cookie - clear it and restart login flow
+        logger.warning("OAuth state mismatch - clearing session and restarting login")
+        response = RedirectResponse("/auth/login", status_code=302)
+        response.delete_cookie("session", path="/")
+        response.delete_cookie("cost_tracker_session", path="/")
+        return response
     except Exception as e:
         logger.error("OIDC callback failed: %s", e, exc_info=True)
         return templates.TemplateResponse(
