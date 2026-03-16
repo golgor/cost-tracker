@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Custom theme tokens go here using @theme {} blocks.
+   Tailwind v4 uses CSS-first config — no tailwind.config.js needed.
+   Content detection is automatic.
+*/
+
+@theme {
+  /* Example: override default font family
+  --font-sans: 'Inter', sans-serif;
+  */
+}
