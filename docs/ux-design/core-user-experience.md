@@ -148,7 +148,7 @@ continued use.
 The following decisions surfaced during core experience definition and need resolution during screen-level design:
 
 | # | Question | Affects | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Amount field decimal handling — does "47" mean 47.00? How is "47.5" handled? | Capture loop | Micro-interaction, every expense entry |
 | 2 | Mobile form presentation — bottom sheet, modal overlay, or full page? | Capture loop | Bottom sheet keeps feed visible for self-confirmation |
 | 3 | Home screen — dashboard confirmed as landing page (supports check-in loop) | All loops | Three-loop model argues for dashboard-as-home |

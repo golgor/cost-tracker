@@ -124,7 +124,7 @@ class UnitOfWork(Protocol):
 **Architectural Guardrails (from Pre-mortem Analysis):**
 
 | # | Risk | Prevention | Check When |
-|---|------|-----------|------------|
+| --- | ------ | ----------- | ------------ |
 | 1 | Mapping tax kills velocity | Keep mappings minimal, co-located in adapter repo files | Every new field/model |
 | 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new repo method |
 | 3 | SQLite/PostgreSQL divergence | Integration tests for transactions/constraints, unit tests for logic | Every test touching commit/rollback |

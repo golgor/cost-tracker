@@ -213,7 +213,7 @@ in `alembic/env.py`.
 **Feature Mapping:**
 
 | FR Category | Domain | Adapters | Routes | Templates |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Expense Management (FR1-FR8, FR46) | `use_cases/expenses.py`, `models.py`, `ports.py` | `expense_adapter.py`, `queries/expense_queries.py` | `web/expenses.py` | `expenses/` |
 | Split & Balance (FR9-FR12) | `splits.py` | `queries/dashboard_queries.py` | `web/dashboard.py` | `dashboard/_balance_summary.html` |
 | Settlement (FR13-FR22) | `use_cases/settlements.py`, `ports.py` | `settlement_adapter.py`, `queries/settlement_queries.py` | `web/settlements.py` | `settlements/` |
@@ -225,7 +225,7 @@ in `alembic/env.py`.
 **Cross-Cutting Concerns Mapping:**
 
 | Concern | Location |
-|---|---|
+| --- | --- |
 | Authentication (OIDC) | `app/auth/oidc.py`, `app/auth/session.py` |
 | Session + CSRF middleware | `app/auth/middleware.py` |
 | Global error handling | `app/main.py` (exception handlers + `DOMAIN_ERROR_MAP`) |

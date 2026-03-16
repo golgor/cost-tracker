@@ -671,7 +671,7 @@ The "Recurring" nav item is introduced in MVP1d when the registry is built. In M
 Additional Jinja2 partials for the recurring cost engine:
 
 | Partial | Purpose | Used In |
-|---|---|---|
+| --- | --- | --- |
 | `_recurring_card.html` | Definition card — icon, name, amount, frequency, who pays, split, normalized monthly cost, pause toggle, auto-generate badge | Registry view |
 | `_recurring_form.html` | Create/edit form — all definition fields with frequency picker and auto-generate toggle | Registry create/edit |
 | `_recurring_widget.html` | Dashboard summary — active count, monthly total, upcoming due dates | Dashboard |

@@ -48,7 +48,7 @@ token configuration in `tailwind.config.js`.
 **Reusable Jinja2 Partials (the "component library"):**
 
 | Partial | Purpose | Used In |
-|---|---|---|
+| --- | --- | --- |
 | `_expense_card.html` | Expense item in feed — location bold, amount, paid-by badge, date, status | Expense feed, settlement review |
 | `_form_input.html` | Styled input field with label, error state, and hint text | Expense form, setup wizard |
 | `_button.html` | Primary, secondary, and danger button variants | All screens |

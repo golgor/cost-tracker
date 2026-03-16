@@ -22,7 +22,7 @@ settlement is what makes the daily logging feel worthwhile.
 ## Emotional Journey Mapping
 
 | Moment | Desired Feeling | Anti-feeling to Avoid |
-|---|---|---|
+| --- | --- | --- |
 | Opening the app (daily capture) | Familiar, quick — like picking up a pen | Dread, "ugh, I have to log this" |
 | Adding an expense | Effortless, reflexive — done before you think about it | Tedious, form-filling, bureaucratic |
 | Opening the dashboard (check-in) | Informed, in control — the picture sticks in a glance | Overwhelmed, confused by too much data |
@@ -52,7 +52,7 @@ settlement is what makes the daily logging feel worthwhile.
 ## Design Implications
 
 | Emotional Goal | UX Approach |
-|---|---|
+| --- | --- |
 | Confidence | Balance bar with names + amounts (always visible, always correct). Live-updating settlement total during review. Split validation that catches errors before save. Settlement history as proof that past settlements were handled correctly. |
 | Effortlessness | Amount + location as the only perceived requirements. Smart defaults that make 90% of expenses a 2-field interaction. Form reset after save for batch flow. FAB always reachable on mobile. |
 | Clarity | Date headers in expense feed for orientation. Paid-by badges for instant recognition. One primary action per screen. Consistent navigation across all views. Descriptive labels on options ("Split: Even") instead of icons or abbreviations. |

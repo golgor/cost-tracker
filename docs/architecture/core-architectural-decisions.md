@@ -35,7 +35,7 @@
 ## Data Architecture
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Database | PostgreSQL (external Proxmox VM) | Already decided in PRD |
 | ORM | SQLModel (SQLAlchemy + Pydantic) | Domain models as `SQLModel` base classes; `XxxRow` inherits with `table=True` |
 | Transaction management | SQLAlchemy `Session` via `UnitOfWork` port | Tracks changes, commits atomically. Maps naturally to domain UoW |
@@ -80,7 +80,7 @@ class ExpensePort(Protocol):
 ## Authentication & Security
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Browser auth | OIDC via Authentik + Authlib, signed cookie (user_id + issued_at) | No tokens stored |
 | API auth | Deferred post-MVP (evaluate Authentik client_credentials) | Browser-first MVP |
 | Authorization — membership | FastAPI dependency resolves user + group context | Infrastructure concern |
@@ -91,7 +91,7 @@ class ExpensePort(Protocol):
 ## API & Communication Patterns
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | API style | REST at `/api/v1/` (deferred post-MVP) | Use cases ready, route layer added later |
 | HTMX style | View-oriented fragments at shared page paths | Optimized for UI |
 | API docs | Swagger UI at `/docs`, publicly viewable. API execution requires OIDC auth | Open-source project, no secrets in endpoint definitions |
@@ -102,7 +102,7 @@ class ExpensePort(Protocol):
 ## Frontend Architecture
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Rendering | Jinja2 server-side + HTMX partial swaps | No JavaScript framework, no Node.js |
 | Template organization | Nested by domain area, `_` prefix for partials | Visual clarity, grouped by feature |
 | Styling | Tailwind CSS, CLI build at Docker build time | No Node.js runtime dependency |
@@ -113,7 +113,7 @@ class ExpensePort(Protocol):
 ## Infrastructure & Deployment
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Package manager | `uv` (Astral) | Fast, reproducible builds. `uv.lock` committed for deterministic deploys |
 | Python version | Python 3.14 | Latest stable. Docker builder image: `ghcr.io/astral-sh/uv:python3.14-bookworm-slim` |
 | Container | Single Docker image to GHCR | Multi-stage build: Tailwind CSS + app + dependencies. `uv sync --locked` for reproducibility |
@@ -127,7 +127,7 @@ class ExpensePort(Protocol):
 ## Layer Import Rules
 
 | Layer | Allowed Imports |
-|---|---|
+| --- | --- |
 | `domain/` | stdlib + external validation libs (sqlmodel, pydantic, typing, decimal, datetime, enum). NO internal app imports. |
 | `adapters/` | domain + sqlmodel + structlog |
 | `auth/` | fastapi + authlib + pydantic |
@@ -153,7 +153,7 @@ models with `table=True`.
 ## Architectural Guardrails (Consolidated)
 
 | # | Risk | Prevention | Check When |
-|---|------|-----------|------------|
+| --- | ------ | ----------- | ------------ |
 | 1 | ~~Mapping tax kills velocity~~ | Eliminated by SQLModel inheritance pattern (ADR-011) | N/A |
 | 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new port method |
 | 3 | SQLite/PostgreSQL divergence | Integration tests for transactions/constraints | Every test touching commit/rollback |

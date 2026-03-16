@@ -100,7 +100,7 @@ layout — not typeface. If a custom font is desired later, Inter is the natural
 **Type Scale:**
 
 | Token | Size | Weight | Use |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `text-2xl` / `text-3xl` | 24-30px | Bold | Amount display on expense cards, balance bar amount |
 | `text-xl` | 20px | Semibold | Page headings, settlement total |
 | `text-lg` | 18px | Medium | Section headings, location/merchant in expense feed |
