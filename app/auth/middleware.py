@@ -32,7 +32,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check session cookie
-        session_cookie = request.cookies.get("session")
+        session_cookie = request.cookies.get("cost_tracker_session")
         if not session_cookie:
             return self._redirect_to_login(request)
 
