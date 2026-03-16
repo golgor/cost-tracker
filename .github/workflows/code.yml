@@ -41,6 +41,20 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: costtracker
+          POSTGRES_PASSWORD: costtracker
+          POSTGRES_DB: costtracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +68,8 @@ jobs:
 
       - name: Run unit tests
         run: uv run pytest tests/ -v --ignore=tests/integration
+        env:
+          DATABASE_URL: postgresql://costtracker:costtracker@localhost:5432/costtracker
 
   integration-test:
     name: Integration Tests (PostgreSQL)
