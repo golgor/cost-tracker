@@ -27,7 +27,7 @@ from sqlmodel import Field, SQLModel  # noqa: F401
 class UserBase(SQLModel):
     """Domain base for User — validation + business data. No table."""
 
-    oidc_sub: str = Field(index=True, description="OIDC subject identifier (unique per provider)")
+    oidc_sub: str = Field(index=True, unique=True)
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
 

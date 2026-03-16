@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import UserRow
@@ -48,7 +49,19 @@ class SqlAlchemyUserAdapter:
             display_name=display_name,
         )
         self._session.add(row)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError:
+            # Race condition: a concurrent request inserted the same oidc_sub.
+            # Roll back to a clean state and update the existing row instead.
+            self._session.rollback()
+            existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).one()
+            existing.email = email
+            existing.display_name = display_name
+            existing.updated_at = datetime.now(UTC)
+            self._session.add(existing)
+            self._session.flush()
+            return self._to_public(existing)
         return self._to_public(row)
 
     def _to_public(self, row: UserRow) -> UserPublic:
