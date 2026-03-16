@@ -82,8 +82,9 @@ async def callback(request: Request, uow: UowDep):
     # Redirect to dashboard (or setup wizard in future story 1.4)
     response = RedirectResponse("/", status_code=302)
     response.set_cookie(
-        "session",
+        "cost_tracker_session",
         session_value,
+        path="/",
         httponly=True,
         samesite="lax",
         secure=settings.is_production,
@@ -97,6 +98,6 @@ async def callback(request: Request, uow: UowDep):
 async def logout():
     """Clear session and redirect to login."""
     response = RedirectResponse("/auth/login", status_code=302)
-    response.delete_cookie("session")
+    response.delete_cookie("cost_tracker_session", path="/")
     response.delete_cookie("csrf_token")
     return response
