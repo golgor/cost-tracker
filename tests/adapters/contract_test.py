@@ -3,11 +3,12 @@
 Verifies that domain models can be persisted and retrieved without data loss.
 """
 
-import pytest
 from sqlalchemy.orm import Session
 
-from app.adapters.sqlalchemy.orm_models import UserRow
+from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
+from app.adapters.sqlalchemy.orm_models import MembershipRow, UserRow
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
+from app.domain.models import MemberRole, SplitType
 
 
 class TestUserAdapterContract:
@@ -110,3 +111,122 @@ class TestUserAdapterContract:
         # Should be UserPublic, not UserRow
         assert type(retrieved).__name__ == "UserPublic"
         assert not isinstance(retrieved, UserRow)
+
+
+class TestGroupAdapterContract:
+    """Contract tests for Group adapter round-trip mapping."""
+
+    def test_save_and_retrieve_group_by_id(self, db_session: Session):
+        """Group can be saved and retrieved by ID with all fields preserved."""
+        adapter = SqlAlchemyGroupAdapter(db_session)
+
+        group = adapter.save(
+            name="Home",
+            default_currency="EUR",
+            default_split_type=SplitType.EVEN,
+            tracking_threshold=45,
+        )
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(group.id)
+
+        assert retrieved is not None
+        assert retrieved.id == group.id
+        assert retrieved.name == "Home"
+        assert retrieved.default_currency == "EUR"
+        assert retrieved.default_split_type == SplitType.EVEN
+        assert retrieved.tracking_threshold == 45
+        assert retrieved.created_at is not None
+        assert retrieved.updated_at is not None
+
+    def test_get_default_group_returns_singleton_group(self, db_session: Session):
+        """Default group returns the first/only persisted household group."""
+        adapter = SqlAlchemyGroupAdapter(db_session)
+
+        created = adapter.save(name="Family")
+        db_session.commit()
+
+        default_group = adapter.get_default_group()
+
+        assert default_group is not None
+        assert default_group.id == created.id
+        assert default_group.name == "Family"
+
+    def test_add_member_and_get_membership_round_trip(self, db_session: Session):
+        """Membership can be added and retrieved with role/joined_at preserved."""
+        user_adapter = SqlAlchemyUserAdapter(db_session)
+        group_adapter = SqlAlchemyGroupAdapter(db_session)
+
+        user = user_adapter.save(
+            oidc_sub="auth0|member_contract",
+            email="member@example.com",
+            display_name="Member User",
+        )
+        group = group_adapter.save(name="Apartment")
+        db_session.commit()
+
+        membership = group_adapter.add_member(group.id, user.id, MemberRole.ADMIN)
+        db_session.commit()
+
+        retrieved = group_adapter.get_membership(user.id, group.id)
+
+        assert retrieved is not None
+        assert membership.user_id == user.id
+        assert membership.group_id == group.id
+        assert membership.role == MemberRole.ADMIN
+        assert membership.joined_at is not None
+        assert retrieved.user_id == user.id
+        assert retrieved.group_id == group.id
+        assert retrieved.role == MemberRole.ADMIN
+        assert retrieved.joined_at is not None
+
+    def test_get_by_user_id_returns_users_group(self, db_session: Session):
+        """Group can be resolved from user membership."""
+        user_adapter = SqlAlchemyUserAdapter(db_session)
+        group_adapter = SqlAlchemyGroupAdapter(db_session)
+
+        user = user_adapter.save(
+            oidc_sub="auth0|lookup_by_user",
+            email="lookup@example.com",
+            display_name="Lookup User",
+        )
+        group = group_adapter.save(name="Household")
+        group_adapter.add_member(group.id, user.id, MemberRole.USER)
+        db_session.commit()
+
+        retrieved_group = group_adapter.get_by_user_id(user.id)
+
+        assert retrieved_group is not None
+        assert retrieved_group.id == group.id
+        assert retrieved_group.name == "Household"
+
+    def test_group_row_never_leaves_adapter(self, db_session: Session):
+        """Group adapter returns GroupPublic, not GroupRow."""
+        adapter = SqlAlchemyGroupAdapter(db_session)
+
+        group = adapter.save(name="Boundary Group")
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(group.id)
+
+        assert retrieved is not None
+        assert type(retrieved).__name__ == "GroupPublic"
+
+    def test_membership_row_never_leaves_adapter(self, db_session: Session):
+        """Membership adapter method returns MembershipPublic, not MembershipRow."""
+        user_adapter = SqlAlchemyUserAdapter(db_session)
+        group_adapter = SqlAlchemyGroupAdapter(db_session)
+
+        user = user_adapter.save(
+            oidc_sub="auth0|membership_boundary",
+            email="membership-boundary@example.com",
+            display_name="Membership Boundary",
+        )
+        group = group_adapter.save(name="Boundary Household")
+        db_session.commit()
+
+        membership = group_adapter.add_member(group.id, user.id, MemberRole.USER)
+        db_session.commit()
+
+        assert type(membership).__name__ == "MembershipPublic"
+        assert not isinstance(membership, MembershipRow)

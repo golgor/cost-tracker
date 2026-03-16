@@ -7,7 +7,13 @@ from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
-from app.domain.models import MemberRole, SplitType
+from app.domain.errors import (
+    DuplicateHouseholdError,
+    DuplicateMembershipError,
+    UnauthorizedGroupActionError,
+)
+from app.domain.models import SplitType
+from app.domain.use_cases import groups as group_use_cases
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +118,11 @@ async def setup_step_2_post(
         return RedirectResponse("/", status_code=302)
 
     errors = {}
-    if not household_name or len(household_name.strip()) < 2:
+    normalized_household_name = household_name.strip()
+    if not normalized_household_name or len(normalized_household_name) < 2:
         errors["household_name"] = "Household name must be at least 2 characters"
+    elif len(normalized_household_name) > 100:
+        errors["household_name"] = "Household name must be at most 100 characters"
 
     if errors:
         return templates.TemplateResponse(
@@ -129,23 +138,22 @@ async def setup_step_2_post(
             },
         )
 
-    if uow.groups.has_active_admin():
-        group = uow.groups.get_default_group()
-        if group:
-            uow.groups.add_member(group.id, user_id, MemberRole.USER)
-            uow.commit()
-            logger.info("User %d joined existing group %d as USER (race condition)", user_id, group.id)
+    try:
+        group = group_use_cases.create_household(
+            uow=uow,
+            user_id=user_id,
+            name=normalized_household_name,
+            default_currency="EUR",
+            default_split_type=SplitType.EVEN,
+        )
+    except (DuplicateHouseholdError, DuplicateMembershipError):
+        # Idempotent behavior for concurrent setup/login flows.
+        group = uow.groups.get_by_user_id(user_id)
+        if group is not None:
             return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/setup/step-1", status_code=302)
 
-    group = uow.groups.save(
-        name=household_name.strip(),
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.groups.add_member(group.id, user_id, MemberRole.ADMIN)
-    uow.commit()
-
-    logger.info("User %d created household '%s' (group %d) as ADMIN", user_id, household_name, group.id)
+    logger.info("User %d completed household creation for group %d", user_id, group.id)
 
     return RedirectResponse("/setup/step-3", status_code=302)
 
@@ -184,6 +192,7 @@ async def setup_step_3_post(
     uow: UowDep,
     default_currency: str = Form(...),
     default_split_type: str = Form(...),
+    tracking_threshold: int = Form(...),
 ):
     """Step 3: Save configuration and redirect to dashboard."""
     user = uow.users.get_by_id(user_id)
@@ -204,6 +213,9 @@ async def setup_step_3_post(
         errors["default_split_type"] = "Invalid split type selected"
         split_type = SplitType.EVEN
 
+    if tracking_threshold < 1 or tracking_threshold > 365:
+        errors["tracking_threshold"] = "Tracking threshold must be between 1 and 365"
+
     if errors:
         return templates.TemplateResponse(
             "setup/step_3.html",
@@ -219,15 +231,22 @@ async def setup_step_3_post(
                 "errors": errors,
                 "default_currency": default_currency,
                 "default_split_type": default_split_type,
+                "tracking_threshold": tracking_threshold,
             },
         )
 
-    uow.groups.update(
-        group_id=group.id,
-        default_currency=default_currency,
-        default_split_type=split_type,
-    )
-    uow.commit()
+    try:
+        group_use_cases.update_group_defaults(
+            uow=uow,
+            actor_user_id=user_id,
+            group_id=group.id,
+            default_currency=default_currency,
+            default_split_type=split_type,
+            tracking_threshold=tracking_threshold,
+        )
+        uow.commit()
+    except UnauthorizedGroupActionError:
+        return RedirectResponse("/", status_code=302)
 
     logger.info("User %d completed setup wizard for group %d", user_id, group.id)
 

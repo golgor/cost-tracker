@@ -26,9 +26,12 @@ def upgrade() -> None:
     sa.Column('default_currency', sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
     sa.Column('default_split_type', sa.Enum('EVEN', name='splittype'), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('singleton_guard', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+    sa.Column('tracking_threshold', sa.Integer(), nullable=False, server_default=sa.text('30')),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('singleton_guard', name='uq_groups_singleton_guard')
     )
     op.create_table('group_memberships',
     sa.Column('user_id', sa.Integer(), nullable=False),

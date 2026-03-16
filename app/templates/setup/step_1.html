@@ -1,53 +1,91 @@
-{% extends "base.html" %}
-
-{% block title %}Welcome - Cost Tracker{% endblock %}
-
+{% extends "base.html" %} {% block title %}Welcome - Cost Tracker{% endblock %}
 {% block content %}
 <div class="max-w-md mx-auto">
-  <!-- Step indicator -->
-  <div class="mb-8">
-    <div class="flex items-center justify-center gap-2 text-sm text-neutral-600">
-      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500 text-white font-medium">1</span>
-      <span class="w-8 h-0.5 bg-neutral-300"></span>
-      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 text-neutral-500 font-medium">2</span>
-      <span class="w-8 h-0.5 bg-neutral-300"></span>
-      <span class="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 text-neutral-500 font-medium">3</span>
-    </div>
-    <p class="text-center text-sm text-neutral-500 mt-2">Step {{ current_step }} of {{ total_steps }}</p>
-  </div>
-
-  <!-- Card -->
-  <div class="bg-white rounded-2xl shadow-card p-6 md:p-8">
-    <h1 class="text-2xl font-bold text-neutral-900 mb-2">Welcome to Cost Tracker!</h1>
-    <p class="text-neutral-600 mb-6">Let's get you set up. First, confirm your profile information.</p>
-
-    <!-- Profile info -->
-    <div class="space-y-4 mb-8">
-      <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">Name</label>
-        <div class="px-4 py-3 bg-neutral-50 rounded-lg text-neutral-900 font-medium">
-          {{ user.display_name }}
+    <!-- Step indicator -->
+    <div class="mb-8">
+        <div
+            class="flex items-center justify-center gap-2 text-sm text-neutral-600"
+        >
+            <span
+                class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500 text-white font-medium"
+                >1</span
+            >
+            <span class="w-8 h-0.5 bg-neutral-300"></span>
+            <span
+                class="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 text-neutral-500 font-medium"
+                >2</span
+            >
+            <span class="w-8 h-0.5 bg-neutral-300"></span>
+            <span
+                class="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 text-neutral-500 font-medium"
+                >3</span
+            >
         </div>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">Email</label>
-        <div class="px-4 py-3 bg-neutral-50 rounded-lg text-neutral-900">
-          {{ user.email }}
-        </div>
-      </div>
+        <p class="text-center text-sm text-neutral-500 mt-2">
+            Step {{ current_step }} of {{ total_steps }}
+        </p>
     </div>
 
-    <p class="text-sm text-neutral-500 mb-6">
-      This information comes from your identity provider. If it's incorrect, please update it there.
-    </p>
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-card p-6 md:p-8">
+        <h1 class="text-2xl font-bold text-neutral-900 mb-2">
+            Welcome to Cost Tracker!
+        </h1>
+        <p class="text-neutral-600 mb-6">
+            Let's get you set up. First, confirm your profile information.
+        </p>
 
-    <!-- Continue button -->
-    <form method="POST" action="/setup/step-1">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="w-full btn-primary py-3 text-lg font-semibold">
-        Continue →
-      </button>
-    </form>
-  </div>
+        <!-- Profile info -->
+        <div class="space-y-4 mb-8">
+            <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1"
+                    >Name</label
+                >
+                <div
+                    class="px-4 py-3 bg-neutral-50 rounded-lg text-neutral-900 font-medium"
+                >
+                    {{ user.display_name }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1"
+                    >Email</label
+                >
+                <div
+                    class="px-4 py-3 bg-neutral-50 rounded-lg text-neutral-900"
+                >
+                    {{ user.email }}
+                </div>
+            </div>
+        </div>
+
+        <p class="text-sm text-neutral-500 mb-6">
+            This information comes from your identity provider. If it's
+            incorrect, please update it there.
+        </p>
+
+        <!-- Navigation buttons -->
+        <div class="flex gap-3">
+            <a
+                href="/auth/logout"
+                class="flex-1 btn-secondary py-3 text-center font-semibold"
+            >
+                ← Back
+            </a>
+            <form method="POST" action="/setup/step-1" class="flex-1">
+                <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token }}"
+                />
+                <button
+                    type="submit"
+                    class="w-full btn-primary py-3 text-lg font-semibold"
+                >
+                    Continue →
+                </button>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

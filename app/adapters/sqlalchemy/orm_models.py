@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -17,30 +19,6 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class UserRow(UserBase, table=True):
-    """ORM model for User — inherits from domain base, adds DB fields."""
-
-    __tablename__ = "users"
-
-    id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=_utc_now)
-    updated_at: datetime = Field(default_factory=_utc_now)
-
-    memberships: list["MembershipRow"] = Relationship(back_populates="user")
-
-
-class GroupRow(GroupBase, table=True):
-    """ORM model for Group — inherits from domain base, adds DB fields."""
-
-    __tablename__ = "groups"
-
-    id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=_utc_now)
-    updated_at: datetime = Field(default_factory=_utc_now)
-
-    members: list["MembershipRow"] = Relationship(back_populates="group")
-
-
 class MembershipRow(SQLModel, table=True):
     """User-Group membership join table with role."""
 
@@ -51,8 +29,26 @@ class MembershipRow(SQLModel, table=True):
     role: MemberRole = Field(default=MemberRole.USER)
     joined_at: datetime = Field(default_factory=_utc_now)
 
-    user: UserRow = Relationship(back_populates="memberships")
-    group: GroupRow = Relationship(back_populates="members")
+
+class UserRow(UserBase, table=True):
+    """ORM model for User — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+
+class GroupRow(GroupBase, table=True):
+    """ORM model for Group — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "groups"
+
+    id: int | None = Field(default=None, primary_key=True)
+    singleton_guard: bool = Field(default=True, unique=True, nullable=False)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
 
 
 # Re-export SQLModel for Alembic env.py

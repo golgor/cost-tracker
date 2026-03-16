@@ -61,6 +61,7 @@ class GroupBase(SQLModel):
     name: str = Field(max_length=100)
     default_currency: str = Field(default="EUR", max_length=3)
     default_split_type: SplitType = Field(default=SplitType.EVEN)
+    tracking_threshold: int = Field(default=30, ge=1, le=365)
 
 
 class GroupPublic(GroupBase):

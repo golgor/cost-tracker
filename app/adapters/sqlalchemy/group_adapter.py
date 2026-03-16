@@ -1,9 +1,15 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow
+from app.domain.errors import (
+    DuplicateHouseholdError,
+    DuplicateMembershipError,
+    GroupNotFoundError,
+)
 from app.domain.models import (
     GroupPublic,
     MemberRole,
@@ -41,7 +47,7 @@ class SqlAlchemyGroupAdapter:
 
     def get_default_group(self) -> GroupPublic | None:
         """Get the default/only household group (MVP1: single household)."""
-        statement = select(GroupRow).limit(1)
+        statement = select(GroupRow).order_by(GroupRow.id.asc()).limit(1)
         row = self._session.exec(statement).first()
         if row is None:
             return None
@@ -52,15 +58,26 @@ class SqlAlchemyGroupAdapter:
         name: str,
         default_currency: str = "EUR",
         default_split_type: SplitType = SplitType.EVEN,
+        tracking_threshold: int = 30,
     ) -> GroupPublic:
         """Create a new group. Returns the persisted group."""
+        # MVP1 invariant: only one household group is allowed.
+        existing = self.get_default_group()
+        if existing is not None:
+            raise DuplicateHouseholdError("Household group already exists")
+
         row = GroupRow(
             name=name,
             default_currency=default_currency,
             default_split_type=default_split_type,
+            tracking_threshold=tracking_threshold,
+            singleton_guard=True,
         )
         self._session.add(row)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as exc:
+            raise DuplicateHouseholdError("Household group already exists") from exc
         return self._to_public(row)
 
     def update(
@@ -69,11 +86,12 @@ class SqlAlchemyGroupAdapter:
         name: str | None = None,
         default_currency: str | None = None,
         default_split_type: SplitType | None = None,
+        tracking_threshold: int | None = None,
     ) -> GroupPublic:
         """Update group configuration. Returns the updated group."""
         row = self._session.get(GroupRow, group_id)
         if row is None:
-            raise ValueError(f"Group {group_id} not found")
+            raise GroupNotFoundError(f"Group {group_id} not found")
 
         if name is not None:
             row.name = name
@@ -81,6 +99,8 @@ class SqlAlchemyGroupAdapter:
             row.default_currency = default_currency
         if default_split_type is not None:
             row.default_split_type = default_split_type
+        if tracking_threshold is not None:
+            row.tracking_threshold = tracking_threshold
 
         row.updated_at = datetime.now(UTC)
         self._session.add(row)
@@ -95,8 +115,13 @@ class SqlAlchemyGroupAdapter:
             role=role,
         )
         self._session.add(membership)
-        self._session.flush()
-        return self._to_membership_public(membership)
+        try:
+            self._session.flush()
+            return self._to_membership_public(membership)
+        except IntegrityError as exc:
+            raise DuplicateMembershipError(
+                f"User {user_id} is already a member of group {group_id}"
+            ) from exc
 
     def get_membership(self, user_id: int, group_id: int) -> MembershipPublic | None:
         """Get membership for a specific user and group."""
@@ -111,9 +136,21 @@ class SqlAlchemyGroupAdapter:
 
     def has_active_admin(self) -> bool:
         """Check if any active admin exists in the system (admin bootstrap trigger)."""
-        statement = select(MembershipRow).where(MembershipRow.role == MemberRole.ADMIN).limit(1)
+        statement = (
+            select(MembershipRow)
+            .where(MembershipRow.role == MemberRole.ADMIN)
+            .limit(1)
+        )
         row = self._session.exec(statement).first()
         return row is not None
+
+    def get_member_role(self, user_id: int, group_id: int) -> MemberRole | None:
+        """Get a user's role within a specific group."""
+        statement = select(MembershipRow.role).where(
+            MembershipRow.user_id == user_id,
+            MembershipRow.group_id == group_id,
+        )
+        return self._session.exec(statement).first()
 
     def _to_public(self, row: GroupRow) -> GroupPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
@@ -122,6 +159,7 @@ class SqlAlchemyGroupAdapter:
             name=row.name,
             default_currency=row.default_currency,
             default_split_type=row.default_split_type,
+            tracking_threshold=row.tracking_threshold,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

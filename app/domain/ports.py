@@ -48,6 +48,7 @@ class GroupPort(Protocol):
         name: str,
         default_currency: str = "EUR",
         default_split_type: SplitType = SplitType.EVEN,
+        tracking_threshold: int = 30,
     ) -> GroupPublic:
         """Create a new group. Returns the persisted group."""
         ...
@@ -58,6 +59,7 @@ class GroupPort(Protocol):
         name: str | None = None,
         default_currency: str | None = None,
         default_split_type: SplitType | None = None,
+        tracking_threshold: int | None = None,
     ) -> GroupPublic:
         """Update group configuration. Returns the updated group."""
         ...
@@ -68,6 +70,10 @@ class GroupPort(Protocol):
 
     def get_membership(self, user_id: int, group_id: int) -> MembershipPublic | None:
         """Get membership for a specific user and group."""
+        ...
+
+    def get_member_role(self, user_id: int, group_id: int) -> MemberRole | None:
+        """Get a user's role within a specific group."""
         ...
 
     def has_active_admin(self) -> bool:
