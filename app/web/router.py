@@ -1,5 +1,9 @@
 from fastapi import APIRouter
 
+from app.web.auth import router as auth_router
+from app.web.dashboard import router as dashboard_router
+
 router = APIRouter()
 
-# Sub-routers will be included here as features are added in subsequent stories.
+router.include_router(auth_router)
+router.include_router(dashboard_router)
