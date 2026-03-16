@@ -8,6 +8,7 @@
 ## Naming Patterns
 
 **Database Naming Conventions:**
+
 - Table names: `snake_case`, **plural** (e.g., `expenses`, `settlements`, `recurring_definitions`, `audit_logs`)
 - Column names: `snake_case` (e.g., `group_id`, `created_at`, `settlement_id`)
 - Foreign key columns: `{referenced_table_singular}_id` (e.g., `expense_id`, `user_id`)
@@ -15,12 +16,14 @@
 - Unique constraints: `uq_{table}_{columns}` (e.g., `uq_recurring_generations_definition_id_billing_period`)
 
 **API Naming Conventions:**
+
 - REST endpoints: **plural** nouns (e.g., `/expenses`, `/settlements`, `/groups`)
 - URL path segments: `snake_case` (e.g., `/recurring_definitions`)
 - Query parameters: `snake_case` (e.g., `?group_id=1&page_size=20`)
 - HTMX endpoints share page paths, distinguished by `HX-Request` header
 
 **Code Naming Conventions:**
+
 - Files: `snake_case.py` (e.g., `expense_adapter.py`, `unit_of_work.py`)
 - Classes: `PascalCase` (e.g., `SqlAlchemyExpenseAdapter`, `ExpenseRow`)
 - Functions/methods: `snake_case` (e.g., `get_unsettled`, `mark_settled`)
@@ -37,6 +40,7 @@
 ## Structure Patterns
 
 **Project Organization:**
+
 - Tests co-located by architectural layer: `tests/domain/`, `tests/adapters/`, `tests/web/`, `tests/integration/`
 - Test file naming: `{module}_test.py` suffix convention
 - Requires `python_files = ["*_test.py"]` in `pyproject.toml` `[tool.pytest.ini_options]`
@@ -45,6 +49,7 @@
 - Static assets: vendored in `static/` (no CDN, no npm)
 
 **Conftest Hierarchy:**
+
 ```
 tests/
   conftest.py               # Shared fixtures: SQLite engine, session factory, UoW factory
@@ -71,17 +76,20 @@ tests/
 ## Format Patterns
 
 **API Response Formats (for future `/api/v1/`):**
+
 - Success: direct resource or list — `{"id": 1, "description": "..."}` or `[{...}, {...}]`
 - Error: `{"error": "<error_code>", "detail": "<human_message>"}`
 - Error codes: `snake_case` identifiers (e.g., `expense_not_found`, `invalid_split`, `concurrent_settlement`)
 - HTTP status codes follow standard semantics: 404 (not found), 409 (conflict), 422 (validation)
 
 **HTMX Response Formats:**
+
 - Success: HTML fragment for `hx-swap` target
 - Error: `_error.html` partial rendered with appropriate status code
 - Redirect: `HX-Redirect` header (e.g., expired session → Authentik login)
 
 **Global Exception Handler Pattern:**
+
 ```python
 DOMAIN_ERROR_MAP: dict[type[DomainError], tuple[int, str]] = {
     ExpenseNotFound: (404, "expense_not_found"),
@@ -106,6 +114,7 @@ def handle_domain_error(request: Request, exc: DomainError):
 - New domain errors only require adding an entry to `DOMAIN_ERROR_MAP`
 
 **Data Exchange Formats:**
+
 - JSON field naming: `snake_case` (matches Python and database)
 - Dates in JSON: ISO 8601 strings (e.g., `"2026-03-15"`, `"2026-03-15T14:30:00Z"`)
 - Money: string representation of `Decimal` in JSON (e.g., `"123.45"`) — never float
@@ -113,6 +122,7 @@ def handle_domain_error(request: Request, exc: DomainError):
 - Booleans: `true`/`false` (JSON standard)
 
 **Route Handler Pattern (clean, no try/except):**
+
 ```python
 @router.post("/expenses")
 def create_expense(
@@ -130,6 +140,7 @@ def create_expense(
 ## Communication Patterns
 
 **Logging Patterns:**
+
 - Library: `structlog` with bound loggers
 - Format: JSON in all environments (`LOG_FORMAT` env var for override)
 - Domain layer does NOT log — raises errors or uses `AuditPort`
@@ -139,6 +150,7 @@ def create_expense(
 - Bound context: always include `request_id`, `user_id` where available
 
 **Audit Trail Patterns:**
+
 - Use cases call `uow.audit.log()` explicitly for state-changing operations
 - Audit entries are atomic with data changes (same transaction via UoW)
 - Audit entry structure: `entity_type`, `entity_id`, `action`, `actor_id`, `timestamp`, `old_values`, `new_values`
@@ -147,6 +159,7 @@ def create_expense(
 ## Process Patterns
 
 **Error Handling Patterns:**
+
 - Domain errors: custom exception classes inheriting from `DomainError`
 - Global exception handler maps domain errors to HTTP responses (see Format Patterns above)
 - Route handlers never catch domain errors — they propagate to the global handler
@@ -154,12 +167,14 @@ def create_expense(
 - Validation errors: Pydantic `RequestValidationError` handled by FastAPI's built-in handler (422)
 
 **Loading State Patterns:**
+
 - HTMX loading indicators: `hx-indicator` attribute pointing to spinner element
 - Opacity fade: 150ms baseline transition on `htmx-request` class
 - Double-submit prevention: `hx-disabled-elt="this"` on all mutation buttons
 - Full-page loads: standard browser loading (no SPA shell)
 
 **Dependency Injection Pattern:**
+
 ```python
 # app/dependencies.py — composition root
 def get_uow() -> UnitOfWork:
@@ -170,6 +185,7 @@ def get_user(request: Request) -> User:
     """Extract authenticated user from signed cookie."""
     ...
 ```
+
 - `dependencies.py` is the only file that wires adapters to domain ports
 - Use cases receive `UnitOfWork` as a parameter — no global state, no service locator
 - Current user enters domain as `user_id: int` parameter, not framework-specific request context

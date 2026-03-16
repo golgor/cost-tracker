@@ -172,12 +172,14 @@ cost-tracker/
 ## Architectural Boundaries
 
 **Domain Boundary (pure, no framework imports):**
+
 - `app/domain/` imports only stdlib: `dataclasses`, `typing`, `decimal`, `datetime`, `enum`
 - All external communication through `Protocol` interfaces in `ports.py`
 - Use cases receive `UnitOfWork` as parameter — never instantiate adapters
 - Enforced by `architecture_test.py` in CI
 
 **Adapter Boundary (infrastructure implementations):**
+
 - `app/adapters/sqlalchemy/` implements domain ports using SQLAlchemy
 - ORM models (`XxxRow`) never leave adapter boundary — mapped to domain `@dataclass` before return
 - `queries/` package is a controlled read-only bypass for view queries — no writes permitted
@@ -185,11 +187,13 @@ cost-tracker/
 - Architectural test scans `queries/` directory for read-only enforcement
 
 **Auth Boundary (infrastructure concern):**
+
 - `app/auth/` handles OIDC flow, session cookies, CSRF, middleware
 - Produces `user_id: int` for domain consumption — domain never sees cookies or tokens
 - Session expiry on HTMX requests → `HX-Redirect` header
 
 **Web Boundary (presentation layer):**
+
 - `app/web/` handles HTTP routing, form parsing, template rendering
 - `app/web/router.py` assembles all web routers — `main.py` includes only this single router
 - `app/web/forms/` contains Pydantic models for form validation (distinct from domain `@dataclass`)
@@ -197,6 +201,7 @@ cost-tracker/
 - Never contains business logic — thin handlers only
 
 **Data Boundary:**
+
 - All writes go through domain ports → adapters → `Session.commit()` via UoW
 - Read-only views may use `queries/` directly (bypassing domain)
 - Alembic migrations auto-generated from `orm_models.py`, always manually reviewed
@@ -232,18 +237,21 @@ cost-tracker/
 ## Integration Points
 
 **Internal Communication:**
+
 - Routes → Use cases: direct function calls via dependency injection
 - Routes → View queries: direct import from `queries/` package
 - Use cases → Adapters: through `UnitOfWork` port (no direct adapter access)
 - Adapters → ORM: SQLAlchemy `Session` (shared within UoW)
 
 **External Integrations:**
+
 - Authentik (OIDC): `app/auth/oidc.py` via Authlib
 - PostgreSQL: `app/adapters/sqlalchemy/` via SQLAlchemy engine
 - GHCR: `.github/workflows/docker.yml` (build + push)
 - ArgoCD: watches GHCR for new images (external to repo)
 
 **Data Flow (write path):**
+
 ```
 Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWork
   → ExpensePort.save() → SqlAlchemyExpenseAdapter → Session
@@ -252,6 +260,7 @@ Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWo
 ```
 
 **Data Flow (read path — view query):**
+
 ```
 Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
   → Session.execute(SELECT ...) → PostgreSQL
@@ -261,6 +270,7 @@ Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
 ## Documentation Structure
 
 **Audience conventions:**
+
 - `docs/development/` — developers (assumes Python + mise knowledge)
 - `docs/user-guide/` — end users (assumes browser-only, no technical knowledge)
 - `docs/deployment/` — ops/self-hosters (assumes Docker + k8s, not necessarily Python)
@@ -273,6 +283,7 @@ Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
 ## Development Workflow Integration
 
 **Local Development (`mise` tasks):**
+
 - `mise run dev`: starts `uvicorn` with reload + `tailwindcss --watch` (requires `uv sync --locked` first)
 - `mise run test`: runs `pytest` (unit tests, SQLite)
 - `mise run lint`: runs `ruff check` + `ruff format --check` + `ty`
@@ -281,6 +292,7 @@ Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
 - Dependencies managed via `uv`: use `uv add <package>` to add, `uv remove <package>` to remove, `uv sync --locked` to install
 
 **Build Process:**
+
 - `Dockerfile` multi-stage: (1) Tailwind CSS build via Tailwind CLI, (2) production image with `uv` and locked dependencies
 - Uses `ghcr.io/astral-sh/uv:python3.14-bookworm-slim` as builder base
 - Dependencies installed with `uv sync --locked` for reproducible builds
@@ -288,6 +300,7 @@ Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
 - Single image contains app + static assets + compiled CSS
 
 **Deployment:**
+
 - Image pushed to GHCR by `docker.yml` workflow
 - ArgoCD watches for new image tags → deploys to k3s
 - PostgreSQL on separate Proxmox VM (connection string via k8s Secret)

@@ -7,18 +7,21 @@ Cost-tracker is a self-hosted household expense-sharing app for two partners in 
 The UX philosophy mirrors the product philosophy: trust over enforcement, speed over completeness, clarity over features. The app should feel like a shared notebook — quick to jot in, easy to review, impossible to get lost in.
 
 **Two modes, two mindsets:**
+
 - **Capture** succeeds when you forget about it — 30 seconds, in and out
 - **Review** succeeds when the picture sticks — glanceable dashboard with visual balance indicator that imprints the state at a glance
 
 ## Target Users
 
 **Golgor (Primary — On-the-go logger)**
+
 - Logs expenses immediately after purchase, typically on phone
 - Initiates and drives the monthly settlement process (desktop, co-located with Partner)
 - Also the system admin/deployer
 - Wants: fast entry, clear balance visibility, confident settlement flow
 
 **Partner (Primary — Batch reviewer)**
+
 - Accumulates receipts during the week, enters them in a batch session on laptop
 - Reviews settlements co-located with Golgor — they sit together and go through it
 - Key frustration with previous system: unclear labels and a broken flow — adding an expense required navigating to the expense list first, then finding a button within it

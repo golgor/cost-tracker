@@ -4,6 +4,7 @@
 
 **Functional Requirements:**
 46 FRs organized into 7 categories:
+
 - **Expense Management** (FR1-FR8, FR46): CRUD operations, status lifecycle (proposed/accepted/gift), per-expense notes, currency labels, settled expense immutability
 - **Split & Balance** (FR9-FR12): 4 split modes (even/shares/percentage/amount), on-demand balance calculation, deterministic rounding, split validation
 - **Settlement** (FR13-FR22): 3-step flow (review/approve/confirm), reference ID generation (SET-{year}-{month}-{hash}), settlement history with drill-down, concurrent settlement protection, stateless review model
@@ -13,6 +14,7 @@
 - **Audit & History** (FR43-FR44): Complete audit trail for state-changing actions, expense/settlement traceability
 
 **Non-Functional Requirements:**
+
 - **Performance**: Page loads <1s, HTMX partials <200ms, balance calculation <500ms for ~50 expenses
 - **Data Integrity**: DB-level immutability for settled expenses, split sums always exact, deterministic rounding, full audit trail
 - **Security**: OIDC via Authentik + Authlib, signed cookie sessions, Pydantic input validation, ORM-only (no raw SQL), TLS at infrastructure level
@@ -21,6 +23,7 @@
 - **Testing**: SQLite for unit tests, PostgreSQL for integration tests in CI
 
 **Scale & Complexity:**
+
 - Primary domain: Full-stack server-rendered web application (MPA + HTMX)
 - Complexity level: Medium
 - Estimated architectural components: ~12-15 (models, services, route layers, templates, auth, audit, recurring engine)
@@ -57,11 +60,13 @@
 ## Critical Failure Modes Identified
 
 **Settlement Calculation:**
+
 - Concurrent settlement must use `SELECT FOR UPDATE` within a transaction. Application-level checks alone are insufficient
 - Confirm POST re-validates all selected expense IDs are still unsettled. Settles exactly the reviewed set — no attempt to detect additions since review
 - Deterministic rounding tested with adversarial split combinations (mixed modes in one settlement)
 
 **OIDC Authentication:**
+
 - App cookie contains user ID + `issued_at` only. No tokens stored. Generous TTL (e.g., 7 days)
 - Cookie expiry triggers redirect to Authentik, which auto-resolves via its own session (no login prompt). Two redirects, transparent
 - HTMX requests hitting expired session get `HX-Redirect` header, not HTML error fragment
@@ -69,16 +74,19 @@
 - Signing secret from Kubernetes secret, not baked into image. Document rotation procedure
 
 **Security:**
+
 - CSRF tokens on all browser-facing state-changing requests (HTMX + form POST). Not needed for API (uses separate auth, not cookies)
 - `Decimal` for all monetary values — Pydantic, use cases, PostgreSQL `NUMERIC`. Zero floats
 - Three-layer validation: route (format) → use case (business rules) → DB (constraints)
 
 **Recurring Cost Engine:**
+
 - Idempotency via DB-level unique constraint on (definition_id, billing_period) — not application logic only. Prevents race conditions between dashboard trigger and internal cron
 - Auto-generation is a use case function triggered on dashboard load (session-authenticated). Optionally callable by internal Kubernetes CronJob. Never exposed as a public endpoint
 - Dashboard load should not block on generation — consider async or throttled execution to preserve <1s page load NFR
 
 **Route Architecture:**
+
 - HX-Request header detection must be centralized (middleware/dependency injection), not checked per-route
 - Service layer is the only code that touches the DB — architectural test or lint rule to enforce this
 - HTMX partial errors must swap into designated error targets, not content areas. Global `hx-on::response-error` handler

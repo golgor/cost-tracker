@@ -28,6 +28,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - Amount field gets numeric keyboard immediately — no tap to select
 - Smart defaults: split=even, paid-by=current user, date=today, currency=EUR
 - "Where / What" label handles locations ("Spar"), services ("Netflix"), and descriptions ("birthday supplies")
@@ -63,6 +64,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - Sidebar form is always visible — no "open form" step needed
 - Tab order: Amount → Location → Date → Split → Paid-by → Save. The first three cover 95% of cases
 - "Save & Next" behavior: form clears, cursor returns to amount field — zero friction between entries
@@ -110,6 +112,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Step 1 — Review:** Expenses grouped by week (collapsible sections), scannable at arm's length (Partner reads along). Each group has a "select all / deselect all" toggle for bulk actions. Pre-accepted by default (trust philosophy). **Checkboxes are toggles** — unchecking excludes, re-checking re-accepts. Both actions update the running total via HTMX partial swap. Both partners see the math change live. Progress indicator shows "Step 1 of 3." Grouping keeps the review manageable even with 60+ accumulated expenses — partners can collapse reviewed weeks and focus on the current one
 - **Step 2 — Confirmation gate:** Read-only summary. Transfer direction in neutral language ("Transfer €127 from Partner to Golgor"). Back button returns to Step 1 with all selections preserved. One button to confirm.
 - **Step 3 — Success:** Amber-themed celebration screen. Reference ID (`SET-2026-03-A7F2`) prominently displayed. One-click copy to clipboard with visual confirmation. Transfer instructions. This is the "chapter closed" moment — visually conclusive, emotionally satisfying
@@ -152,6 +155,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Zero-balance state:** When balance is €0.00, the balance bar replaces the directional red/green display with a centered "All square!" message — no directional bar, just a celebratory neutral state. This avoids ambiguity about what an empty or half-half bar means
 - No clicks needed to understand state — the balance bar communicates everything on load
 - The dashboard is the context: users arrive informed, then decide what to do (or leave)
@@ -195,6 +199,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Authentication is OIDC-based:** Users log in via redirect to Authentik (the identity provider). The app uses Authlib as the OIDC client library. There is no in-app login screen — login is a redirect to Authentik's hosted login page, and the app receives identity via OIDC claims on callback
 - **User auto-provisioning:** On first OIDC login, the app creates a user record from OIDC claims (name, email, etc.). No manual user creation step — the identity provider is the source of truth for user identity
 - **Setup wizard triggers for the first user only** — when no household exists. The wizard confirms the auto-provisioned profile (pre-filled from OIDC claims, editable) and creates the household
@@ -236,6 +241,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Entry point is the expense card itself** — tapping/clicking opens an editable detail view. This resolves open design question about edit interaction model: detail page (not inline edit, not modal) works on both mobile and desktop without accidental edits
 - Edit form uses the same field layout and styling as the capture form — familiar patterns, no new UI to learn
 - Only unsettled expenses are editable — settled expenses are read-only (part of the historical record)
@@ -275,6 +281,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - The expense list page is the **full history view** — all expenses, not just recent. This is where Partner goes to verify her Saturday batch entries during the week
 - **Grouped by date** (day headers) with paid-by badges visible at scan speed — Partner can quickly verify "my entries from Saturday are all here"
 - **Filter controls:** Collapsible filter bar at top — date range picker, paid-by toggle (Golgor / Partner / Both), optional amount range. Filters apply via HTMX partial swap (list updates without page reload)
@@ -307,6 +314,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - Settlement cards show the essential info at scan speed: date, reference ID, total amount, transfer direction ("Partner → Golgor, €127")
 - Tapping a card opens the detail view — a read-only record of every expense included in that settlement, grouped by date
 - **Reference ID is prominent and copyable** on both the list card and the detail view — this is the primary lookup reason (matching to bank transfers)
@@ -332,12 +340,14 @@ This pattern applies uniformly: expense capture, batch entry, settlement review 
 ## Journey Patterns
 
 **Navigation Patterns:**
+
 - **Action-from-anywhere:** FAB (mobile) and "+ Add Expense" button (desktop) are available on every screen. No navigate-to-act.
 - **Dashboard-as-home:** Every session starts with context. Users arrive informed, decide action from there.
 - **Widget-as-entry-point:** The unsettled count widget is a navigation element disguised as information — it provides data AND serves as the doorway to settlement.
 - **Card-as-entry-point:** Expense cards are tappable to enter the edit/detail view — the data IS the navigation.
 
 **Feedback Patterns:**
+
 - **Self-confirming actions:** Expense appears in feed = confirmation. No extra banner needed.
 - **Inline errors:** Validation failures show on the specific field, form preserves all data. Fix and retry, never re-enter.
 - **Live-updating totals:** Settlement review total changes with each accept/discard — builds confidence through transparency.
@@ -346,6 +356,7 @@ This pattern applies uniformly: expense capture, batch entry, settlement review 
 - **Newly added highlight:** Fresh expense cards get a brief `primary-50` background that fades to white — confirms "that one went through" during batch entry.
 
 **Form Patterns:**
+
 - **Smart defaults, override on exception:** Split, paid-by, date, currency all pre-filled. Users only touch what's different from the default.
 - **Amount-first hierarchy:** Amount field always auto-focused, always the hero. Location is second. Everything else is tertiary.
 - **Reset-and-ready:** After save, form clears and cursor returns to amount field. Ready for next entry without any navigation.
@@ -361,6 +372,7 @@ This pattern applies uniformly: expense capture, batch entry, settlement review 
 6. **Loading states are local, not global:** The element the user interacted with shows the loading indicator — no full-page spinners, no disorienting layout shifts. The rest of the page stays stable and readable.
 
 **Noted for future scope (not in current flows):**
+
 - **Data export (MVP1d):** PRD Journey 3 mentions CSV export for records. This will be a simple download action on the settlement history page — no complex flow needed, but it should be designed when settlement history UI is detailed.
 
 ---
@@ -395,6 +407,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Card layout (Wallos-inspired):** Each definition card shows: optional category icon (left), name as bold primary text, amount + frequency as secondary ("€14.99 / monthly"), who pays (initials badge, same style as expense feed), split method label, next due date, and **normalized monthly cost** in a right-aligned accent column (e.g., yearly €600 → "€50/mo"). The monthly normalization answers "what does this actually cost us per month?"
 - **Two tabs: Active / Paused** — active tab is default. Paused tab shows definitions with muted styling (lower opacity, no due dates). Tab switching via HTMX partial swap
 - **Summary bar** at the top of the active tab: "{N} active costs · €{total}/mo" — the total normalized monthly cost across all active definitions. This is the recurring baseline figure referenced in the PRD success criteria
@@ -440,6 +453,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Form layout** follows the existing capture form pattern with **progressive disclosure** to manage the 9-field complexity. Primary fields (name, amount, frequency, who pays, split method) are always visible. Schedule fields (next due date, auto-generate toggle) sit below a clear visual separator. Optional fields (category, icon) are behind a "More options" toggle. This mirrors the expense capture form's hierarchy and keeps the form from feeling overwhelming despite the field count (see Open Design Question #13)
 - **Field hierarchy:**
   1. **Name** (text, required) — "Netflix," "Car Insurance," "Daycare." Placeholder: "What recurring cost?"
@@ -485,6 +499,7 @@ flowchart TD
 ```
 
 **Key interaction details:**
+
 - **Dashboard reminder cards** appear when a manual-mode definition (auto-generate OFF) is within 7 days of its next due date. Cards are visually distinct — highlighted border or background using `primary-50`, with the definition's icon, name, amount, frequency, who pays, and a prominent "Create Expense" button
 - **Date confirmation modal** is a compact overlay (not a full form) — all definition metadata pre-fills the expense. The user's primary decision is: "Is this the right amount and date?" For fixed costs it's a one-tap confirm; for variable costs the user adjusts the amount
 - **All inheritable metadata pre-filled:** amount, name (as location/description), who pays, split method, category, icon. Date defaults to the definition's next due date but is editable
@@ -512,6 +527,7 @@ Expenses generated from recurring cost definitions (both auto-generated and manu
 With the Recurring registry as a new primary view, navigation updates from 3 to 4 items:
 
 **Mobile bottom nav (4 items + FAB):**
+
 1. Dashboard (home icon)
 2. Expenses (list icon)
 3. Recurring (refresh/loop icon)
@@ -519,6 +535,7 @@ With the Recurring registry as a new primary view, navigation updates from 3 to 
 5. FAB (center, elevated above the nav bar — Material Design pattern, overlapping the nav edge by ~50%. Not inline with nav items. See Open Design Question #12 for crowding concerns on smaller phones)
 
 **Desktop top nav:**
+
 - Logo placeholder (left)
 - Dashboard | Expenses | Recurring | Settlements (center-left)
 - "+ Add Expense" button (right)

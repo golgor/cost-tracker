@@ -15,6 +15,7 @@
 ## Implementation Approach
 
 **Design Tokens (tailwind.config.js):**
+
 - Color palette: warm primary accent (teal/indigo range — household tool, not corporate dashboard), success (green — owed), danger (red — owes), neutral grays, background/surface colors. Green/red reserved exclusively for balance direction; primary accent used for navigation, buttons, and interactive elements.
 - Spacing scale: consistent padding/margin tokens for cards, form fields, feed items
 - Typography: font sizes for amount display (large), location labels (medium-bold), metadata (small-muted)
@@ -22,10 +23,12 @@
 - Shadows: subtle elevation for cards and bottom sheets
 
 **Development Workflow:**
+
 - **Local development:** `tailwind --watch` for rapid iteration — CSS regenerates on every template change
 - **Production build:** `tailwind build` runs during Docker image build, generating optimized CSS from template usage. No Node.js runtime dependency in the container.
 
 **HTMX Transition Baseline (MVP1a):**
+
 - `htmx-swapping` and `htmx-settling` CSS classes defined from day one
 - Simple 150ms opacity fade on content swap — prevents the "flash of empty content" that makes HTMX swaps look broken
 - Three lines of CSS, massive perceived quality improvement. This is baseline, not polish.
@@ -52,6 +55,7 @@
 Note: On desktop, the expense form is inline (no modal/bottom sheet needed). The `_bottom_sheet.html` partial is mobile-only. These are different layout patterns, not the same component with different CSS.
 
 **Visual Tone:**
+
 - Card-based layouts with generous whitespace (`p-4`, `rounded-lg`, `shadow-sm`)
 - Content-forward — minimal chrome, all visual weight on data (amounts, locations, balances)
 - Warm primary accent color for navigation and interactive elements — feels like home, not like a bank

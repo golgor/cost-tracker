@@ -3,6 +3,7 @@
 ## Decision Priority Analysis
 
 **Critical Decisions (Block Implementation):**
+
 - ORM mapping style: Declarative with domain/ORM separation via adapter pattern
 - Session-based transactions mapped to UnitOfWork port
 - Port/adapter naming: `XxxPort` (domain), `SqlAlchemyXxxAdapter` (infrastructure), `XxxRow` (ORM internal)
@@ -10,6 +11,7 @@
 - Sync SQLAlchemy for MVP
 
 **Important Decisions (Shape Architecture):**
+
 - `uv` for fast, reproducible Python dependency management (`uv.lock` committed)
 - Alembic for database migrations (auto-generated from declarative models, always manually reviewed)
 - `pydantic-settings` for environment configuration
@@ -23,6 +25,7 @@
 - View queries in `adapters/sqlalchemy/queries.py` (read-only, enforced by architectural test)
 
 **Deferred Decisions (Post-MVP):**
+
 - API key authentication (evaluate Authentik client_credentials flow)
 - API route layer (`/api/v1/`) — architecture supports adding later without domain changes
 - Rate limiting
@@ -41,18 +44,21 @@
 | Caching | Deferred | Not needed for MVP |
 
 **Adapter Pattern (not Repository Pattern):**
+
 - Ports define what the domain needs: `ExpensePort(Protocol)`
 - Adapters implement ports using infrastructure: `SqlAlchemyExpenseAdapter`
 - ORM models (`ExpenseRow(DomainBase, table=True)`) inherit from domain base classes
 - Mapping via `.model_validate()` — no manual `_to_domain()` / `_to_row()` helpers needed
 
 **View Queries (`adapters/sqlalchemy/queries.py`):**
+
 - Read-only queries for dashboard, search, and summary views
 - Can use joins and aggregations for optimized reads
 - Must not contain `session.add()`, `session.delete()`, or `session.commit()`
 - Enforced by architectural test
 
 Example — view query vs. port usage:
+
 ```python
 # adapters/sqlalchemy/queries.py — view query (read-only, optimized for display)
 def get_dashboard_summary(session: Session, group_id: int) -> DashboardData:
@@ -159,6 +165,7 @@ Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure 
 ## Decision Impact Analysis
 
 **Implementation Sequence** (aligned with PRD Phase 1 MVP):
+
 1. Project scaffolding (directory structure, `mise` config, `pyproject.toml`)
 2. CI pipeline skeleton (GitHub Actions: ruff + pytest on empty test suite)
 3. Domain layer (models, errors, ports, splits)
@@ -170,6 +177,7 @@ Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure 
 Note: Implementation stories should reference PRD Phase 1 scope and feature boundaries, not just architecture layers.
 
 **Cross-Component Dependencies:**
+
 - Adapters depend on domain ports (by design)
 - Routes depend on `dependencies.py` for adapter wiring
 - Alembic depends on ORM models in `adapters/sqlalchemy/orm_models.py`
@@ -179,69 +187,81 @@ Note: Implementation stories should reference PRD Phase 1 scope and feature boun
 ## Architecture Decision Records
 
 ### ADR-001: Ports & Adapters (Hexagonal Architecture)
+
 **Status:** Accepted (Amended 2026-03-16)
 **Context:** Need clean separation between business logic and infrastructure for long-term scalability.
 **Decision:** Domain layer uses `Protocol` interfaces (ports). Adapters implement ports using SQLModel/SQLAlchemy. Domain may import external validation libraries (SQLModel, Pydantic) but must not import internal application modules (adapters, web, auth, api).
 **Consequences:** Cleaner testability. Use cases reusable across route layers. Framework changes localized to adapters. External validation libs in domain enable SQLModel pattern (see ADR-011).
 
 ### ADR-002: Declarative ORM with Adapter Separation
+
 **Status:** Superseded by ADR-011 (2026-03-16)
 **Context:** Need ORM for migration support. Imperative mapping has sparse documentation.
 **Decision:** ~~Declarative `XxxRow(Base)` models internal to adapters. Domain models are `@dataclass`. Each adapter contains `_to_domain()` / `_to_row()` helpers.~~
 **Consequences:** ~~Two models per entity + mapping functions.~~ See ADR-011 for current approach.
 
 ### ADR-003: UnitOfWork as Domain Port
+
 **Status:** Accepted
 **Context:** Settlement flow requires atomic operations across expenses + settlements + audit.
 **Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single `Session`.
 **Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection.
 
 ### ADR-004: Audit Logging as Domain Concern
+
 **Status:** Accepted
 **Context:** Audit trail is a business requirement (FR43-44), not infrastructure.
 **Decision:** `AuditPort` on UnitOfWork. Use cases call `uow.audit.log()` explicitly. Atomic with data changes.
 **Consequences:** Audit calls visible in use case code. No complex event infrastructure.
 
 ### ADR-005: Sync SQLAlchemy for MVP
+
 **Status:** Accepted
 **Context:** FastAPI supports async but sync is simpler for ~2-5 concurrent users.
 **Decision:** Sync everywhere for MVP. Async migration is localized to adapter layer if needed later.
 **Consequences:** Simpler code, easier debugging. Ports don't change if async is adopted later.
 
 ### ADR-006: View Queries Bypass Domain Ports
+
 **Status:** Accepted
 **Context:** Dashboard queries need joins/aggregations. Creating ports for every read would cause protocol explosion.
 **Decision:** `adapters/sqlalchemy/queries.py` for read-only view queries. Routes import directly. Writes always go through domain ports.
 **Consequences:** Controlled bypass of hexagonal boundary. Enforced read-only by architectural test.
 
 ### ADR-007: API Routes Deferred Past MVP
+
 **Status:** Accepted
 **Context:** MVP is browser-first. Ports & adapters makes adding API consumers trivial.
 **Decision:** HTMX/page routes for MVP. `/api/v1/` added as separate phase.
 **Consequences:** Faster MVP delivery. No domain changes needed when API is added.
 
 ### ADR-008: Structured Logging with structlog
+
 **Status:** Accepted
 **Context:** Need machine-parseable logs in production and readable logs in dev.
 **Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors or uses AuditPort.
 **Consequences:** One library, two output modes. Infrastructure logging in middleware/adapters only.
 
 ### ADR-009: Split CI Workflows by Path
+
 **Status:** Accepted
 **Context:** Running all checks on every push wastes time.
 **Decision:** Three workflows with `paths:` filters: Code, Docs, Docker. Schema drift check in Code workflow.
 **Consequences:** Faster CI feedback. Path filters must cover all relevant files.
 
 ### ADR-010: pydantic-settings for Configuration
+
 **Status:** Accepted
 **Context:** App runs on k3s with env vars from Secrets/ConfigMaps.
 **Decision:** Single `Settings` class via `pydantic-settings`. `.env` for local dev (gitignored). `.env.example` committed.
 **Consequences:** Simple, standard. Fails fast on missing config.
 
 ### ADR-011: SQLModel for Domain and ORM Models
+
 **Status:** Accepted (2026-03-16)
 **Context:** ADR-002 required separate domain dataclasses and ORM Row models with manual mapping. SQLModel unifies these while maintaining separation via `table=True` flag.
 **Decision:**
+
 - Domain models: `SQLModel` classes without `table=True` (pure data + validation)
 - ORM models: `SQLModel` classes with `table=True`, inheriting from domain models
 - Mapping: Use `.model_validate()` instead of manual `_to_domain()`/`_to_row()`

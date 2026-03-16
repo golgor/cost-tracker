@@ -7,6 +7,7 @@ Full-stack server-rendered web application (MPA + HTMX) with Python/FastAPI back
 ## Starter Options Considered
 
 **Existing starters evaluated:**
+
 - **Full-Stack FastAPI Template** (tiangolo) — PostgreSQL, SQLModel, React frontend. Rejected: React frontend unnecessary, SQLModel not suitable for hexagonal architecture
 - **FastAPI-HTMX starter** (various) — Minimal, mostly demo-quality. Rejected: too thin, no architectural opinions
 - **Cookiecutter-FastAPI** — Configurable scaffolding. Rejected: generates flat service-layer structure, doesn't support ports & adapters
@@ -122,6 +123,7 @@ mkdir -p app/{domain/use_cases,adapters/sqlalchemy,auth,web,api/v1,templates,sta
 ```
 
 **Dependency Management:**
+
 - `uv` is the package manager for this project (Python 3.14 target)
 - Use `uv add <package>` to add dependencies, `uv sync --locked` to install, `uv.lock` is committed
 - Docker builds use `ghcr.io/astral-sh/uv:python3.14-bookworm-slim` base image with `uv sync --locked` for reproducible deploys

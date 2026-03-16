@@ -1,6 +1,7 @@
 [tools]
 python = "3.14"
 uv = "latest"
+"npm:markdownlint-cli2" = "latest"
 
 [tasks.dev]
 description = "Start development server with reload (run dev:css in separate terminal)"
@@ -26,6 +27,10 @@ run = [
     "uv run ruff format --check app/ tests/",
     "uv run ty check app/",
 ]
+
+[tasks."lint:docs"]
+description = "Lint markdown documentation"
+run = "markdownlint-cli2 docs/**/*.md"
 
 [tasks.migrate]
 description = "Run Alembic migrations"

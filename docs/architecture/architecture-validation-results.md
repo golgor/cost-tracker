@@ -14,6 +14,7 @@ The project structure from Step 6 directly reflects the ports & adapters archite
 ## Requirements Coverage Validation ✅
 
 **Functional Requirements Coverage (FR1–FR46):**
+
 - **FR1–FR5** (Authentication): Covered by `auth/` module (OIDC, session, middleware) + ADR-07
 - **FR6–FR11** (Expense Management): Covered by `domain/use_cases/expenses.py` + `ExpensePort` + web/API routes
 - **FR12–FR15** (Group Management): Covered by `domain/use_cases/groups.py` + web routes
@@ -25,6 +26,7 @@ The project structure from Step 6 directly reflects the ports & adapters archite
 - **FR44–FR46** (API): Covered by `api/v1/` routes + Swagger UI (public docs, authenticated execution)
 
 **Non-Functional Requirements Coverage (NFR1–NFR21):**
+
 - **NFR1–NFR3** (Performance): <1s page load addressed by sync SQLAlchemy + simple queries on small dataset. Dashboard query bypasses domain for direct reads
 - **NFR4–NFR6** (Security): OIDC + signed cookies + CSRF tokens + group-scoped access. Three-layer validation
 - **NFR7–NFR9** (Reliability): UnitOfWork for transactional consistency. `SELECT FOR UPDATE` for concurrent settlements. Idempotency constraints for recurring generation
@@ -51,29 +53,34 @@ All potential conflict points are addressed: naming collisions (Port vs Adapter 
 **Important Gaps:** None identified.
 
 **Minor Gaps (addressed):**
+
 - Step 1 used legacy "service layer" terminology in 8 places — updated to "use cases" for consistency with the hexagonal architecture adopted in Steps 3–4.
 
 ## Architecture Completeness Checklist
 
 **✅ Requirements Analysis**
+
 - [x] Project context thoroughly analyzed
 - [x] Scale and complexity assessed
 - [x] Technical constraints identified
 - [x] Cross-cutting concerns mapped
 
 **✅ Architectural Decisions**
+
 - [x] Critical decisions documented with versions (10 ADRs)
 - [x] Technology stack fully specified
 - [x] Integration patterns defined (ports & adapters)
 - [x] Performance considerations addressed
 
 **✅ Implementation Patterns**
+
 - [x] Naming conventions established (DB, API, Code)
 - [x] Structure patterns defined (conftest, module layout)
 - [x] Communication patterns specified (logging, audit)
 - [x] Process patterns documented (error handling, DI, loading states)
 
 **✅ Project Structure**
+
 - [x] Complete directory structure defined
 - [x] Component boundaries established
 - [x] Integration points mapped
@@ -86,6 +93,7 @@ All potential conflict points are addressed: naming collisions (Port vs Adapter 
 **Confidence Level:** High — all decisions validated, all requirements covered, no critical gaps
 
 **Key Strengths:**
+
 - Clean hexagonal architecture with enforceable boundaries via architectural tests
 - Pragmatic scope — sync SQLAlchemy, no premature optimization, adapter layer isolates future changes
 - Complete coverage of all 46 FRs and 21 NFRs with clear structural mapping
@@ -93,6 +101,7 @@ All potential conflict points are addressed: naming collisions (Port vs Adapter 
 - View queries bypass domain for read performance without violating architectural principles
 
 **Areas for Future Enhancement:**
+
 - Async SQLAlchemy migration path (localized to adapter layer when needed)
 - Caching strategy for dashboard queries (not needed at MVP scale)
 - WebSocket support for real-time updates (future consideration)
@@ -101,6 +110,7 @@ All potential conflict points are addressed: naming collisions (Port vs Adapter 
 ## Implementation Handoff
 
 **AI Agent Guidelines:**
+
 - Follow all architectural decisions exactly as documented in the 10 ADRs
 - Use implementation patterns consistently — refer to Step 5 for naming, structure, format, communication, and process patterns
 - Respect project structure boundaries — `domain/` must never import from `adapters/`, `web/`, or `api/`
@@ -109,4 +119,3 @@ All potential conflict points are addressed: naming collisions (Port vs Adapter 
 
 **First Implementation Priority:**
 Scaffold the project structure from Step 6, set up `pyproject.toml` with all dependencies, and implement the domain layer (`models.py`, `errors.py`, `ports.py`) as the foundation for all subsequent work.
-

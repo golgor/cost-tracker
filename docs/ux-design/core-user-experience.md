@@ -30,18 +30,21 @@ The daily loop feeds the check-in loop feeds the monthly loop. If capture is eas
 ## Effortless Interactions
 
 **Must feel effortless (zero friction):**
+
 - Adding an expense: amount → location → save. Three interactions, under 30 seconds. Form resets for immediate next entry during batch sessions. Amount and location are both required — two fields, still fast, but ensures every expense is scannable at review time. (Location requirement to be validated against real usage in MVP1a — if users consistently fill it voluntarily, consider making it optional.)
 - Checking the balance: open dashboard, glance at the balance bar. No clicks, no navigation — it's the first thing you see.
 - Switching between unsettled and settled expense views: single tap/click, instant partial swap via HTMX.
 - Copying the settlement reference ID: one click, copied to clipboard, visual confirmation.
 
 **Must feel intuitive (low friction, discoverable):**
+
 - Editing an expense: interaction model (inline edit vs. modal vs. detail page) is an open design question to resolve in screen-level design. Must work on both mobile and desktop without accidental edits.
 - Adjusting split mode: visible on the form via a descriptive label ("Split: Even") that serves as its own discovery mechanism. Tapping/clicking reveals alternatives. The label tells you alternatives exist without demanding you explore them.
 - Browsing settlement history: chronological list, drill into any past settlement to see included expenses.
 - Batch entry on desktop: key open question — persistent form (always visible above feed) vs. re-open form (click button each time). Persistent form dramatically improves batch flow. To be resolved in screen-level design.
 
 **Can tolerate friction (correctness over speed):**
+
 - Settlement review: deliberately paced, every expense visible, accept/discard is a conscious choice per item. More friction is acceptable here — it builds confidence. Pre-accepted default aligns with trust philosophy (assume expenses are correct, review is about finding exceptions).
 - First-run setup wizard: one-time, triggered by first OIDC login when no household exists. Can be methodical.
 - Recurring cost management: dedicated view, less frequent interaction. Doesn't need to be instant.
@@ -68,15 +71,15 @@ The daily loop feeds the check-in loop feeds the monthly loop. If capture is eas
 
 **Design Guidelines:**
 
-2. **Show, don't tell** — Visual indicators over text labels wherever possible. Balance bar over "you owe X." Colored initials badge over "paid by Golgor." Date headers over inline date fields. The interface should communicate through pattern recognition, not reading.
+1. **Show, don't tell** — Visual indicators over text labels wherever possible. Balance bar over "you owe X." Colored initials badge over "paid by Golgor." Date headers over inline date fields. The interface should communicate through pattern recognition, not reading.
 
-3. **One obvious action, everything else one tap away** — Every screen has a primary action that's visually dominant and immediately reachable. Dashboard → check balance / add expense. Expense feed → scan / add expense. Settlement → review and confirm. Secondary features (settlement history, recurring management, audit trail) are reachable from a consistent, always-visible navigation structure — not buried behind the primary action.
+2. **One obvious action, everything else one tap away** — Every screen has a primary action that's visually dominant and immediately reachable. Dashboard → check balance / add expense. Expense feed → scan / add expense. Settlement → review and confirm. Secondary features (settlement history, recurring management, audit trail) are reachable from a consistent, always-visible navigation structure — not buried behind the primary action.
 
-4. **Feedback proportional to uncertainty** — Self-confirming actions (expense appears in feed) need no extra confirmation. Ambiguous or invisible outcomes (errors, settlement confirmation, background saves) get explicit, persistent feedback. Don't confirm what the user can already see. This builds the trust that makes settlement review credible.
+3. **Feedback proportional to uncertainty** — Self-confirming actions (expense appears in feed) need no extra confirmation. Ambiguous or invisible outcomes (errors, settlement confirmation, background saves) get explicit, persistent feedback. Don't confirm what the user can already see. This builds the trust that makes settlement review credible.
 
-5. **Smart defaults, visible options** — Even split, today's date, logged-in user as payer. These defaults mean most expenses need only amount + location. Rarely-used options stay visible through descriptive labels (e.g., "Split: Even", "Currency: EUR") that serve as their own discovery mechanism. The user doesn't need to know alternatives exist until the label makes them wonder.
+4. **Smart defaults, visible options** — Even split, today's date, logged-in user as payer. These defaults mean most expenses need only amount + location. Rarely-used options stay visible through descriptive labels (e.g., "Split: Even", "Currency: EUR") that serve as their own discovery mechanism. The user doesn't need to know alternatives exist until the label makes them wonder.
 
-6. **One product, two contexts** — Mobile and desktop are layout variations of the same app, not different products. Shared visual language, same navigation patterns, same interaction vocabulary scaled to context. Both must render correctly everywhere. Features are optimized per task mode but never exclusive to one device.
+5. **One product, two contexts** — Mobile and desktop are layout variations of the same app, not different products. Shared visual language, same navigation patterns, same interaction vocabulary scaled to context. Both must render correctly everywhere. Features are optimized per task mode but never exclusive to one device.
 
 ## Open Design Questions
 
