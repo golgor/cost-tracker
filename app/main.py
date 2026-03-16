@@ -57,12 +57,12 @@ async def liveness() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/health/ready")
-async def readiness(session: DbSession) -> dict | JSONResponse:
+@app.get("/health/ready", response_model=None)
+async def readiness(session: DbSession) -> JSONResponse:
     """Readiness probe - can the app handle traffic? Verifies DB connectivity."""
     try:
         session.connection().execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
+        return JSONResponse(content={"status": "ok", "database": "connected"})
     except Exception:
         return JSONResponse(
             status_code=503,
