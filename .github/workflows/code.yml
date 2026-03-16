@@ -2,6 +2,8 @@ name: Code
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "app/**"
       - "tests/**"
