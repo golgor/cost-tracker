@@ -2,6 +2,15 @@
 
 import os
 
+# Set test environment variables BEFORE any app imports (pydantic-settings reads at import time)
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
+os.environ.setdefault("OIDC_ISSUER", "https://test.example.com")
+os.environ.setdefault("OIDC_CLIENT_ID", "test-client")
+os.environ.setdefault("OIDC_CLIENT_SECRET", "test-secret")
+os.environ.setdefault("OIDC_REDIRECT_URI", "http://localhost:8000/auth/callback")
+os.environ.setdefault("ENV", "dev")
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
