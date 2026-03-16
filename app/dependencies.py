@@ -1,24 +1,28 @@
 # Composition root — the ONLY file that wires adapters to domain ports.
-from typing import Generator
+from collections.abc import Generator
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, create_engine
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.auth.session import decode_session
 from app.settings import settings
 
 # Database engine (created once at module load)
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 
 
-def get_db_session() -> Generator[Session, None, None]:
+def get_db_session() -> Generator[Session]:
     """Provide a database session."""
     with Session(engine) as session:
         yield session
 
 
-def get_uow(session: Session = Depends(get_db_session)) -> UnitOfWork:
+# Type alias for DB session dependency
+DbSession = Annotated[Session, Depends(get_db_session)]
+
+
+def get_uow(session: DbSession) -> UnitOfWork:
     """Provide a UnitOfWork instance."""
     return UnitOfWork(session)
 

@@ -10,8 +10,13 @@ class Settings(BaseSettings):
     OIDC_CLIENT_ID: str = "cost-tracker"
     OIDC_CLIENT_SECRET: str = "change-me"
     OIDC_REDIRECT_URI: str = "http://localhost:8000/auth/callback"
+    SESSION_MAX_AGE: int = 86400  # 24 hours in seconds
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV == "prod"
 
 
 settings = Settings()

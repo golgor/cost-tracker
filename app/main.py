@@ -7,11 +7,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth.middleware import AuthMiddleware, CSRFMiddleware
 from app.dependencies import get_db_session
-
-DbSession = Annotated[Session, Depends(get_db_session)]
 from app.domain.errors import DomainError
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
+
+DbSession = Annotated[Session, Depends(get_db_session)]
 
 # Maps DomainError subclasses → HTTP status codes.
 # Add entries here as new domain errors are defined in later stories.

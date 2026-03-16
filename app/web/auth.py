@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from starlette.responses import HTMLResponse
@@ -5,10 +7,12 @@ from starlette.responses import HTMLResponse
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
-from app.dependencies import get_uow
+from app.dependencies import get_db_session, get_uow
 from app.settings import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 
 
 @router.get("/login")
@@ -20,7 +24,7 @@ async def login(request: Request):
 
 
 @router.get("/callback")
-async def callback(request: Request, uow: UnitOfWork = Depends(get_uow)):
+async def callback(request: Request, uow: UowDep):
     """Handle OIDC callback, provision user if needed, create session."""
     oauth = get_oauth()
 

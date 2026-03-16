@@ -68,13 +68,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         request.state.csrf_token = csrf_token
 
         # Validate on state-changing methods (except public paths)
-        if request.method in ("POST", "PUT", "DELETE", "PATCH"):
-            if not is_public_path(request.url.path):
-                if not await self._validate_csrf(request, csrf_token):
-                    return Response(
-                        content="CSRF validation failed",
-                        status_code=403,
-                    )
+        is_state_changing = request.method in ("POST", "PUT", "DELETE", "PATCH")
+        needs_csrf = is_state_changing and not is_public_path(request.url.path)
+        if needs_csrf and not await self._validate_csrf(request, csrf_token):
+            return Response(
+                content="CSRF validation failed",
+                status_code=403,
+            )
 
         response = await call_next(request)
 
