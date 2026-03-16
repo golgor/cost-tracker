@@ -1,0 +1,47 @@
+{#
+  Button Component Partial
+  
+  Usage:
+    {% include "_button.html" %}
+  
+  Variables (set before include):
+    - button_text: Text to display (required)
+    - button_type: "submit" | "button" | "reset" (default: "button")
+    - button_variant: "primary" | "secondary" | "danger" (default: "primary")
+    - button_disabled: true | false (default: false)
+    - button_href: If set, renders as <a> instead of <button>
+    - button_htmx: HTMX attributes dict (optional)
+  
+  Variants:
+    - primary: bg-primary-500 text-white, hover:bg-primary-600
+    - secondary: bg-stone-100 text-stone-700, hover:bg-stone-200
+    - danger: bg-balance-neg text-white, hover:opacity-90
+  
+  Accessibility:
+    - Includes hx-disabled-elt="this" for double-submit prevention
+    - Meets 44x44px minimum touch target
+    - Has visible focus ring
+  
+  Example:
+    {% set button_text = "Save Expense" %}
+    {% set button_variant = "primary" %}
+    {% set button_type = "submit" %}
+    {% include "_button.html" %}
+#}
+
+{# Placeholder - actual implementation in future story #}
+<button
+  type="{{ button_type | default('button') }}"
+  class="px-4 py-2 rounded-lg font-medium focus-ring touch-target inline-flex items-center justify-center gap-2 transition-colors
+    {% if button_variant == 'secondary' %}
+      bg-stone-100 text-stone-700 hover:bg-stone-200
+    {% elif button_variant == 'danger' %}
+      bg-balance-neg text-white hover:opacity-90
+    {% else %}
+      bg-primary-500 text-white hover:bg-primary-600
+    {% endif %}"
+  {% if button_disabled %}disabled{% endif %}
+  hx-disabled-elt="this"
+>
+  {{ button_text | default('Button') }}
+</button>

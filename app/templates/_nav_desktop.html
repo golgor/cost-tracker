@@ -1,0 +1,41 @@
+<!-- Desktop top navigation - visible at md breakpoint (768px+) -->
+<nav class="hidden md:flex items-center justify-between px-8 py-4 bg-surface-card shadow-sm border-b border-stone-200" aria-label="Main navigation">
+  <!-- Logo placeholder -->
+  <div class="flex items-center gap-8">
+    <a href="/" class="text-xl font-semibold text-primary-500 focus-ring rounded-lg px-2 py-1">
+      Cost Tracker
+    </a>
+
+    <!-- Navigation items -->
+    <div class="flex items-center gap-1">
+      <a href="/" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+        Dashboard
+      </a>
+      <a href="/expenses" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+        Expenses
+      </a>
+      <a href="/recurring" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+        Recurring
+      </a>
+      <a href="/settlements" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+        Settlements
+      </a>
+    </div>
+  </div>
+
+  <!-- Right side: Add button and user area -->
+  <div class="flex items-center gap-4">
+    <!-- + Add Expense button placeholder -->
+    <button type="button" class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring touch-target flex items-center justify-center gap-2 font-medium transition-colors" hx-disabled-elt="this">
+      <span aria-hidden="true">+</span> Add Expense
+    </button>
+
+    <!-- User badge area placeholder -->
+    <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100">
+      <div class="w-8 h-8 rounded-full bg-stone-300 flex items-center justify-center text-stone-600 text-sm font-medium">
+        U
+      </div>
+      <span class="text-stone-700 text-sm">User</span>
+    </div>
+  </div>
+</nav>

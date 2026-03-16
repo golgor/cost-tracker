@@ -1,0 +1,47 @@
+<!-- Mobile bottom navigation - visible below md breakpoint (768px) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-stone-200 safe-area-inset-bottom z-40" aria-label="Main navigation">
+  <div class="flex items-center justify-around h-16 px-2">
+    <!-- Dashboard -->
+    <a href="/" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <span class="text-xs">Dashboard</span>
+    </a>
+
+    <!-- Expenses -->
+    <a href="/expenses" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      <span class="text-xs">Expenses</span>
+    </a>
+
+    <!-- FAB placeholder area (centered, elevated) -->
+    <div class="relative flex items-center justify-center">
+      <button type="button" class="absolute -top-8 w-14 h-14 bg-primary-500 text-white rounded-full shadow-lg hover:bg-primary-600 focus-ring flex items-center justify-center z-50 transition-colors" aria-label="Add expense" hx-disabled-elt="this">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+      </button>
+      <!-- Spacer to maintain layout -->
+      <div class="w-14"></div>
+    </div>
+
+    <!-- Recurring -->
+    <a href="/recurring" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <span class="text-xs">Recurring</span>
+    </a>
+
+    <!-- Settlements -->
+    <a href="/settlements" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span class="text-xs">Settle</span>
+    </a>
+  </div>
+</nav>

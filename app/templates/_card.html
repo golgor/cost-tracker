@@ -1,0 +1,41 @@
+{#
+  Card Component Partial
+  
+  Usage:
+    {% include "_card.html" %}
+  
+  Variables (set before include):
+    - card_content: HTML content to render inside card (required)
+    - card_title: Optional card header title
+    - card_padding: "sm" | "md" | "lg" (default: "md" = p-4)
+    - card_clickable: true | false - if true, adds hover effect (default: false)
+    - card_href: If set with card_clickable, wraps card in anchor
+  
+  Styling:
+    - White background on warm beige surface
+    - Rounded corners (rounded-lg)
+    - Subtle shadow (shadow-sm)
+    - Generous whitespace
+  
+  Accessibility:
+    - When clickable, entire card is focusable
+    - Focus ring on keyboard navigation
+  
+  Example:
+    {% set card_title = "Recent Expenses" %}
+    {% set card_content %}
+      <ul>...</ul>
+    {% endset %}
+    {% include "_card.html" %}
+#}
+
+{# Placeholder - actual implementation in future story #}
+<div class="card {% if card_clickable %}hover:shadow-md cursor-pointer transition-shadow{% endif %}">
+  {% if card_title %}
+    <h3 class="text-lg font-medium text-stone-800 mb-3">{{ card_title }}</h3>
+  {% endif %}
+  
+  <div>
+    {{ card_content | default('Card content goes here') }}
+  </div>
+</div>
