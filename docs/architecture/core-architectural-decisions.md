@@ -141,10 +141,10 @@ models with `table=True`.
 
 ## Testing Strategy (Updated)
 
-- **Unit tests** (`@pytest.mark.unit`, SQLAlchemy + SQLite in-memory): Domain logic through real adapters, split
-  calculations, validation, state transitions
-- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL in CI): Settlement concurrency (`SELECT FOR
-  UPDATE`), unique constraint idempotency, transactional rollback
+- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Domain logic
+  through real adapters, split calculations, validation, state transitions, concurrency tests
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement concurrency (`SELECT FOR
+  UPDATE`), unique constraint idempotency, transactional rollback, health checks
 - **Contract tests** (`@pytest.mark.contract`, no DB needed): Verify ORM models inherit all domain base fields correctly
 - **Architectural tests** (`architecture_test.py`): Domain import purity (AST-based), `queries.py` read-only enforcement
 - **CI schema drift check**: After `alembic upgrade head`, verify schema matches `Base.metadata.create_all()` output
@@ -156,7 +156,7 @@ models with `table=True`.
 | --- | ------ | ----------- | ------------ |
 | 1 | ~~Mapping tax kills velocity~~ | Eliminated by SQLModel inheritance pattern (ADR-011) | N/A |
 | 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new port method |
-| 3 | SQLite/PostgreSQL divergence | Integration tests for transactions/constraints | Every test touching commit/rollback |
+| 3 | Test/Production DB divergence | All tests use PostgreSQL with `_test` suffix (auto-created) | Every test run |
 | 4 | Framework leaking into domain | AST-based `architecture_test.py` in CI | Every PR |
 | 5 | UoW scope creep | UoW = repos + commit + rollback, nothing more | Every UoW change |
 | 6 | `.env` secrets leak | `.gitignore`, `.env.example`, log config source on startup | Project setup |

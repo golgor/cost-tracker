@@ -53,7 +53,7 @@ process patterns.
 
 ```text
 tests/
-  conftest.py               # Shared fixtures: SQLite engine, session factory, UoW factory
+  conftest.py               # Shared fixtures: PostgreSQL engine (test DB), session factory, UoW factory
   architecture_test.py      # Domain purity + queries.py enforcement
   domain/
     expenses_test.py
@@ -70,9 +70,9 @@ tests/
     expense_routes_test.py
 ```
 
-- Root `conftest.py`: SQLite in-memory engine, `Session` factory, `UnitOfWork` factory. Used by `domain/` and
-  `adapters/` tests
-- `integration/conftest.py`: PostgreSQL engine (from `TEST_DATABASE_URL` env var). Isolated from unit test fixtures
+- Root `conftest.py`: PostgreSQL engine with `_test` database suffix (auto-derived from `DATABASE_URL`),
+  `Session` factory, `UnitOfWork` factory. Creates test DB if needed. Used by all tests
+- All tests use PostgreSQL: unit tests use `costtracker_test`, integration tests also use `costtracker_test`
 - `web/conftest.py`: FastAPI `TestClient`, template assertion helpers
 
 ## Format Patterns
