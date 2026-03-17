@@ -30,7 +30,15 @@ class SqlAlchemyUserAdapter:
         return self._to_public(row)
 
     def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
-        """Create or update a user. Returns the persisted user. Auto-audits."""
+        """Create or update a user. Returns the persisted user. Auto-audits.
+
+        TODO(1.6): Refactor to accept `actor_id` as keyword parameter like other
+        adapters (GroupAdapter). Currently self-audits with actor_id=user's own ID
+        because there is no provision_user use case to provide actor context.
+        Story 1.6 will introduce the use case with role assignment and deactivation
+        checks — at that point, remove self-auditing here and let the use case pass
+        actor_id through. See: 1-6-admin-bootstrap-and-user-lifecycle-core.md
+        """
         existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).first()
 
         if existing:

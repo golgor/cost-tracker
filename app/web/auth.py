@@ -80,6 +80,10 @@ async def callback(request: Request, uow: UowDep):
     display_name = userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
 
     # Auto-provision or update user (FR39)
+    # TODO(1.6): Replace direct adapter call with provision_user use case.
+    # Currently violates "routes call use cases for mutations" rule.
+    # Story 1.6 will add role assignment, deactivation checks, and proper
+    # audit actor_id context. See: 1-6-admin-bootstrap-and-user-lifecycle-core.md
     user = uow.users.save(
         oidc_sub=oidc_sub,
         email=email,
