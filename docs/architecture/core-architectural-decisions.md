@@ -42,13 +42,15 @@
 | Migrations | Alembic (auto-generate + manual review) | Standard for SQLAlchemy. Never blind upgrade — always review generated migrations |
 | Configuration | `pydantic-settings` | Reads env vars, validates types, fails fast. `.env` for local dev (gitignored), `.env.example` committed |
 | Caching | Deferred | Not needed for MVP |
+| Timestamps | `TIMESTAMPTZ` + server-managed defaults (`server_default=func.now()`, `onupdate=func.now()`) | Timezone-aware storage, no Python-side clock dependency, automatic `updated_at` on every UPDATE |
 
 **Adapter Pattern (not Repository Pattern):**
 
 - Ports define what the domain needs: `ExpensePort(Protocol)`
 - Adapters implement ports using infrastructure: `SqlAlchemyExpenseAdapter`
-- ORM models (`ExpenseRow(DomainBase, table=True)`) inherit from domain base classes
-- Mapping via `.model_validate()` — no manual `_to_domain()` / `_to_row()` helpers needed
+- ORM `XxxRow` inherits from domain `XxxBase` (SQLModel inheritance)
+- Adapters use `_to_public()` to convert ORM rows to public domain models (e.g., `UserPublic`, `GroupPublic`)
+- No `_to_row()` helper needed — rows are created directly as `XxxRow(...)` since they inherit domain fields
 
 **View Queries (`adapters/sqlalchemy/queries.py`):**
 
@@ -165,6 +167,7 @@ models with `table=True`.
 | 9 | Inconsistent HTMX errors | Single global handler + `_error.html` partial | Every HTMX endpoint |
 | 10 | `dependencies.py` god file | Split by feature if >100 lines | When file grows |
 | 11 | ~~Mapping field drift~~ | Eliminated by SQLModel inheritance — ORM inherits from domain | N/A |
+| 12 | Manual timestamp drift | Server-managed defaults (`server_default`, `onupdate`) — no Python `datetime.now()` in adapters | Every new datetime column |
 
 ## Decision Impact Analysis
 
@@ -277,7 +280,8 @@ while maintaining separation via `table=True` flag.
 
 - Domain models: `SQLModel` classes without `table=True` (pure data + validation)
 - ORM models: `SQLModel` classes with `table=True`, inheriting from domain models
-- Mapping: Use `.model_validate()` instead of manual `_to_domain()`/`_to_row()`
+- Mapping: Adapters use `_to_public()` to convert ORM rows to public domain models; rows created
+  directly as `XxxRow(...)` — no `_to_row()` needed
 **Consequences:**
 - Single field definition per entity (in domain base class)
 - ORM models inherit and add DB-specific fields (id, timestamps, foreign keys)

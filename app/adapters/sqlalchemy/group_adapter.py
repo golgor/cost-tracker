@@ -1,6 +1,3 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -17,7 +14,7 @@ from app.domain.models import (
     SplitType,
 )
 
-UTC = ZoneInfo("UTC")
+
 
 
 class SqlAlchemyGroupAdapter:
@@ -98,7 +95,6 @@ class SqlAlchemyGroupAdapter:
         if tracking_threshold is not None:
             row.tracking_threshold = tracking_threshold
 
-        row.updated_at = datetime.now(UTC)
         self._session.add(row)
         self._session.flush()
         return self._to_public(row)

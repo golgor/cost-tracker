@@ -8,10 +8,10 @@ Hexagonal (ports & adapters). Domain is pure Python — no framework imports.
 
 ```
 app/
-├── domain/          # @dataclass models, Protocol ports, use cases, pure math
+├── domain/          # SQLModel base classes, Protocol ports, use cases, pure math
 ├── adapters/        # SQLAlchemy implementations of domain ports
 │   └── sqlalchemy/
-│       ├── orm_models.py        # Declarative Base + XxxRow classes
+│       ├── orm_models.py        # SQLModel table=True XxxRow classes
 │       ├── *_adapter.py         # SqlAlchemyXxxAdapter implementations
 │       ├── unit_of_work.py      # Shared Session across adapters
 │       └── queries/             # Read-only view queries (no writes)
@@ -26,8 +26,8 @@ app/
 
 ### Boundaries
 
-- `domain/` imports only stdlib (`dataclasses`, `typing`, `decimal`, `datetime`, `enum`)
-- ORM models (`XxxRow`) never leave adapter boundary — mapped to domain `@dataclass` via `_to_domain()` / `_to_row()`
+- `domain/` imports only `sqlmodel`, `pydantic`, `typing`, `decimal`, `datetime`, `enum`
+- ORM models (`XxxRow`) never leave adapter boundary — mapped to public domain models via `_to_public()`
 - Use cases receive `UnitOfWork` as parameter — no global state, no service locator
 - Current user enters domain as `user_id: int`, not framework request context
 - `dependencies.py` is the only file that wires adapters to domain ports
@@ -40,7 +40,8 @@ app/
 - Domain ports: `XxxPort` (e.g., `ExpensePort`)
 - Adapters: `SqlAlchemyXxxAdapter` (e.g., `SqlAlchemyExpenseAdapter`)
 - ORM models: `XxxRow` (e.g., `ExpenseRow`)
-- Domain models: `@dataclass` with plain name (e.g., `Expense`)
+- Domain base models: `XxxBase(SQLModel)` without `table=True` (e.g., `ExpenseBase`)
+- Domain public models: `XxxPublic(XxxBase)` with DB-generated fields (e.g., `ExpensePublic`)
 - Test files: `{module}_test.py` (e.g., `expenses_test.py`)
 - Templates: `snake_case.html`, HTMX partials prefixed `_` (e.g., `_row.html`)
 
@@ -65,7 +66,9 @@ app/
 - Always use `Decimal` for money values — zero floats in the money path
 - Always call `uow.audit.log()` in use cases that perform state-changing operations
 - Money in JSON: string representation of `Decimal` (e.g., `"123.45"`) — never float
-- Dates in JSON: ISO 8601 strings
+- Dates in JSON: ISO 8601 strings with timezone (e.g., `"2026-03-15T14:30:00+00:00"`)
+- Always use `DateTime(timezone=True)` for datetime columns — never naive `TIMESTAMP`
+- Never manually assign `created_at` or `updated_at` in adapters — server/SQLAlchemy-managed via `server_default=func.now()` and `onupdate=func.now()`
 - No `Repository` naming — use `Port` (domain) + `Adapter` (infra)
 
 ## Error Handling

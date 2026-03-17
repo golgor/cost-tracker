@@ -33,7 +33,7 @@ Infrastructure concerns are pushed to adapters that implement domain-defined Pro
 ```text
 app/
   domain/                    # Pure business logic — NO framework imports
-    models.py                # Domain dataclasses (@dataclass, not Pydantic)
+    models.py                # Domain models (SQLModel without table=True — pure data + validation)
     errors.py                # Domain exceptions
     ports.py                 # Protocol interfaces (ports)
     splits.py                # Split calculation (pure math helper, not a use case)
@@ -44,7 +44,7 @@ app/
   adapters/
     sqlalchemy/              # DB adapters implementing domain ports
       orm_models.py          # SQLAlchemy mapped classes
-      expense_adapter.py     # SqlAlchemyExpenseAdapter + _to_domain/_to_row
+      expense_adapter.py     # SqlAlchemyExpenseAdapter + _to_public() mapping
       settlement_adapter.py
       recurring_adapter.py
       audit_adapter.py
@@ -98,14 +98,16 @@ class UnitOfWork(Protocol):
    shares a single session across all adapters within a UoW instance
 2. **Audit as domain concern** — `AuditPort` is a domain port, called explicitly in use cases within the same UoW
    transaction. Atomic with data changes. Not a cross-cutting decorator
-3. **Domain purity enforced** — `domain/` must not import from `fastapi`, `sqlalchemy`, `starlette`, or `pydantic`.
-   Domain models are `@dataclass`. Enforced by `architecture_test.py` (AST-based, runs in CI)
+3. **Domain purity enforced** — `domain/` must not import from `fastapi`, `sqlalchemy`, or `starlette`. Domain models
+   use `SQLModel` without `table=True` (pure data + validation, per ADR-011). Enforced by `architecture_test.py`
+   (AST-based, runs in CI)
 4. **Port methods express intent** — Methods named for domain operations (`get_unsettled`, `mark_settled`) not generic
    CRUD (`find_by_status`)
 5. **View queries bypass domain** — Read-only dashboard/search queries don't need domain ports. Only domain-significant
    operations get ports
 6. **splits.py is a pure math helper** — Not a use case, doesn't need ports. Pure functions for split calculation
-7. **ORM↔domain mapping co-located** — Mapping helpers live in each adapter file, not in a separate mapping module
+7. **ORM↔domain mapping co-located** — Adapters use `_to_public()` to convert ORM rows (`SQLModel` with `table=True`)
+   to public domain models. No `_to_row()` needed — ORM rows inherit from domain base classes via SQLModel
 8. **Dashboard composition is a view concern** — Web layer assembles data from multiple use cases; no "dashboard use
    case"
 9. **Use cases are plain functions** — Receive `UnitOfWork` as parameter. No single-method classes
@@ -125,7 +127,7 @@ class UnitOfWork(Protocol):
 
 | # | Risk | Prevention | Check When |
 | --- | ------ | ----------- | ------------ |
-| 1 | Mapping tax kills velocity | Keep mappings minimal, co-located in adapter repo files | Every new field/model |
+| 1 | Mapping tax kills velocity | ORM rows inherit domain base classes via SQLModel; `_to_public()` is the only mapping needed | Every new field/model |
 | 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new repo method |
 | 3 | Test/Production DB divergence | All tests use PostgreSQL with `_test` suffix (auto-created) | Every test run |
 | 4 | Framework leaking into domain | AST-based `architecture_test.py` in CI | Every PR |

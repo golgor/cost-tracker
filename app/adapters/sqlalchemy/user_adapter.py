@@ -1,14 +1,8 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import UserRow
 from app.domain.models import UserPublic
-
-UTC = ZoneInfo("UTC")
-
 
 class SqlAlchemyUserAdapter:
     """SQLAlchemy adapter implementing UserPort."""
@@ -38,7 +32,6 @@ class SqlAlchemyUserAdapter:
         if existing:
             existing.email = email
             existing.display_name = display_name
-            existing.updated_at = datetime.now(UTC)
             self._session.add(existing)
             self._session.flush()
             return self._to_public(existing)
@@ -58,7 +51,6 @@ class SqlAlchemyUserAdapter:
             existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).one()
             existing.email = email
             existing.display_name = display_name
-            existing.updated_at = datetime.now(UTC)
             self._session.add(existing)
             self._session.flush()
             return self._to_public(existing)

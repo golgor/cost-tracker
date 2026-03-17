@@ -67,6 +67,9 @@
    baseline. Expired session on HTMX requests returns `HX-Redirect` header. `hx-disabled-elt` prevents double submission
 7. **Money Precision** — `Decimal` type end to end: Pydantic models, use cases, PostgreSQL `NUMERIC` columns. Zero
    floats in the money path
+8. **Timestamp Consistency** — All datetime columns use `TIMESTAMPTZ` (timezone-aware). Timestamps (`created_at`,
+   `updated_at`) are server/SQLAlchemy-managed via `server_default=func.now()` and `onupdate=func.now()`. No
+   Python-side `datetime.now()` calls in adapters — eliminates clock skew and ensures consistency across all write paths
 
 ## Architectural Principles (from First Principles Analysis)
 

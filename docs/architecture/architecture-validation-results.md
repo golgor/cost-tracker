@@ -10,9 +10,10 @@ conflicts.
 
 **Pattern Consistency:**
 Implementation patterns from Step 5 align with the hexagonal architecture decisions in Step 4. Naming conventions
-(`XxxPort`, `SqlAlchemyXxxAdapter`, `XxxRow`) are consistent across all code examples. The `_to_domain()` / `_to_row()`
-mapping pattern is uniformly applied. Error handling flows through a single global exception handler — no conflicting
-per-route patterns.
+(`XxxPort`, `SqlAlchemyXxxAdapter`, `XxxRow`) are consistent across all code examples. Per ADR-011, ORM `XxxRow` models
+inherit from domain `XxxBase` (SQLModel, no `table=True`), and adapters use `_to_public()` to convert ORM rows to public
+domain models (e.g., `UserPublic`, `GroupPublic`). Contract tests verify round-trip mapping preserves all fields via
+`_to_public()`. Error handling flows through a single global exception handler — no conflicting per-route patterns.
 
 **Structure Alignment:**
 The project structure from Step 6 directly reflects the ports & adapters architecture: `domain/` contains only models,

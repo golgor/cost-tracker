@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, func
 from sqlmodel import Field, SQLModel
 
 from app.domain.models import GroupBase, MemberRole, UserBase
@@ -14,12 +13,8 @@ from app.domain.models import GroupBase, MemberRole, UserBase
 # Table models (XxxRow) inherit from domain models with table=True.
 # Domain models are defined in app/domain/models.py without table=True.
 
-UTC = ZoneInfo("UTC")
-
-
-def _utc_now() -> datetime:
-    """Return current UTC time as timezone-aware datetime."""
-    return datetime.now(UTC)
+# Timestamp column helpers — DB generates values via server_default / onupdate.
+_TZ_DATETIME = DateTime(timezone=True)
 
 
 class MembershipRow(SQLModel, table=True):
@@ -30,7 +25,10 @@ class MembershipRow(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", primary_key=True)
     group_id: int = Field(foreign_key="groups.id", primary_key=True)
     role: MemberRole = Field(default=MemberRole.USER)
-    joined_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))  # type: ignore[arg-type]
+    joined_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
 
 
 class UserRow(UserBase, table=True):
@@ -39,8 +37,14 @@ class UserRow(UserBase, table=True):
     __tablename__ = "users"
 
     id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))  # type: ignore[arg-type]
-    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
 
 
 class GroupRow(GroupBase, table=True):
@@ -50,8 +54,14 @@ class GroupRow(GroupBase, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     singleton_guard: bool = Field(default=True, unique=True, nullable=False)
-    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))  # type: ignore[arg-type]
-    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
 
 
 class AuditRow(SQLModel, table=True):
@@ -65,8 +75,8 @@ class AuditRow(SQLModel, table=True):
     entity_type: str = Field(max_length=100, index=True)
     entity_id: int = Field(index=True)
     occurred_at: datetime = Field(
-        default_factory=_utc_now,
-        sa_type=DateTime(timezone=True),  # type: ignore[arg-type]
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,
         index=True,
     )
     details: dict[str, Any] | None = Field(

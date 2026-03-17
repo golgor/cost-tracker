@@ -47,7 +47,7 @@ cost-tracker/
 │   ├── dependencies.py                     # Composition root: wires adapters → use cases
 │   ├── domain/
 │   │   ├── __init__.py
-│   │   ├── models.py                       # @dataclass: Expense, Settlement, RecurringDefinition, AuditEntry, Group, User
+│   │   ├── models.py                       # SQLModel base classes: ExpenseBase, SettlementBase, RecurringDefinitionBase, AuditEntryBase, GroupBase, UserBase + public read models
 │   │   ├── errors.py                       # DomainError hierarchy: ExpenseNotFound, InvalidSplit, etc.
 │   │   ├── ports.py                        # Protocol interfaces: ExpensePort, SettlementPort, RecurringPort, AuditPort, UnitOfWork
 │   │   ├── splits.py                       # Pure math: even/shares/percentage/amount split, deterministic rounding
@@ -61,10 +61,10 @@ cost-tracker/
 │   │   └── sqlalchemy/
 │   │       ├── __init__.py
 │   │       ├── orm_models.py               # Declarative Base + all XxxRow classes
-│   │       ├── expense_adapter.py          # SqlAlchemyExpenseAdapter + _to_domain/_to_row
-│   │       ├── settlement_adapter.py       # SqlAlchemySettlementAdapter + _to_domain/_to_row
-│   │       ├── recurring_adapter.py        # SqlAlchemyRecurringAdapter + _to_domain/_to_row
-│   │       ├── audit_adapter.py            # SqlAlchemyAuditAdapter + _to_domain/_to_row
+│   │       ├── expense_adapter.py          # SqlAlchemyExpenseAdapter + _to_public()
+│   │       ├── settlement_adapter.py       # SqlAlchemySettlementAdapter + _to_public()
+│   │       ├── recurring_adapter.py        # SqlAlchemyRecurringAdapter + _to_public()
+│   │       ├── audit_adapter.py            # SqlAlchemyAuditAdapter + _to_public()
 │   │       ├── unit_of_work.py             # SqlAlchemyUnitOfWork (shared Session across all adapters)
 │   │       └── queries/
 │   │           ├── __init__.py
@@ -156,7 +156,7 @@ cost-tracker/
 │   ├── adapters/
 │   │   ├── __init__.py
 │   │   ├── expense_adapter_test.py         # Adapter CRUD operations
-│   │   └── contract_test.py                # Round-trip mapping: _to_domain(_to_row()) preserves fields
+│   │   └── contract_test.py                # Round-trip mapping: XxxRow → _to_public() preserves all fields
 │   ├── integration/
 │   │   ├── __init__.py
 │   │   ├── conftest.py                     # PostgreSQL fixtures (TEST_DATABASE_URL)
@@ -174,7 +174,7 @@ in `alembic/env.py`.
 
 **Domain Boundary (pure, no framework imports):**
 
-- `app/domain/` imports only stdlib: `dataclasses`, `typing`, `decimal`, `datetime`, `enum`
+- `app/domain/` imports only: `sqlmodel`, `pydantic`, `typing`, `decimal`, `datetime`, `enum`
 - All external communication through `Protocol` interfaces in `ports.py`
 - Use cases receive `UnitOfWork` as parameter — never instantiate adapters
 - Enforced by `architecture_test.py` in CI
@@ -182,7 +182,10 @@ in `alembic/env.py`.
 **Adapter Boundary (infrastructure implementations):**
 
 - `app/adapters/sqlalchemy/` implements domain ports using SQLAlchemy
-- ORM models (`XxxRow`) never leave adapter boundary — mapped to domain `@dataclass` before return
+- ORM models (`XxxRow`) never leave adapter boundary — mapped to domain public models
+  (e.g., `UserPublic`, `GroupPublic`) via `_to_public()` before return
+- ORM rows are created directly as `XxxRow(...)` since they inherit from domain base classes — no `_to_row()` needed
+- Timestamp columns (`created_at`, `updated_at`) are server/SQLAlchemy-managed — adapters must not set them manually
 - `queries/` package is a controlled read-only bypass for view queries — no writes permitted
 - `unit_of_work.py` shares a single `Session` across all adapters
 - Architectural test scans `queries/` directory for read-only enforcement
@@ -197,7 +200,7 @@ in `alembic/env.py`.
 
 - `app/web/` handles HTTP routing, form parsing, template rendering
 - `app/web/router.py` assembles all web routers — `main.py` includes only this single router
-- `app/web/forms/` contains Pydantic models for form validation (distinct from domain `@dataclass`)
+- `app/web/forms/` contains Pydantic models for form validation (distinct from domain SQLModel base classes)
 - Calls use cases for mutations, `queries/` directly for read-only views
 - Never contains business logic — thin handlers only
 

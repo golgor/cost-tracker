@@ -123,6 +123,17 @@ def handle_domain_error(request: Request, exc: DomainError):
 - Null handling: explicit `null` in JSON, `None` in Python — never empty string as null substitute
 - Booleans: `true`/`false` (JSON standard)
 
+**Timestamp Patterns:**
+
+- All datetime columns use `TIMESTAMPTZ` (PostgreSQL `TIMESTAMP WITH TIME ZONE`) — never naive `TIMESTAMP`
+- ORM fields declare `sa_type=DateTime(timezone=True)` for timezone-aware storage and retrieval
+- Timestamp defaults are server/SQLAlchemy-managed, not set in Python application code:
+  - `created_at`: `server_default=func.now()` — PostgreSQL generates on INSERT, immutable after creation
+  - `updated_at`: `server_default=func.now()` + `onupdate=func.now()` — SQLAlchemy auto-injects on every UPDATE
+  - `joined_at`, `occurred_at`: `server_default=func.now()` — PostgreSQL generates on INSERT
+- Adapters must never manually assign `row.created_at` or `row.updated_at`
+- Dates in JSON: ISO 8601 strings with timezone (e.g., `"2026-03-15T14:30:00+00:00"`)
+
 **Route Handler Pattern (clean, no try/except):**
 
 ```python
@@ -205,6 +216,8 @@ def get_user(request: Request) -> User:
 - Never write to DB in `queries.py` — enforced by architectural test
 - Always use `Decimal` for money values — zero floats in the money path
 - Always call `uow.audit.log()` in use cases that perform state-changing operations
+- Never manually assign `created_at` or `updated_at` in adapters — these are server/SQLAlchemy-managed
+- Always use `DateTime(timezone=True)` for datetime columns — never naive timestamps
 
 **Pattern Enforcement:**
 
@@ -228,7 +241,7 @@ class SqlAlchemyExpenseAdapter:
         rows = self._session.query(ExpenseRow).filter_by(
             group_id=group_id, settlement_id=None
         ).all()
-        return [_to_domain(row) for row in rows]
+        return [_to_public(row) for row in rows]
 
 # Use case — pure function, receives UoW
 def create_expense(uow: UnitOfWork, user_id: int, ...) -> Expense:
@@ -261,7 +274,7 @@ def create_expense(...)
         return templates.TemplateResponse("_error.html", ...)
 
 # BAD: Framework imports in domain
-from pydantic import BaseModel     # NO — domain uses @dataclass
+from pydantic import BaseModel  # NO — domain uses SQLModel (not raw Pydantic)
 from sqlalchemy import Column      # NO — ORM stays in adapters
 
 # BAD: Repository naming (use adapter pattern)
@@ -274,4 +287,11 @@ amount: float = 19.99              # NO — use Decimal("19.99")
 def delete_expense(uow, expense_id):
     uow.expenses.delete(expense_id)
     uow.commit()                   # NO — missing uow.audit.log() call
+
+# BAD: Manual timestamp assignment in adapters
+row.updated_at = datetime.now(UTC)  # NO — onupdate=func.now() handles this
+row.created_at = datetime.now(UTC)  # NO — server_default=func.now() handles this
+
+# BAD: Python-side default factories for timestamps
+created_at: datetime = Field(default_factory=_utc_now)  # NO — use server_default=func.now()
 ```
