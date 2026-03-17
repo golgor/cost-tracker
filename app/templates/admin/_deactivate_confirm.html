@@ -15,7 +15,7 @@
         Cancel
       </button>
       <button
-        hx-post="/admin/users/{{ target_user.id }}/deactivate"
+        hx-post="/admin/users/{{ target_user_id }}/deactivate"
         hx-target="#deactivate-response-container"
         hx-swap="innerHTML"
         style="background-color: #B8453A; color: white;"
@@ -41,11 +41,11 @@
     if (html) {
       if (html.startsWith('<tr')) {
         console.log('Success case - updating table row');
-        const targetRow = document.getElementById('user-row-{{ target_user.id }}');
+        const targetRow = document.getElementById('user-row-{{ target_user_id }}');
         if (targetRow) {
           targetRow.outerHTML = html;
           // Re-initialize HTMX on the new row so buttons work
-          const newRow = document.getElementById('user-row-{{ target_user.id }}');
+          const newRow = document.getElementById('user-row-{{ target_user_id }}');
           if (newRow) {
             htmx.process(newRow);
           }

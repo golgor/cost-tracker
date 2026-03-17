@@ -13,6 +13,7 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
+from app.web.view_models import AuditEntryViewModel, UserProfileViewModel, UserRowViewModel
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +45,19 @@ async def admin_users_page(
     _check_admin_access(user_id, uow)
 
     # Fetch all users for display
-    users = get_all_users(uow.session)
-    user = uow.users.get_by_id(user_id)
+    users_domain = get_all_users(uow.session)
+    user_domain = uow.users.get_by_id(user_id)
+
+    # Transform to view models
+    users_view = [UserRowViewModel.from_domain(u) for u in users_domain]
+    user_view = UserProfileViewModel.from_domain(user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/users.html",
         {
-            "user": user,
-            "users": users,
+            "user": user_view,
+            "users": users_view,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -66,14 +72,19 @@ async def admin_audit_log_page(
     """Admin audit log page."""
     _check_admin_access(user_id, uow)
 
-    user = uow.users.get_by_id(user_id)
-    audit_entries = get_recent_audit_entries(uow.session, limit=100)
+    user_domain = uow.users.get_by_id(user_id)
+    audit_entries_dicts = get_recent_audit_entries(uow.session, limit=100)
+
+    # Transform to view models
+    user_view = UserProfileViewModel.from_domain(user_domain)
+    audit_entries_view = [AuditEntryViewModel.from_dict(e) for e in audit_entries_dicts]
+
     return templates.TemplateResponse(
         request,
         "admin/audit.html",
         {
-            "user": user,
-            "audit_entries": audit_entries,
+            "user": user_view,
+            "audit_entries": audit_entries_view,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -94,12 +105,14 @@ async def promote_user(
 
     user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
     # Return updated row
-    users = get_all_users(uow.session)
-    user = [u for u in users if u.id == target_user_id][0]
+    users_domain = get_all_users(uow.session)
+    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_view = UserRowViewModel.from_domain(user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/_user_row.html",
-        {"u": user},
+        {"u": user_view},
     )
 
 
@@ -114,12 +127,14 @@ async def demote_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-    users = get_all_users(uow.session)
-    user = [u for u in users if u.id == target_user_id][0]
+    users_domain = get_all_users(uow.session)
+    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_view = UserRowViewModel.from_domain(user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/_user_row.html",
-        {"u": user},
+        {"u": user_view},
     )
 
 
@@ -133,11 +148,17 @@ async def deactivate_confirm_dialog(
     """Show deactivate confirmation dialog."""
     _check_admin_access(user_id, uow)
 
-    target_user = uow.users.get_by_id(target_user_id)
+    target_user_domain = uow.users.get_by_id(target_user_id)
+    target_user_view = UserProfileViewModel.from_domain(target_user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/_deactivate_confirm.html",
-        {"target_user": target_user, "csrf_token": getattr(request.state, "csrf_token", "")},
+        {
+            "target_user": target_user_view,
+            "target_user_id": target_user_id,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
     )
 
 
@@ -152,12 +173,14 @@ async def deactivate_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-    users = get_all_users(uow.session)
-    user = [u for u in users if u.id == target_user_id][0]
+    users_domain = get_all_users(uow.session)
+    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_view = UserRowViewModel.from_domain(user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/_user_row.html",
-        {"u": user},
+        {"u": user_view},
     )
 
 
@@ -172,10 +195,12 @@ async def reactivate_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-    users = get_all_users(uow.session)
-    user = [u for u in users if u.id == target_user_id][0]
+    users_domain = get_all_users(uow.session)
+    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_view = UserRowViewModel.from_domain(user_domain)
+
     return templates.TemplateResponse(
         request,
         "admin/_user_row.html",
-        {"u": user},
+        {"u": user_view},
     )

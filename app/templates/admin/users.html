@@ -56,73 +56,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-stone-200">
           {% for u in users %}
-          <tr class="hover:bg-stone-50 user-row" id="user-row-{{ u.id }}" data-status="{% if u.is_active %}active{% else %}deactivated{% endif %}">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-stone-900">
-              {{ u.display_name }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-stone-600">
-              {{ u.email }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              {% if u.role == 'admin' %}
-              <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-primary-500 text-white">
-                Admin
-              </span>
-              {% else %}
-              <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-stone-200 text-stone-900">
-                User
-              </span>
-              {% endif %}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              {% if u.is_active %}
-              <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-700 text-white">
-                Active
-              </span>
-              {% else %}
-              <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-700 text-white">
-                Deactivated
-              </span>
-              {% endif %}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <div class="flex justify-end gap-2">
-                {% if u.is_active %}
-                  {% if u.role == 'user' %}
-                  <button
-                    hx-post="/admin/users/{{ u.id }}/promote"
-                    hx-swap="outerHTML"
-                    hx-target="closest tr"
-                    class="px-3 py-1 text-sm bg-stone-100 text-stone-700 rounded hover:bg-stone-200 focus-ring">
-                    Promote
-                  </button>
-                  {% elif u.role == 'admin' %}
-                  <button
-                    hx-post="/admin/users/{{ u.id }}/demote"
-                    hx-swap="outerHTML"
-                    hx-target="closest tr"
-                    class="px-3 py-1 text-sm bg-stone-100 text-stone-700 rounded hover:bg-stone-200 focus-ring">
-                    Demote
-                  </button>
-                  {% endif %}
-                  <button
-                    hx-get="/admin/users/{{ u.id }}/deactivate-confirm"
-                    hx-target="#modal-container"
-                    class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 focus-ring">
-                    Deactivate
-                  </button>
-                {% else %}
-                  <button
-                    hx-post="/admin/users/{{ u.id }}/reactivate"
-                    hx-swap="outerHTML"
-                    hx-target="closest tr"
-                    class="px-3 py-1 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 focus-ring">
-                    Reactivate
-                  </button>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
+          {% include "admin/_user_row.html" %}
           {% endfor %}
         </tbody>
       </table>
