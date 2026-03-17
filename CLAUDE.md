@@ -76,14 +76,16 @@ Single global exception handler in `main.py` maps `DomainError` subclasses to HT
 
 ```
 tests/
-├── conftest.py              # SQLite in-memory engine, session/UoW factories
+├── conftest.py              # PostgreSQL engine (_test DB), session/UoW factories
 ├── architecture_test.py     # Domain purity, queries read-only, no utils.py
-├── domain/                  # Use cases via real adapters + SQLite
+├── domain/                  # Use cases via real adapters + PostgreSQL
 ├── adapters/                # Adapter CRUD + contract_test.py (round-trip mapping)
-├── integration/             # PostgreSQL (CI-only, TEST_DATABASE_URL)
+├── integration/             # PostgreSQL (health checks, full-stack)
 └── web/                     # TestClient + template assertions
 ```
 
+- All tests use PostgreSQL with `_test` database suffix (auto-derived from `DATABASE_URL`, auto-created if needed)
+- No SQLite — eliminates behavioral divergence (enum handling, constraint semantics)
 - pytest config requires `python_files = ["*_test.py"]` in `pyproject.toml`
 - `architecture_test.py` enforces: domain import purity, `queries/` read-only, no `utils.py`/`helpers.py`
 - `contract_test.py` validates round-trip ORM mapping preserves all fields
@@ -94,7 +96,7 @@ tests/
 - `uv add <pkg>` — add dependency, `uv sync --locked` — install from lockfile
 - `uv.lock` is committed for reproducible builds
 - `mise run dev` — uvicorn with reload + tailwindcss --watch
-- `mise run test` — pytest (unit tests, SQLite)
+- `mise run test` — pytest (all tests, requires PostgreSQL)
 - `mise run lint` — ruff check + ruff format --check + ty
 - `mise run lint:docs` — markdownlint-cli2 on `docs/**/*.md`
 - `mise run migrate` — alembic upgrade head
