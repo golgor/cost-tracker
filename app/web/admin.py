@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.queries import get_all_users
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
+from app.adapters.sqlalchemy.queries.admin_queries import get_recent_audit_entries
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
@@ -65,13 +66,14 @@ async def admin_audit_log_page(
     """Admin audit log page."""
     _check_admin_access(user_id, uow)
 
-    # TODO: Fetch audit log entries
     user = uow.users.get_by_id(user_id)
+    audit_entries = get_recent_audit_entries(uow.session, limit=100)
     return templates.TemplateResponse(
         request,
         "admin/audit.html",
         {
             "user": user,
+            "audit_entries": audit_entries,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )

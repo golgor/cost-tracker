@@ -40,19 +40,31 @@ def get_recent_audit_entries(session: Session, limit: int = 50) -> list:
         .order_by(AuditRow.occurred_at.desc())
         .limit(limit)
     )
-    
+
     results = session.exec(statement).all()
-    
-    return [
-        {
+
+    entries = []
+    for audit, user in results:
+        entry = {
             "id": audit.id,
             "actor_name": user.display_name if user else "System",
             "action": audit.action,
-            "target_type": audit.target_type,
-            "target_id": audit.target_id,
-            "old_value": audit.old_value,
-            "new_value": audit.new_value,
+            "target_type": audit.entity_type,
+            "target_id": audit.entity_id,
             "occurred_at": audit.occurred_at,
+            "old_value": None,
+            "new_value": None,
         }
-        for audit, user in results
-    ]
+
+        # Extract old/new values from changes dict if present
+        if audit.changes:
+            # For simple value changes, extract readable format
+            if len(audit.changes) == 1:
+                field, values = next(iter(audit.changes.items()))
+                if isinstance(values, dict) and "old" in values and "new" in values:
+                    entry["old_value"] = f"{field}: {values['old']}"
+                    entry["new_value"] = f"{field}: {values['new']}"
+
+        entries.append(entry)
+
+    return entries
