@@ -43,6 +43,11 @@
       </button>
       <!-- Dropdown menu -->
       <div class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-stone-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+        {% if user and user.role.value == 'admin' %}
+        <a href="/admin/users" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 transition-colors border-b border-stone-200">
+          Admin
+        </a>
+        {% endif %}
         <a href="/auth/logout" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 rounded-lg transition-colors">
           Logout
         </a>
