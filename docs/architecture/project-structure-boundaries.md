@@ -145,12 +145,12 @@ cost-tracker/
 │       └── favicon.ico
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py                         # SQLite engine, session factory, UoW factory
+│   ├── conftest.py                         # PostgreSQL engine (test DB), session factory, UoW factory
 │   ├── architecture_test.py                # Domain purity, queries read-only, no utils.py/helpers.py
 │   ├── domain/
 │   │   ├── __init__.py
-│   │   ├── expenses_test.py                # Expense use cases via real adapters + SQLite
-│   │   ├── settlements_test.py             # Settlement use cases via real adapters + SQLite
+│   │   ├── expenses_test.py                # Expense use cases via real adapters + PostgreSQL
+│   │   ├── settlements_test.py             # Settlement use cases via real adapters + PostgreSQL
 │   │   ├── recurring_test.py               # Recurring generation use cases
 │   │   └── splits_test.py                  # Pure math: split calculation, rounding edge cases
 │   ├── adapters/
@@ -288,7 +288,7 @@ markdownlint.
 **Local Development (`mise` tasks):**
 
 - `mise run dev`: starts `uvicorn` with reload + `tailwindcss --watch` (requires `uv sync --locked` first)
-- `mise run test`: runs `pytest` (unit tests, SQLite)
+- `mise run test`: runs `pytest` (all tests use PostgreSQL with `_test` database suffix)
 - `mise run lint`: runs `ruff check` + `ruff format --check` + `ty`
 - `mise run migrate`: runs `alembic upgrade head`
 - `mise run db`: starts PostgreSQL via `docker-compose up -d`

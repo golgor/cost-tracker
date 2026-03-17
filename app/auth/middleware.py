@@ -8,6 +8,7 @@ from app.auth.session import decode_session
 from app.settings import settings
 
 PUBLIC_PATHS = {"/auth/login", "/auth/callback", "/health", "/static"}
+SETUP_PATHS = {"/setup"}
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 CSRF_FORM_FIELD = "_csrf_token"
@@ -21,6 +22,11 @@ def is_htmx_request(request: Request) -> bool:
 def is_public_path(path: str) -> bool:
     """Check if path is public (no auth required)."""
     return any(path.startswith(p) for p in PUBLIC_PATHS)
+
+
+def is_setup_path(path: str) -> bool:
+    """Check if path is a setup wizard path."""
+    return any(path.startswith(p) for p in SETUP_PATHS)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

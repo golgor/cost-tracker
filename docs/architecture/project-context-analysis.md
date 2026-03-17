@@ -29,7 +29,8 @@
 - **Reliability**: Stateless app with persistent DB, backwards-compatible migrations, graceful shutdown, HTMX error
   handling
 - **Observability**: Structured JSON logs with request context, health check endpoint, audit trail
-- **Testing**: SQLite for unit tests, PostgreSQL for integration tests in CI
+- **Testing**: PostgreSQL for all tests with `_test` database suffix (auto-derived from `DATABASE_URL`).
+  Test database auto-created if needed
 
 **Scale & Complexity:**
 
@@ -44,7 +45,7 @@
 - **Deployment**: Single Docker image → GHCR → ArgoCD → k3s. Tailwind CLI runs at build time, no Node.js at runtime
 - **Static assets**: HTMX and Tailwind CSS vendored — fully self-contained, no CDN
 - **Testing**: pytest + ruff + ty + markdownlint-cli2 in GitHub Actions CI
-- **Database**: PostgreSQL with ORM (no raw SQL per NFR19). SQLite in-memory for fast local unit tests
+- **Database**: PostgreSQL with ORM (no raw SQL per NFR19). All tests use PostgreSQL with `_test` database suffix
 - **Browser**: Modern Chrome only — no polyfills, no legacy support
 
 ## Cross-Cutting Concerns Identified

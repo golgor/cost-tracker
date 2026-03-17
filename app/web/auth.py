@@ -10,6 +10,9 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
 from app.dependencies import get_uow
+from app.domain.errors import DuplicateMembershipError, GroupNotFoundError
+from app.domain.models import MemberRole
+from app.domain.use_cases import groups as group_use_cases
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -87,8 +90,37 @@ async def callback(request: Request, uow: UowDep):
     # Create session cookie
     session_value = encode_session(user.id)
 
-    # Redirect to dashboard (or setup wizard in future story 1.4)
-    response = RedirectResponse("/", status_code=302)
+    # Determine redirect based on admin bootstrap state (Story 1.4)
+    existing_group = uow.groups.get_by_user_id(user.id)
+    if existing_group:
+        # User already in a group → dashboard
+        redirect_url = "/"
+    elif not uow.groups.has_active_admin():
+        # No active admin exists → redirect to setup wizard (first admin bootstrap)
+        redirect_url = "/setup"
+    else:
+        # Active admin exists → auto-provision as regular user via domain use case
+        group = uow.groups.get_default_group()
+        if group is None:
+            raise GroupNotFoundError("Active admin exists but no default group found")
+
+        try:
+            group_use_cases.add_member(
+                uow=uow,
+                group_id=group.id,
+                user_id=user.id,
+                role=MemberRole.USER,
+            )
+            logger.info("Auto-provisioned user %d to group %d as USER", user.id, group.id)
+        except DuplicateMembershipError:
+            logger.info(
+                "User %d already had membership in group %d during callback auto-provision",
+                user.id,
+                group.id,
+            )
+        redirect_url = "/"
+
+    response = RedirectResponse(redirect_url, status_code=302)
     response.set_cookie(
         "cost_tracker_session",
         session_value,

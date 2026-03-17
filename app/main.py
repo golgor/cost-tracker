@@ -10,7 +10,17 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth.middleware import AuthMiddleware, CSRFMiddleware
 from app.dependencies import engine, get_db_session
-from app.domain.errors import DomainError
+from app.domain.errors import (
+    DeactivatedUserAccessDenied,
+    DomainError,
+    DuplicateHouseholdError,
+    DuplicateMembershipError,
+    GroupNotFoundError,
+    LastActiveAdminDeactivationForbidden,
+    MembershipNotFoundError,
+    UnauthorizedGroupActionError,
+    UserHasActiveGroupMembershipError,
+)
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
 from app.web.router import router as web_router
@@ -19,7 +29,16 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 
 # Maps DomainError subclasses → HTTP status codes.
 # Add entries here as new domain errors are defined in later stories.
-DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {}
+DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
+    DuplicateHouseholdError: 409,
+    DuplicateMembershipError: 409,
+    GroupNotFoundError: 404,
+    MembershipNotFoundError: 404,
+    UnauthorizedGroupActionError: 403,
+    LastActiveAdminDeactivationForbidden: 409,
+    UserHasActiveGroupMembershipError: 409,
+    DeactivatedUserAccessDenied: 403,
+}
 
 
 @asynccontextmanager

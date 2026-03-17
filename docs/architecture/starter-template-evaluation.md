@@ -114,10 +114,10 @@ class UnitOfWork(Protocol):
 
 **Testing Strategy:**
 
-- **Unit tests** (`@pytest.mark.unit`, SQLAlchemy + SQLite in-memory): Domain logic through real adapters, split
-  calculations, validation, state transitions
-- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL in CI): Settlement concurrency (`SELECT FOR
-  UPDATE`), unique constraint idempotency, transactional rollback behavior
+- **All tests** (`@pytest.mark.unit` and `@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix):
+  Domain logic through real adapters, split calculations, validation, state transitions
+- **Integration tests** (`@pytest.mark.integration`, SQLAlchemy + PostgreSQL with `_test` suffix): Settlement
+  concurrency (`SELECT FOR UPDATE`), unique constraint idempotency, transactional rollback behavior
 - **End-to-end**: Full request cycle through routes → use cases → adapters → DB
 - **Architectural test** (`architecture_test.py`): Walks `domain/` AST, asserts no forbidden framework imports
 
@@ -127,7 +127,7 @@ class UnitOfWork(Protocol):
 | --- | ------ | ----------- | ------------ |
 | 1 | Mapping tax kills velocity | Keep mappings minimal, co-located in adapter repo files | Every new field/model |
 | 2 | Protocol explosion | Only domain-significant ops get ports; view queries bypass domain | Every new repo method |
-| 3 | SQLite/PostgreSQL divergence | Integration tests for transactions/constraints, unit tests for logic | Every test touching commit/rollback |
+| 3 | Test/Production DB divergence | All tests use PostgreSQL with `_test` suffix (auto-created) | Every test run |
 | 4 | Framework leaking into domain | AST-based `architecture_test.py` in CI | Every PR |
 | 5 | UoW scope creep | UoW = repos + commit + rollback, nothing more | Every UoW change |
 
