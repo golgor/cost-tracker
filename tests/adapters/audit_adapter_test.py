@@ -211,9 +211,7 @@ class TestAdapterAutoAudit:
         adapter.update(group.id, actor_id=1)
         db_session.commit()
 
-        rows = db_session.exec(
-            select(AuditRow).where(AuditRow.action == "group_updated")
-        ).all()
+        rows = db_session.exec(select(AuditRow).where(AuditRow.action == "group_updated")).all()
         assert len(rows) == 0
 
     def test_add_member_creates_audit_row(self, db_session: Session):
@@ -231,7 +229,10 @@ class TestAdapterAutoAudit:
         db_session.commit()
 
         group_adapter.add_member(
-            group.id, user.id, MemberRole.ADMIN, actor_id=user.id,
+            group.id,
+            user.id,
+            MemberRole.ADMIN,
+            actor_id=user.id,
         )
         db_session.commit()
 
@@ -254,9 +255,7 @@ class TestAdapterAutoAudit:
         # Don't commit — rollback instead
         uow.rollback()
 
-        rows = uow.session.exec(
-            select(AuditRow).where(AuditRow.action == "group_created")
-        ).all()
+        rows = uow.session.exec(select(AuditRow).where(AuditRow.action == "group_created")).all()
         assert len(rows) == 0
 
     def test_user_save_creates_audit_row_on_new_user(self, db_session: Session):
@@ -338,7 +337,5 @@ class TestAdapterAutoAudit:
         )
         db_session.commit()
 
-        rows = db_session.exec(
-            select(AuditRow).where(AuditRow.action == "user_updated")
-        ).all()
+        rows = db_session.exec(select(AuditRow).where(AuditRow.action == "user_updated")).all()
         assert len(rows) == 0

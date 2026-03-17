@@ -85,7 +85,12 @@ class GroupPort(Protocol):
         ...
 
     def add_member(
-        self, group_id: int, user_id: int, role: MemberRole, *, actor_id: int,
+        self,
+        group_id: int,
+        user_id: int,
+        role: MemberRole,
+        *,
+        actor_id: int,
     ) -> MembershipPublic:
         """Add a user to a group with specified role. Auto-audits."""
         ...

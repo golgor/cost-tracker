@@ -32,7 +32,10 @@ def create_household(
 
         try:
             uow.groups.add_member(
-                group.id, user_id, MemberRole.USER, actor_id=user_id,
+                group.id,
+                user_id,
+                MemberRole.USER,
+                actor_id=user_id,
             )
             uow.commit()
         except DuplicateMembershipError:
@@ -70,7 +73,10 @@ def add_member(
         raise DuplicateMembershipError("User is already a member of this group")
 
     membership = uow.groups.add_member(
-        group_id, user_id, role, actor_id=user_id,
+        group_id,
+        user_id,
+        role,
+        actor_id=user_id,
     )
     uow.commit()
 
