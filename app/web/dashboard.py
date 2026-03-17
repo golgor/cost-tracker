@@ -23,9 +23,9 @@ async def dashboard(
     """Dashboard page - placeholder showing authenticated user info."""
     user = uow.users.get_by_id(user_id)
     return templates.TemplateResponse(
+        request,
         "dashboard/index.html",
         {
-            "request": request,
             "user": user,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
