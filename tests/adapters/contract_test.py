@@ -12,7 +12,6 @@ from app.adapters.sqlalchemy.orm_models import AuditRow, MembershipRow, UserRow
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
 from app.domain.models import AuditEntry, MemberRole, SplitType
 
-
 # Dummy actor_id used in tests where the audit entry content is not under test.
 _ACTOR = 1
 
