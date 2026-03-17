@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy import DateTime, func
 from sqlmodel import Field, SQLModel
 
-from app.domain.models import GroupBase, MemberRole, UserBase
+from app.domain.models import GroupBase, MemberRole, SplitType, UserBase, UserRole
 
 # SQLModel.metadata serves as the declarative base for Alembic migrations.
 # Table models (XxxRow) inherit from domain models with table=True.
@@ -24,7 +24,10 @@ class MembershipRow(SQLModel, table=True):
 
     user_id: int = Field(foreign_key="users.id", primary_key=True)
     group_id: int = Field(foreign_key="groups.id", primary_key=True)
-    role: MemberRole = Field(default=MemberRole.USER)
+    role: MemberRole = Field(
+        default=MemberRole.USER,
+        sa_type=sa.Enum(MemberRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
+    )
     joined_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
         sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
@@ -35,6 +38,12 @@ class UserRow(UserBase, table=True):
     """ORM model for User — inherits from domain base, adds DB fields."""
 
     __tablename__ = "users"
+
+    # Override role field to use PostgreSQL ENUM
+    role: UserRole = Field(
+        default=UserRole.USER,
+        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(
@@ -51,6 +60,12 @@ class GroupRow(GroupBase, table=True):
     """ORM model for Group — inherits from domain base, adds DB fields."""
 
     __tablename__ = "groups"
+
+    # Override default_split_type to use PostgreSQL ENUM
+    default_split_type: SplitType = Field(  # type: ignore[assignment]
+        default=SplitType.EVEN,
+        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     singleton_guard: bool = Field(default=True, unique=True, nullable=False)

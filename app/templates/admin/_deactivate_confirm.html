@@ -1,0 +1,65 @@
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="deactivate-modal">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+    <h3 class="text-lg font-semibold text-stone-900 mb-4">Deactivate {{ target_user.display_name }}?</h3>
+    <p class="text-stone-600 mb-6">
+      This user will lose access to the app until reactivated. Historical data is preserved.
+    </p>
+
+    <!-- Error container -->
+    <div id="deactivate-error" class="mb-4"></div>
+
+    <div class="flex justify-end gap-3">
+      <button
+        onclick="document.getElementById('deactivate-modal').remove()"
+        class="px-4 py-2 text-sm bg-stone-100 text-stone-700 rounded-lg hover:bg-stone-200 focus-ring">
+        Cancel
+      </button>
+      <button
+        hx-post="/admin/users/{{ target_user_id }}/deactivate"
+        hx-target="#deactivate-response-container"
+        hx-swap="innerHTML"
+        style="background-color: #B8453A; color: white;"
+        class="px-4 py-2 text-sm rounded-lg hover:opacity-90 focus-ring">
+        Deactivate
+      </button>
+    </div>
+  </div>
+  <!-- Hidden container for response -->
+  <div id="deactivate-response-container" style="display: none;"></div>
+</div>
+
+<script>
+(function() {
+  const container = document.getElementById('deactivate-response-container');
+  console.log('Setting up observer for container:', container);
+
+  const observer = new MutationObserver(function(mutations) {
+    console.log('Observer fired! Mutations:', mutations);
+    const html = container.innerHTML.trim();
+    console.log('Container HTML:', html);
+
+    if (html) {
+      if (html.startsWith('<tr')) {
+        console.log('Success case - updating table row');
+        const targetRow = document.getElementById('user-row-{{ target_user_id }}');
+        if (targetRow) {
+          targetRow.outerHTML = html;
+          // Re-initialize HTMX on the new row so buttons work
+          const newRow = document.getElementById('user-row-{{ target_user_id }}');
+          if (newRow) {
+            htmx.process(newRow);
+          }
+          document.getElementById('deactivate-modal').remove();
+        }
+      } else {
+        console.log('Error case - showing in modal');
+        document.getElementById('deactivate-error').innerHTML = html;
+      }
+      container.innerHTML = '';
+    }
+  });
+
+  observer.observe(container, { childList: true, subtree: true });
+  console.log('Observer started');
+})();
+</script>

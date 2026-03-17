@@ -51,9 +51,9 @@ async def setup_step_1(request: Request, user_id: CurrentUserId, uow: UowDep):
         return RedirectResponse("/", status_code=302)
 
     return templates.TemplateResponse(
+        request,
         "setup/step_1.html",
         {
-            "request": request,
             "user": user,
             "current_step": 1,
             "total_steps": 3,
@@ -88,9 +88,9 @@ async def setup_step_2(request: Request, user_id: CurrentUserId, uow: UowDep):
         return RedirectResponse("/", status_code=302)
 
     return templates.TemplateResponse(
+        request,
         "setup/step_2.html",
         {
-            "request": request,
             "user": user,
             "current_step": 2,
             "total_steps": 3,
@@ -125,9 +125,9 @@ async def setup_step_2_post(
 
     if errors:
         return templates.TemplateResponse(
+            request,
             "setup/step_2.html",
             {
-                "request": request,
                 "user": user,
                 "current_step": 2,
                 "total_steps": 3,
@@ -145,7 +145,7 @@ async def setup_step_2_post(
             default_currency="EUR",
             default_split_type=SplitType.EVEN,
         )
-    except (DuplicateHouseholdError, DuplicateMembershipError):
+    except DuplicateHouseholdError, DuplicateMembershipError:
         # Idempotent behavior for concurrent setup/login flows.
         group = uow.groups.get_by_user_id(user_id)
         if group is not None:
@@ -169,9 +169,9 @@ async def setup_step_3(request: Request, user_id: CurrentUserId, uow: UowDep):
         return RedirectResponse("/setup/step-1", status_code=302)
 
     return templates.TemplateResponse(
+        request,
         "setup/step_3.html",
         {
-            "request": request,
             "user": user,
             "group": group,
             "current_step": 3,
@@ -217,9 +217,9 @@ async def setup_step_3_post(
 
     if errors:
         return templates.TemplateResponse(
+            request,
             "setup/step_3.html",
             {
-                "request": request,
                 "user": user,
                 "group": group,
                 "current_step": 3,

@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlmodel import Session
@@ -75,8 +75,24 @@ app.include_router(web_router)
 
 
 @app.exception_handler(DomainError)
-async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
+async def domain_error_handler(request: Request, exc: DomainError):
+    """Handle domain errors - return HTML for HTMX, JSON for API requests."""
     status_code = DOMAIN_ERROR_MAP.get(type(exc), 422)
+
+    # Check if this is an HTMX request
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    if is_htmx:
+        # Return HTML for HTMX requests
+        error_html = (
+            f'<div class="bg-red-50 border border-red-200 '
+            f'text-red-800 px-4 py-3 rounded-lg mb-4">'
+            f"{str(exc)}"
+            f"</div>"
+        )
+        return HTMLResponse(content=error_html, status_code=200)
+
+    # Return JSON for non-HTMX requests
     return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
 

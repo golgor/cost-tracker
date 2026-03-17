@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log - Cost Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+  <!-- Header with navigation tabs (Task 9) -->
+  <div class="mb-6">
+    <div class="border-b border-stone-200">
+      <nav class="flex gap-8" aria-label="Admin sections">
+        <a href="/admin/users" class="py-4 px-1 border-b-2 border-transparent text-stone-600 hover:text-stone-900 hover:border-stone-300">
+          Users
+        </a>
+        <a href="/admin/audit" class="py-4 px-1 border-b-2 border-primary-500 text-primary-600 font-medium">
+          Audit Log
+        </a>
+      </nav>
+    </div>
+  </div>
+
+  <h1 class="text-3xl font-semibold text-stone-900 mb-6">Audit Log</h1>
+
+  <div class="bg-surface-card rounded-lg shadow-sm overflow-hidden">
+    {% if audit_entries %}
+    <div class="divide-y divide-stone-200">
+      {% for entry in audit_entries %}
+      <div class="px-6 py-4 hover:bg-stone-50">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="text-sm font-medium text-stone-900">{{ entry.actor_name }}</span>
+              <span class="text-sm text-stone-600">{{ entry.action }}</span>
+              <span class="text-xs text-stone-500">{{ entry.timestamp }}</span>
+            </div>
+
+            {% if entry.old_value %}
+            <div class="text-sm text-stone-600">
+              <span class="font-medium">Previous:</span> {{ entry.old_value }}
+            </div>
+            {% endif %}
+
+            {% if entry.new_value %}
+            <div class="text-sm text-stone-600">
+              <span class="font-medium">New:</span> {{ entry.new_value }}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Action type badge -->
+          <div class="ml-4">
+            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{ entry.badge_color }}">
+              {{ entry.badge_label }}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center">
+      <p class="text-stone-500">No audit entries yet</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

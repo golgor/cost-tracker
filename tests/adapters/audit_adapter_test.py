@@ -250,7 +250,7 @@ class TestAdapterAutoAudit:
         assert changes is not None
         assert changes["user_id"] == {"old": None, "new": user.id}
         assert changes["group_id"] == {"old": None, "new": group.id}
-        assert changes["role"] == {"old": None, "new": "admin"}
+        assert changes["role"] == {"old": None, "new": "ADMIN"}
 
     def test_auto_audit_shares_transaction_with_business_data(self, uow: UnitOfWork):
         """Auto-audit rows are rolled back together with business changes."""

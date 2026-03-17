@@ -20,31 +20,31 @@
 #       created_at: datetime
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlmodel import Field, SQLModel  # noqa: F401
 
 
-class SplitType(str, Enum):
+class SplitType(StrEnum):
     """Supported expense split types."""
 
-    EVEN = "even"
+    EVEN = "EVEN"
     # Future: SHARES, PERCENTAGE, EXACT
 
 
-class MemberRole(str, Enum):
+class MemberRole(StrEnum):
     """User roles within a household group."""
 
-    ADMIN = "admin"
-    USER = "user"
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """App-level user roles for admin/lifecycle management."""
 
-    ADMIN = "admin"
-    USER = "user"
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 
 class UserBase(SQLModel):
