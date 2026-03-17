@@ -23,7 +23,7 @@ def upgrade() -> None:
     # Add user lifecycle and role columns
     op.add_column(
         "users",
-        sa.Column("role", sa.Enum("admin", "user", name="roletype"), nullable=False, server_default="user"),
+        sa.Column("role", sa.Enum("ADMIN", "USER", name="roletype"), nullable=False, server_default="USER"),
     )
     op.add_column(
         "users",

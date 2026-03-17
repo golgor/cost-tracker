@@ -29,22 +29,22 @@ from sqlmodel import Field, SQLModel  # noqa: F401
 class SplitType(StrEnum):
     """Supported expense split types."""
 
-    EVEN = "even"
+    EVEN = "EVEN"
     # Future: SHARES, PERCENTAGE, EXACT
 
 
 class MemberRole(StrEnum):
     """User roles within a household group."""
 
-    ADMIN = "admin"
-    USER = "user"
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 
 class UserRole(StrEnum):
     """App-level user roles for admin/lifecycle management."""
 
-    ADMIN = "admin"
-    USER = "user"
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 
 class UserBase(SQLModel):

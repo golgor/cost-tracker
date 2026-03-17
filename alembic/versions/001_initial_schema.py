@@ -50,7 +50,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False),
         sa.Column("default_currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
-        sa.Column("default_split_type", sa.Enum("even", name="splittype"), nullable=False),
+        sa.Column("default_split_type", sa.Enum("EVEN", name="splittype"), nullable=False),
         sa.Column("singleton_guard", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("tracking_threshold", sa.Integer(), nullable=False, server_default=sa.text("30")),
         sa.Column(
@@ -74,7 +74,7 @@ def upgrade() -> None:
         "group_memberships",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("group_id", sa.Integer(), nullable=False),
-        sa.Column("role", sa.Enum("admin", "user", name="roletype"), nullable=False, server_default="user"),
+        sa.Column("role", sa.Enum("ADMIN", "USER", name="roletype"), nullable=False, server_default="USER"),
         sa.Column(
             "joined_at",
             sa.DateTime(timezone=True),
