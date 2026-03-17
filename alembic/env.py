@@ -14,7 +14,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from sqlmodel import SQLModel
 
 # Import all ORM models to register them with SQLModel.metadata
-from app.adapters.sqlalchemy.orm_models import UserRow  # noqa: F401
+from app.adapters.sqlalchemy.orm_models import AuditRow, UserRow  # noqa: F401
 
 config = context.config
 

@@ -1,7 +1,7 @@
 # Domain ports (Protocol classes)
 # Allowed imports: stdlib + external validation libs (sqlmodel, pydantic) per ADR-011
 # Forbidden imports: app.adapters, app.web, app.auth, app.api (internal modules)
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.domain.models import (
     GroupPublic,
@@ -10,6 +10,22 @@ from app.domain.models import (
     SplitType,
     UserPublic,
 )
+
+
+class AuditPort(Protocol):
+    """Port for audit log persistence."""
+
+    def log(
+        self,
+        *,
+        action: str,
+        actor_id: int,
+        entity_type: str,
+        entity_id: int,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """Persist an audit log entry. Must share the same transaction as business changes."""
+        ...
 
 
 class UserPort(Protocol):

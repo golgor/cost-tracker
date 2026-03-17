@@ -4,11 +4,13 @@ Verifies that domain models can be persisted and retrieved without data loss.
 """
 
 from sqlalchemy.orm import Session
+from sqlmodel import select
 
+from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
-from app.adapters.sqlalchemy.orm_models import MembershipRow, UserRow
+from app.adapters.sqlalchemy.orm_models import AuditRow, MembershipRow, UserRow
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
-from app.domain.models import MemberRole, SplitType
+from app.domain.models import AuditEntry, MemberRole, SplitType
 
 
 class TestUserAdapterContract:
@@ -229,3 +231,95 @@ class TestGroupAdapterContract:
 
         assert type(membership).__name__ == "MembershipPublic"
         assert not isinstance(membership, MembershipRow)
+
+
+class TestAuditAdapterContract:
+    """Contract tests for Audit adapter round-trip mapping."""
+
+    def test_log_persists_entry(self, db_session: Session):
+        """Audit log entry is persisted and retrievable after flush."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="group_created",
+            actor_id=1,
+            entity_type="group",
+            entity_id=42,
+            details={"name": "Home"},
+        )
+        db_session.commit()
+
+        row = db_session.exec(
+            select(AuditRow).where(AuditRow.actor_id == 1, AuditRow.entity_id == 42)
+        ).first()
+        assert row is not None
+        assert row.action == "group_created"
+        assert row.entity_type == "group"
+        assert row.entity_id == 42
+        assert row.details == {"name": "Home"}
+        assert row.occurred_at is not None
+
+    def test_log_persists_entry_without_details(self, db_session: Session):
+        """Audit log entry with no details stores None."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="login",
+            actor_id=7,
+            entity_type="user",
+            entity_id=7,
+        )
+        db_session.commit()
+
+        row = db_session.exec(
+            select(AuditRow).where(AuditRow.actor_id == 7, AuditRow.action == "login")
+        ).first()
+        assert row is not None
+        assert row.details is None
+
+    def test_to_domain_round_trip_preserves_all_fields(self, db_session: Session):
+        """_to_domain preserves all fields from AuditRow to AuditEntry."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="member_added",
+            actor_id=3,
+            entity_type="membership",
+            entity_id=10,
+            details={"role": "admin"},
+        )
+        db_session.commit()
+
+        row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 3)).first()
+        assert row is not None
+
+        entry = adapter._to_domain(row)
+
+        assert isinstance(entry, AuditEntry)
+        assert entry.id == row.id
+        assert entry.actor_id == 3
+        assert entry.action == "member_added"
+        assert entry.entity_type == "membership"
+        assert entry.entity_id == 10
+        assert entry.occurred_at == row.occurred_at
+        assert entry.details == {"role": "admin"}
+
+    def test_audit_row_never_leaves_adapter(self, db_session: Session):
+        """_to_domain returns AuditEntry, not AuditRow."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="boundary_test",
+            actor_id=99,
+            entity_type="group",
+            entity_id=1,
+        )
+        db_session.commit()
+
+        row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 99)).first()
+        assert row is not None
+
+        entry = adapter._to_domain(row)
+
+        assert type(entry).__name__ == "AuditEntry"
+        assert not isinstance(entry, AuditRow)

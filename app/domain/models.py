@@ -21,6 +21,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from sqlmodel import Field, SQLModel  # noqa: F401
 
@@ -79,3 +80,32 @@ class MembershipPublic(SQLModel):
     group_id: int
     role: MemberRole
     joined_at: datetime
+
+
+class AuditEntry(SQLModel):
+    """Output schema for an audit log entry."""
+
+    id: int
+    actor_id: int
+    action: str
+    entity_type: str
+    entity_id: int
+    occurred_at: datetime
+    details: dict[str, Any] | None = None
+
+
+# ---------------------------------------------------------------------------
+# Expense conceptual model — design skeleton for Epic 2 (FR42)
+#
+# Key distinction: creator_id vs payer_id
+#   - creator_id: the user who entered the expense into the system
+#   - payer_id:   the user who actually paid the real-world bill
+#
+# These are often the same person but must remain separate fields so the
+# system can model the case where Partner A records an expense but Partner B
+# was the one who paid (e.g. Partner A enters a utility bill that Partner B
+# already paid). Settlement math always uses payer_id.
+#
+# Full implementation is deferred to Epic 2. This comment documents the
+# decision so Epic 2 can build without ambiguity.
+# ---------------------------------------------------------------------------
