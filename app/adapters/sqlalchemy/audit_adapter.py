@@ -32,8 +32,8 @@ class SqlAlchemyAuditAdapter:
         self._session.add(row)
         self._session.flush()
 
-    def _to_domain(self, row: AuditRow) -> AuditEntry:
-        """Convert ORM row to domain model. Row never leaves adapter."""
+    def _to_public(self, row: AuditRow) -> AuditEntry:
+        """Convert ORM row to public domain model. Row never leaves adapter."""
         return AuditEntry(
             id=row.id,  # type: ignore[arg-type]
             actor_id=row.actor_id,

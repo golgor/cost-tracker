@@ -19,7 +19,12 @@ from app.domain.errors import (
     LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
     UnauthorizedGroupActionError,
+    UserAlreadyActive,
+    UserAlreadyAdminError,
+    UserAlreadyDeactivated,
+    UserAlreadyRegularError,
     UserHasActiveGroupMembershipError,
+    UserNotFoundError,
 )
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
@@ -38,6 +43,11 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     LastActiveAdminDeactivationForbidden: 409,
     UserHasActiveGroupMembershipError: 409,
     DeactivatedUserAccessDenied: 403,
+    UserNotFoundError: 404,
+    UserAlreadyAdminError: 409,
+    UserAlreadyRegularError: 409,
+    UserAlreadyDeactivated: 409,
+    UserAlreadyActive: 409,
 }
 
 

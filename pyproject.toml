@@ -4,28 +4,28 @@ version = "0.1.0"
 description = "Self-hosted household expense-sharing app"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi~=0.115.12",
-    "uvicorn[standard]~=0.34.3",
-    "sqlmodel~=0.0.37",
-    "alembic~=1.15.2",
-    "pydantic-settings~=2.9.1",
-    "structlog~=25.3.0",
-    "authlib~=1.4.1",
-    "httpx~=0.28.1",
-    "itsdangerous~=2.2.0",
-    "python-multipart~=0.0.20",
-    "jinja2~=3.1.6",
-    "psycopg2-binary~=2.9.11",
-    "python-dotenv~=1.0.1",
+    "fastapi>=0.115.12",
+    "uvicorn[standard]>=0.34.3",
+    "sqlmodel>=0.0.37",
+    "alembic>=1.15.2",
+    "pydantic-settings>=2.9.1",
+    "structlog>=25.3.0",
+    "authlib>=1.4.1",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "python-multipart>=0.0.20",
+    "jinja2>=3.1.6",
+    "psycopg2-binary>=2.9.11",
+    "python-dotenv>=1.0.1",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest~=8.3.5",
-    "ruff~=0.11.6",
-    "pytest-httpx~=0.35.0",
+    "pytest>=8.3.5",
+    "ruff>=0.11.6",
+    "pytest-httpx>=0.35.0",
     "ty>=0.0.23",
-    "pytailwindcss~=0.2.0",
+    "pytailwindcss>=0.2.0",
 ]
 
 [tool.pytest.ini_options]

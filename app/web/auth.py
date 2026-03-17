@@ -10,7 +10,11 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.errors import DuplicateMembershipError, GroupNotFoundError, DeactivatedUserAccessDenied
+from app.domain.errors import (
+    DeactivatedUserAccessDenied,
+    DuplicateMembershipError,
+    GroupNotFoundError,
+)
 from app.domain.models import MemberRole
 from app.domain.use_cases import groups as group_use_cases
 from app.domain.use_cases import users as user_use_cases

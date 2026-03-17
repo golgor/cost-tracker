@@ -105,6 +105,7 @@ tests/
 - `mise run lint:docs` — markdownlint-cli2 on `docs/**/*.md`
 - `mise run migrate` — alembic upgrade head
 - `mise run db` — docker-compose up -d (PostgreSQL)
+- `mise lint:fix` - run ruff check and ruff format with automatic fixing/formatting. Always use this as a first step when you want to lint/format the project.
 
 ## Deployment
 

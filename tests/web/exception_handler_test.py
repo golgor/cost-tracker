@@ -9,7 +9,12 @@ from app.domain.errors import (
     LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
     UnauthorizedGroupActionError,
+    UserAlreadyActive,
+    UserAlreadyAdminError,
+    UserAlreadyDeactivated,
+    UserAlreadyRegularError,
     UserHasActiveGroupMembershipError,
+    UserNotFoundError,
 )
 from app.main import DOMAIN_ERROR_MAP
 
@@ -28,6 +33,11 @@ class TestDomainErrorMap:
             LastActiveAdminDeactivationForbidden,
             UserHasActiveGroupMembershipError,
             DeactivatedUserAccessDenied,
+            UserNotFoundError,
+            UserAlreadyAdminError,
+            UserAlreadyRegularError,
+            UserAlreadyDeactivated,
+            UserAlreadyActive,
         }
         for error_class in expected:
             assert error_class in DOMAIN_ERROR_MAP, (
@@ -40,11 +50,16 @@ class TestDomainErrorMap:
         assert DOMAIN_ERROR_MAP[DuplicateMembershipError] == 409
         assert DOMAIN_ERROR_MAP[LastActiveAdminDeactivationForbidden] == 409
         assert DOMAIN_ERROR_MAP[UserHasActiveGroupMembershipError] == 409
+        assert DOMAIN_ERROR_MAP[UserAlreadyAdminError] == 409
+        assert DOMAIN_ERROR_MAP[UserAlreadyRegularError] == 409
+        assert DOMAIN_ERROR_MAP[UserAlreadyDeactivated] == 409
+        assert DOMAIN_ERROR_MAP[UserAlreadyActive] == 409
 
     def test_not_found_errors_map_to_404(self):
         """Not-found domain errors map to HTTP 404."""
         assert DOMAIN_ERROR_MAP[GroupNotFoundError] == 404
         assert DOMAIN_ERROR_MAP[MembershipNotFoundError] == 404
+        assert DOMAIN_ERROR_MAP[UserNotFoundError] == 404
 
     def test_forbidden_errors_map_to_403(self):
         """Forbidden domain errors map to HTTP 403."""

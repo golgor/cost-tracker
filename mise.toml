@@ -31,6 +31,13 @@ run = [
     "uv run ty check app/",
 ]
 
+[tasks."lint:fix"]
+description = "Run ruff check --fix, ruff format to fix code style"
+run = [
+    "uv run ruff check app/ tests/ --fix",
+    "uv run ruff format app/ tests/",
+]
+
 [tasks."lint:docs"]
 description = "Lint markdown documentation"
 run = "markdownlint-cli2 docs/**/*.md"

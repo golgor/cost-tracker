@@ -11,4 +11,3 @@ router.include_router(auth_router)
 router.include_router(dashboard_router)
 router.include_router(setup_router)
 router.include_router(admin_router)
-

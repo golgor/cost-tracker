@@ -2,7 +2,11 @@
 
 from typing import Protocol
 
-from app.domain.errors import LastActiveAdminDeactivationForbidden, DeactivatedUserAccessDenied
+from app.domain.errors import (
+    DeactivatedUserAccessDenied,
+    LastActiveAdminDeactivationForbidden,
+    UserNotFoundError,
+)
 from app.domain.models import UserPublic, UserRole
 
 
@@ -34,7 +38,9 @@ def provision_user(
     )
 
     if not user.is_active:
-        raise DeactivatedUserAccessDenied(f"User {user.id} is deactivated and cannot access the app")
+        raise DeactivatedUserAccessDenied(
+            f"User {user.id} is deactivated and cannot access the app"
+        )
 
     return user
 
@@ -72,14 +78,12 @@ def deactivate_user(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> User
     # Check if this is the last active admin
     user = uow.users.get_by_id(user_id)
     if user is None:
-        raise ValueError(f"User {user_id} not found")
+        raise UserNotFoundError(f"User {user_id} not found")
 
     if user.role == UserRole.ADMIN and user.is_active:
         active_admin_count = uow.users.count_active_admins()
         if active_admin_count <= 1:
-            raise LastActiveAdminDeactivationForbidden(
-                "Cannot deactivate the last active admin"
-            )
+            raise LastActiveAdminDeactivationForbidden("Cannot deactivate the last active admin")
 
     user = uow.users.deactivate(user_id, actor_id=actor_id)
     uow.commit()

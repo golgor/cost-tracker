@@ -1,10 +1,18 @@
+from datetime import UTC
+
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import UserRow
-from app.domain.errors import UserAlreadyDeactivated, UserAlreadyActive
+from app.domain.errors import (
+    UserAlreadyActive,
+    UserAlreadyAdminError,
+    UserAlreadyDeactivated,
+    UserAlreadyRegularError,
+    UserNotFoundError,
+)
 from app.domain.models import UserPublic, UserRole
 
 
@@ -95,10 +103,10 @@ class SqlAlchemyUserAdapter:
         """Promote user to admin role. Auto-audits."""
         row = self._session.get(UserRow, user_id)
         if row is None:
-            raise ValueError(f"User {user_id} not found")
+            raise UserNotFoundError(f"User {user_id} not found")
 
         if row.role == UserRole.ADMIN:
-            raise ValueError(f"User {user_id} is already an admin")
+            raise UserAlreadyAdminError(f"User {user_id} is already an admin")
 
         row.role = UserRole.ADMIN
         changes = compute_changes(row)
@@ -106,6 +114,7 @@ class SqlAlchemyUserAdapter:
         self._session.flush()
 
         if changes:
+            assert row.id is not None  # guaranteed — fetched by user_id
             self._audit.log(
                 action="user_promoted",
                 actor_id=actor_id,
@@ -120,10 +129,10 @@ class SqlAlchemyUserAdapter:
         """Demote user to regular user role. Auto-audits."""
         row = self._session.get(UserRow, user_id)
         if row is None:
-            raise ValueError(f"User {user_id} not found")
+            raise UserNotFoundError(f"User {user_id} not found")
 
         if row.role == UserRole.USER:
-            raise ValueError(f"User {user_id} is already a regular user")
+            raise UserAlreadyRegularError(f"User {user_id} is already a regular user")
 
         row.role = UserRole.USER
         changes = compute_changes(row)
@@ -131,6 +140,7 @@ class SqlAlchemyUserAdapter:
         self._session.flush()
 
         if changes:
+            assert row.id is not None  # guaranteed — fetched by user_id
             self._audit.log(
                 action="user_demoted",
                 actor_id=actor_id,
@@ -145,14 +155,15 @@ class SqlAlchemyUserAdapter:
         """Deactivate a user. Auto-audits."""
         row = self._session.get(UserRow, user_id)
         if row is None:
-            raise ValueError(f"User {user_id} not found")
+            raise UserNotFoundError(f"User {user_id} not found")
 
         if not row.is_active:
             raise UserAlreadyDeactivated(f"User {user_id} is already deactivated")
 
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         row.is_active = False
-        row.deactivated_at = datetime.now(timezone.utc)
+        row.deactivated_at = datetime.now(UTC)
         row.deactivated_by_user_id = actor_id
 
         changes = compute_changes(row)
@@ -160,6 +171,7 @@ class SqlAlchemyUserAdapter:
         self._session.flush()
 
         if changes:
+            assert row.id is not None  # guaranteed — fetched by user_id
             self._audit.log(
                 action="user_deactivated",
                 actor_id=actor_id,
@@ -174,7 +186,7 @@ class SqlAlchemyUserAdapter:
         """Reactivate a deactivated user. Auto-audits."""
         row = self._session.get(UserRow, user_id)
         if row is None:
-            raise ValueError(f"User {user_id} not found")
+            raise UserNotFoundError(f"User {user_id} not found")
 
         if row.is_active:
             raise UserAlreadyActive(f"User {user_id} is already active")
@@ -188,6 +200,7 @@ class SqlAlchemyUserAdapter:
         self._session.flush()
 
         if changes:
+            assert row.id is not None  # guaranteed — fetched by user_id
             self._audit.log(
                 action="user_reactivated",
                 actor_id=actor_id,
@@ -201,7 +214,7 @@ class SqlAlchemyUserAdapter:
     def count_active_admins(self) -> int:
         """Count the number of active admin users."""
         statement = select(UserRow).where(
-            (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)
+            (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
         )
         result = self._session.exec(statement).all()
         return len(result)
@@ -209,7 +222,7 @@ class SqlAlchemyUserAdapter:
     def get_active_admins(self) -> list[UserPublic]:
         """Get list of all active admin users."""
         statement = select(UserRow).where(
-            (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)
+            (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
         )
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
@@ -228,4 +241,3 @@ class SqlAlchemyUserAdapter:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
-

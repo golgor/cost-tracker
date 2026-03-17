@@ -7,11 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.dependencies import get_uow, get_current_user_id
-from app.domain.errors import (
-    LastActiveAdminDeactivationForbidden,
-    DomainError,
-)
+from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
 
@@ -38,16 +34,11 @@ async def promote_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep
     """Promote user to admin role."""
     _check_admin_access(actor_id, uow)
 
-    try:
-        user = user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
-        return JSONResponse(
-            {"success": True, "message": f"User {target_user_id} promoted to admin"},
-            status_code=200,
-        )
-    except DomainError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
+    return JSONResponse(
+        {"success": True, "message": f"User {target_user_id} promoted to admin"},
+        status_code=200,
+    )
 
 
 @router.post("/users/{target_user_id}/demote")
@@ -55,16 +46,11 @@ async def demote_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep)
     """Demote admin to regular user role."""
     _check_admin_access(actor_id, uow)
 
-    try:
-        user = user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-        return JSONResponse(
-            {"success": True, "message": f"User {target_user_id} demoted to regular user"},
-            status_code=200,
-        )
-    except DomainError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
+    return JSONResponse(
+        {"success": True, "message": f"User {target_user_id} demoted to regular user"},
+        status_code=200,
+    )
 
 
 @router.post("/users/{target_user_id}/deactivate")
@@ -72,18 +58,11 @@ async def deactivate_user(target_user_id: int, actor_id: CurrentUserId, uow: Uow
     """Deactivate a user."""
     _check_admin_access(actor_id, uow)
 
-    try:
-        user = user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-        return JSONResponse(
-            {"success": True, "message": f"User {target_user_id} deactivated"},
-            status_code=200,
-        )
-    except LastActiveAdminDeactivationForbidden as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except DomainError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
+    return JSONResponse(
+        {"success": True, "message": f"User {target_user_id} deactivated"},
+        status_code=200,
+    )
 
 
 @router.post("/users/{target_user_id}/reactivate")
@@ -91,13 +70,8 @@ async def reactivate_user(target_user_id: int, actor_id: CurrentUserId, uow: Uow
     """Reactivate a deactivated user."""
     _check_admin_access(actor_id, uow)
 
-    try:
-        user = user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-        return JSONResponse(
-            {"success": True, "message": f"User {target_user_id} reactivated"},
-            status_code=200,
-        )
-    except DomainError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
+    return JSONResponse(
+        {"success": True, "message": f"User {target_user_id} reactivated"},
+        status_code=200,
+    )
