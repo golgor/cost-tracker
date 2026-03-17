@@ -70,9 +70,7 @@ def regular_client(regular_user, uow):
 class TestProfileDropdownAdminMenuItem:
     """Test profile dropdown shows/hides admin menu item based on role."""
 
-    def test_admin_user_sees_admin_menu_item_desktop(
-        self, authenticated_client: TestClient
-    ):
+    def test_admin_user_sees_admin_menu_item_desktop(self, authenticated_client: TestClient):
         """Admin users see 'Admin' menu item in desktop profile dropdown."""
         response = authenticated_client.get("/")
         assert response.status_code == 200
@@ -83,9 +81,7 @@ class TestProfileDropdownAdminMenuItem:
         # Check the text "Admin" appears in the navigation area
         assert ">Admin<" in html or "Admin" in html
 
-    def test_regular_user_does_not_see_admin_menu_item_desktop(
-        self, regular_client: TestClient
-    ):
+    def test_regular_user_does_not_see_admin_menu_item_desktop(self, regular_client: TestClient):
         """Regular users do not see 'Admin' menu item."""
         response = regular_client.get("/")
         assert response.status_code == 200
@@ -112,34 +108,26 @@ class TestProfileDropdownAdminMenuItem:
 class TestAdminRoutesAuthorization:
     """Test admin routes require admin role and return 403 for non-admins."""
 
-    def test_admin_users_screen_requires_admin_role(
-        self, authenticated_client: TestClient
-    ):
+    def test_admin_users_screen_requires_admin_role(self, authenticated_client: TestClient):
         """Admin users can access /admin/users."""
         response = authenticated_client.get("/admin/users")
         assert response.status_code == 200
         # Check that it's the admin page (not error or redirect)
         assert "User Management" in response.text or "Admin" in response.text
 
-    def test_admin_audit_screen_requires_admin_role(
-        self, authenticated_client: TestClient
-    ):
+    def test_admin_audit_screen_requires_admin_role(self, authenticated_client: TestClient):
         """Admin users can access /admin/audit."""
         response = authenticated_client.get("/admin/audit")
         assert response.status_code == 200
         # Check that it's the audit log page
         assert "Audit" in response.text
 
-    def test_non_admin_receives_403_on_admin_users_route(
-        self, regular_client: TestClient
-    ):
+    def test_non_admin_receives_403_on_admin_users_route(self, regular_client: TestClient):
         """Regular users receive 403 when accessing /admin/users."""
         response = regular_client.get("/admin/users")
         assert response.status_code == 403
 
-    def test_non_admin_receives_403_on_admin_audit_route(
-        self, regular_client: TestClient
-    ):
+    def test_non_admin_receives_403_on_admin_audit_route(self, regular_client: TestClient):
         """Regular users receive 403 when accessing /admin/audit."""
         response = regular_client.get("/admin/audit")
         assert response.status_code == 403

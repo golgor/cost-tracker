@@ -57,13 +57,11 @@ def get_recent_audit_entries(session: Session, limit: int = 50) -> list:
         }
 
         # Extract old/new values from changes dict if present
-        if audit.changes:
-            # For simple value changes, extract readable format
-            if len(audit.changes) == 1:
-                field, values = next(iter(audit.changes.items()))
-                if isinstance(values, dict) and "old" in values and "new" in values:
-                    entry["old_value"] = f"{field}: {values['old']}"
-                    entry["new_value"] = f"{field}: {values['new']}"
+        if audit.changes and len(audit.changes) == 1:
+            field, values = next(iter(audit.changes.items()))
+            if isinstance(values, dict) and "old" in values and "new" in values:
+                entry["old_value"] = f"{field}: {values['old']}"
+                entry["new_value"] = f"{field}: {values['new']}"
 
         entries.append(entry)
 

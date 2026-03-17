@@ -8,8 +8,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.queries import get_all_users
-from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.adapters.sqlalchemy.queries.admin_queries import get_recent_audit_entries
+from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
@@ -78,7 +78,9 @@ async def admin_audit_log_page(
         },
     )
 
+
 # HTMX endpoints for user lifecycle actions
+
 
 @router.post("/users/{target_user_id}/promote")
 async def promote_user(

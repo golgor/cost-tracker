@@ -87,8 +87,8 @@ async def domain_error_handler(request: Request, exc: DomainError):
         error_html = (
             f'<div class="bg-red-50 border border-red-200 '
             f'text-red-800 px-4 py-3 rounded-lg mb-4">'
-            f'{str(exc)}'
-            f'</div>'
+            f"{str(exc)}"
+            f"</div>"
         )
         return HTMLResponse(content=error_html, status_code=200)
 
