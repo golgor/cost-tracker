@@ -1,4 +1,4 @@
-<tr class="hover:bg-stone-50" id="user-row-{{ u.id }}">
+<tr class="hover:bg-stone-50 user-row" id="user-row-{{ u.id }}" data-status="{% if u.is_active %}active{% else %}deactivated{% endif %}">
   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-stone-900">
     {{ u.display_name }}
   </td>
