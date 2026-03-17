@@ -108,6 +108,7 @@ class TestUnitOfWorkAuditAtomicity:
             oidc_sub="auth0|atomic_commit",
             email="atomic@example.com",
             display_name="Atomic User",
+            actor_id=1,
         )
         uow.commit()
 
@@ -127,6 +128,7 @@ class TestUnitOfWorkAuditAtomicity:
             oidc_sub="auth0|atomic_rollback",
             email="rollback@example.com",
             display_name="Rollback User",
+            actor_id=1,
         )
         # Rollback without committing — both user and auto-audit row should vanish
         uow.rollback()
@@ -224,6 +226,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|auto_audit_member",
             email="audit-member@example.com",
             display_name="Audit Member",
+            actor_id=1,
         )
         group = group_adapter.save("Household", actor_id=user.id)
         db_session.commit()
@@ -267,6 +270,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|audit_new_user",
             email="newuser@example.com",
             display_name="New User",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -282,7 +286,7 @@ class TestAdapterAutoAudit:
         assert changes["oidc_sub"] == {"old": None, "new": "auth0|audit_new_user"}
         assert changes["email"] == {"old": None, "new": "newuser@example.com"}
         assert changes["display_name"] == {"old": None, "new": "New User"}
-        assert rows[0].actor_id == user.id
+        assert rows[0].actor_id == 1
 
     def test_user_save_creates_audit_row_on_update(self, db_session: Session):
         """user_adapter.save() auto-audits with old→new changes when updating an existing user."""
@@ -293,6 +297,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|audit_update_user",
             email="old@example.com",
             display_name="Old Name",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -300,6 +305,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|audit_update_user",
             email="new@example.com",
             display_name="New Name",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -326,6 +332,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|audit_noop_user",
             email="same@example.com",
             display_name="Same Name",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -334,6 +341,7 @@ class TestAdapterAutoAudit:
             oidc_sub="auth0|audit_noop_user",
             email="same@example.com",
             display_name="Same Name",
+            actor_id=1,
         )
         db_session.commit()
 

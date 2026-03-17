@@ -32,3 +32,11 @@ class UserHasActiveGroupMembershipError(DomainError):
 
 class DeactivatedUserAccessDenied(DomainError):
     """Raised when a deactivated user attempts to access the app."""
+
+
+class UserAlreadyDeactivated(DomainError):
+    """Raised when attempting to deactivate an already deactivated user."""
+
+
+class UserAlreadyActive(DomainError):
+    """Raised when attempting to activate an already active user."""

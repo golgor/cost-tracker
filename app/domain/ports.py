@@ -9,6 +9,7 @@ from app.domain.models import (
     MembershipPublic,
     SplitType,
     UserPublic,
+    UserRole,
 )
 
 
@@ -39,8 +40,32 @@ class UserPort(Protocol):
         """Retrieve user by OIDC subject identifier."""
         ...
 
-    def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
-        """Create or update a user. Returns the persisted user."""
+    def save(self, oidc_sub: str, email: str, display_name: str, *, actor_id: int) -> UserPublic:
+        """Create or update a user. Returns the persisted user. Auto-audits."""
+        ...
+
+    def promote_to_admin(self, user_id: int, *, actor_id: int) -> UserPublic:
+        """Promote user to admin role. Auto-audits."""
+        ...
+
+    def demote_to_user(self, user_id: int, *, actor_id: int) -> UserPublic:
+        """Demote user to regular user role. Auto-audits."""
+        ...
+
+    def deactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
+        """Deactivate a user. Auto-audits."""
+        ...
+
+    def reactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
+        """Reactivate a deactivated user. Auto-audits."""
+        ...
+
+    def count_active_admins(self) -> int:
+        """Count the number of active admin users."""
+        ...
+
+    def get_active_admins(self) -> list[UserPublic]:
+        """Get list of all active admin users."""
         ...
 
 

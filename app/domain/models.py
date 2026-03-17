@@ -40,12 +40,23 @@ class MemberRole(str, Enum):
     USER = "user"
 
 
+class UserRole(str, Enum):
+    """App-level user roles for admin/lifecycle management."""
+
+    ADMIN = "admin"
+    USER = "user"
+
+
 class UserBase(SQLModel):
     """Domain base for User — validation + business data. No table."""
 
     oidc_sub: str = Field(index=True, unique=True)
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
+    role: UserRole = Field(default=UserRole.USER)
+    is_active: bool = Field(default=True)
+    deactivated_at: datetime | None = Field(default=None)
+    deactivated_by_user_id: int | None = Field(default=None)
 
 
 class UserPublic(UserBase):

@@ -28,6 +28,7 @@ class TestUserAdapterContract:
             oidc_sub="auth0|12345",
             email="test@example.com",
             display_name="Test User",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -50,6 +51,7 @@ class TestUserAdapterContract:
             oidc_sub="auth0|67890",
             email="another@example.com",
             display_name="Another User",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -69,6 +71,7 @@ class TestUserAdapterContract:
             oidc_sub="auth0|update_test",
             email="old@example.com",
             display_name="Old Name",
+            actor_id=1,
         )
         db_session.commit()
         original_id = user1.id
@@ -79,6 +82,7 @@ class TestUserAdapterContract:
             oidc_sub="auth0|update_test",
             email="new@example.com",
             display_name="New Name",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -107,6 +111,7 @@ class TestUserAdapterContract:
             oidc_sub="auth0|boundary_test",
             email="boundary@example.com",
             display_name="Boundary Test",
+            actor_id=1,
         )
         db_session.commit()
 
@@ -169,6 +174,7 @@ class TestGroupAdapterContract:
             oidc_sub="auth0|member_contract",
             email="member@example.com",
             display_name="Member User",
+            actor_id=_ACTOR,
         )
         group = group_adapter.save("Apartment", actor_id=_ACTOR)
         db_session.commit()
@@ -198,6 +204,7 @@ class TestGroupAdapterContract:
             oidc_sub="auth0|lookup_by_user",
             email="lookup@example.com",
             display_name="Lookup User",
+            actor_id=_ACTOR,
         )
         group = group_adapter.save("Household", actor_id=_ACTOR)
         group_adapter.add_member(group.id, user.id, MemberRole.USER, actor_id=_ACTOR)
@@ -232,6 +239,7 @@ class TestGroupAdapterContract:
             oidc_sub="auth0|membership_boundary",
             email="membership-boundary@example.com",
             display_name="Membership Boundary",
+            actor_id=_ACTOR,
         )
         group = group_adapter.save("Boundary Household", actor_id=_ACTOR)
         db_session.commit()

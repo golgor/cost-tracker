@@ -10,9 +10,10 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.errors import DuplicateMembershipError, GroupNotFoundError
+from app.domain.errors import DuplicateMembershipError, GroupNotFoundError, DeactivatedUserAccessDenied
 from app.domain.models import MemberRole
 from app.domain.use_cases import groups as group_use_cases
+from app.domain.use_cases import users as user_use_cases
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -79,17 +80,32 @@ async def callback(request: Request, uow: UowDep):
     email = userinfo.get("email", "")
     display_name = userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
 
-    # Auto-provision or update user (FR39)
-    # TODO(1.6): Replace direct adapter call with provision_user use case.
-    # Currently violates "routes call use cases for mutations" rule.
-    # Story 1.6 will add role assignment, deactivation checks, and proper
-    # audit actor_id context. See: 1-6-admin-bootstrap-and-user-lifecycle-core.md
-    user = uow.users.save(
-        oidc_sub=oidc_sub,
-        email=email,
-        display_name=display_name,
-    )
-    uow.commit()
+    # Provision/update user with deactivation check via use case
+    try:
+        user = user_use_cases.provision_user(
+            uow,
+            oidc_sub=oidc_sub,
+            email=email,
+            display_name=display_name,
+            actor_id=1,  # Use system actor for OIDC provisioning (no user context yet)
+        )
+    except DeactivatedUserAccessDenied:
+        logger.info("Deactivated user %s attempted login", oidc_sub)
+        return templates.TemplateResponse(
+            request,
+            "auth/error.html",
+            {
+                "csrf_token": "",
+                "message": "Your account is deactivated. Please contact an administrator.",
+            },
+            status_code=403,
+        )
+
+    # Check if first user needs admin bootstrap
+    if uow.users.count_active_admins() == 0:
+        # First user gets admin role
+        user = uow.users.promote_to_admin(user.id, actor_id=user.id)
+        uow.commit()
 
     # Create session cookie
     session_value = encode_session(user.id)
