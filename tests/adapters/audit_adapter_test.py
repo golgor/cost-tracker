@@ -251,7 +251,7 @@ class TestAdapterAutoAudit:
 
     def test_auto_audit_shares_transaction_with_business_data(self, uow: UnitOfWork):
         """Auto-audit rows are rolled back together with business changes."""
-        group = uow.groups.save("Rollback Test", actor_id=1)
+        uow.groups.save("Rollback Test", actor_id=1)
         # Don't commit — rollback instead
         uow.rollback()
 

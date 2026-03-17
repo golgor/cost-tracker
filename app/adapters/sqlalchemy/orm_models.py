@@ -27,7 +27,7 @@ class MembershipRow(SQLModel, table=True):
     role: MemberRole = Field(default=MemberRole.USER)
     joined_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
 
 
@@ -39,11 +39,11 @@ class UserRow(UserBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
     updated_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
 
 
@@ -56,11 +56,11 @@ class GroupRow(GroupBase, table=True):
     singleton_guard: bool = Field(default=True, unique=True, nullable=False)
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
     updated_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
 
 
@@ -76,7 +76,7 @@ class AuditRow(SQLModel, table=True):
     entity_id: int = Field(index=True)
     occurred_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
         index=True,
     )
     changes: dict[str, Any] | None = Field(

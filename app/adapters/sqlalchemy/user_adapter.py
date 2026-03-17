@@ -48,6 +48,7 @@ class SqlAlchemyUserAdapter:
             self._session.add(existing)
             self._session.flush()
             if changes:
+                assert existing.id is not None  # guaranteed after flush
                 self._audit.log(
                     action="user_updated",
                     actor_id=existing.id,
@@ -77,6 +78,7 @@ class SqlAlchemyUserAdapter:
             self._session.add(existing)
             self._session.flush()
             if changes:
+                assert existing.id is not None  # guaranteed after flush
                 self._audit.log(
                     action="user_updated",
                     actor_id=existing.id,
@@ -86,6 +88,7 @@ class SqlAlchemyUserAdapter:
                 )
             return self._to_public(existing)
 
+        assert row.id is not None  # guaranteed after flush
         self._audit.log(
             action="user_created",
             actor_id=row.id,

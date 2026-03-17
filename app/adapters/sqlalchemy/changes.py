@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import inspect
+from sqlalchemy.orm import InstanceState
 from sqlmodel import SQLModel
 
 
@@ -36,7 +37,7 @@ def compute_changes(
         Only fields that actually changed are included. An empty dict means no
         changes were detected.
     """
-    state = inspect(row)
+    state = cast(InstanceState[SQLModel], inspect(row))
     mapper = state.mapper
 
     if fields is None:
@@ -76,7 +77,7 @@ def snapshot_new(
     Returns:
         A dict keyed by field name, each value being ``{"old": None, "new": ...}``.
     """
-    state = inspect(row)
+    state = cast(InstanceState[SQLModel], inspect(row))
     mapper = state.mapper
     _exclude = exclude or set()
 

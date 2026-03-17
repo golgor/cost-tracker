@@ -76,6 +76,7 @@ class SqlAlchemyGroupAdapter:
         except IntegrityError as exc:
             raise DuplicateHouseholdError("Household group already exists") from exc
 
+        assert row.id is not None  # guaranteed after flush
         self._audit.log(
             action="group_created",
             actor_id=actor_id,
