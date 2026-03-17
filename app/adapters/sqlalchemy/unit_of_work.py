@@ -10,9 +10,9 @@ class UnitOfWork:
 
     def __init__(self, session: Session) -> None:
         self.session = session
-        self.users = SqlAlchemyUserAdapter(session)
-        self.groups = SqlAlchemyGroupAdapter(session)
         self.audit = SqlAlchemyAuditAdapter(session)
+        self.users = SqlAlchemyUserAdapter(session, self.audit)
+        self.groups = SqlAlchemyGroupAdapter(session, self.audit)
 
     def commit(self) -> None:
         self.session.commit()

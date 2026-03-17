@@ -91,7 +91,7 @@ class AuditEntry(SQLModel):
     entity_type: str
     entity_id: int
     occurred_at: datetime
-    details: dict[str, Any] | None = None
+    changes: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------

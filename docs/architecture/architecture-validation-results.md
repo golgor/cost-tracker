@@ -33,7 +33,8 @@ architectural tests.
 - **FR23–FR29** (Recurring Costs): Covered by `domain/use_cases/recurring.py` + `RecurringPort` + idempotency constraint
 - **FR30–FR35** (Dashboard): Covered by `queries/dashboard_queries.py` (read-only view bypass)
 - **FR36–FR40** (Search/Filter): Covered by `queries/expense_queries.py`
-- **FR41–FR43** (Audit): Covered by `AuditPort` on `UnitOfWork`, called in use cases
+- **FR41–FR43** (Audit): Covered by adapter auto-auditing — mutating methods call `compute_changes()` /
+  `snapshot_new()` internally via injected `AuditPort`. `AuditPort` on `UnitOfWork` still available for direct use
 - **FR44–FR46** (API): Covered by `api/v1/` routes + Swagger UI (public docs, authenticated execution)
 
 **Non-Functional Requirements Coverage (NFR1–NFR21):**

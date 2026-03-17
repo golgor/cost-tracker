@@ -79,7 +79,7 @@ class AuditRow(SQLModel, table=True):
         sa_type=_TZ_DATETIME,
         index=True,
     )
-    details: dict[str, Any] | None = Field(
+    changes: dict[str, Any] | None = Field(
         default=None,
         sa_column=sa.Column(sa.JSON, nullable=True),
     )

@@ -221,10 +221,19 @@ contains `_to_domain()` / `_to_row()` helpers.~~
 
 ### ADR-004: Audit Logging as Domain Concern
 
-**Status:** Accepted
-**Context:** Audit trail is a business requirement (FR43-44), not infrastructure.
-**Decision:** `AuditPort` on UnitOfWork. Use cases call `uow.audit.log()` explicitly. Atomic with data changes.
-**Consequences:** Audit calls visible in use case code. No complex event infrastructure.
+**Status:** Accepted (Updated)
+**Context:** Audit trail is a business requirement (FR43-44), not infrastructure. Original pattern required every use
+case to call `uow.audit.log()` explicitly, which was repetitive and easy to forget.
+**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `add_member()`) accept an
+`actor_id` keyword parameter and create audit rows automatically using SQLAlchemy `inspect()` dirty tracking.
+`compute_changes(row)` reads attribute history for updates (old→new for changed fields only). `snapshot_new(row)` builds
+a changes dict for creates (old is always null). Changes stored as `{"field": {"old": ..., "new": ...}}` JSON. No audit
+row is created if nothing actually changed. Audit rows share the same transaction as business data (atomicity via UoW).
+User adapter's `save()` auto-audits with `actor_id` set to the user's own ID (self-provisioning via OIDC). `AuditPort`
+still exists for direct use if needed, but adapters handle the common case.
+**Consequences:** Audit logging cannot be accidentally omitted from mutations. Use case code is cleaner — no explicit
+audit calls needed. Adapters receive the audit adapter via constructor injection. Slight coupling between adapters and
+audit concern, accepted as pragmatic trade-off.
 
 ### ADR-005: Sync SQLAlchemy for MVP
 

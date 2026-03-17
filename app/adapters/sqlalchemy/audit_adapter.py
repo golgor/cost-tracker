@@ -1,13 +1,9 @@
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from sqlmodel import Session
 
 from app.adapters.sqlalchemy.orm_models import AuditRow
 from app.domain.models import AuditEntry
-
-UTC = ZoneInfo("UTC")
 
 
 class SqlAlchemyAuditAdapter:
@@ -23,7 +19,7 @@ class SqlAlchemyAuditAdapter:
         actor_id: int,
         entity_type: str,
         entity_id: int,
-        details: dict[str, Any] | None = None,
+        changes: dict[str, Any] | None = None,
     ) -> None:
         """Persist an audit log entry. Shares the same session/transaction as business changes."""
         row = AuditRow(
@@ -31,8 +27,7 @@ class SqlAlchemyAuditAdapter:
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,
-            occurred_at=datetime.now(UTC),
-            details=details,
+            changes=changes,
         )
         self._session.add(row)
         self._session.flush()
@@ -46,5 +41,5 @@ class SqlAlchemyAuditAdapter:
             entity_type=row.entity_type,
             entity_id=row.entity_id,
             occurred_at=row.occurred_at,
-            details=row.details,
+            changes=row.changes,
         )

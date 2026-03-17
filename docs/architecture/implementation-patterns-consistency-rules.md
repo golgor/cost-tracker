@@ -165,10 +165,21 @@ def create_expense(
 
 **Audit Trail Patterns:**
 
-- Use cases call `uow.audit.log()` explicitly for state-changing operations
+- Adapters auto-audit in mutating methods (`save()`, `update()`, `add_member()`) — use cases
+  don't call audit manually
+- Adapters receive the audit adapter via constructor injection
+- Mutating adapter methods accept `actor_id` as a keyword parameter; user adapter's `save()`
+  self-audits with the user's own ID (OIDC self-provisioning)
+- `compute_changes(row)` reads SQLAlchemy `inspect()` attribute history for updates — captures
+  old→new for changed fields only
+- `snapshot_new(row)` builds a changes dict for creates — old is always `null`
+- Changes stored as a single `changes` JSON column:
+  `{"field": {"old": ..., "new": ...}}`
+- No audit row is created if nothing actually changed (update with identical values)
 - Audit entries are atomic with data changes (same transaction via UoW)
-- Audit entry structure: `entity_type`, `entity_id`, `action`, `actor_id`, `timestamp`, `old_values`, `new_values`
-- Actions: `snake_case` verbs (e.g., `expense_created`, `expense_deleted`, `settlement_confirmed`)
+- `AuditPort` still exists for direct use if needed, but adapters handle the common case
+- Actions: `snake_case` verbs (e.g., `expense_created`, `expense_deleted`,
+  `settlement_confirmed`)
 
 ## Process Patterns
 

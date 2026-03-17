@@ -1,7 +1,7 @@
 # Domain ports (Protocol classes)
 # Allowed imports: stdlib + external validation libs (sqlmodel, pydantic) per ADR-011
 # Forbidden imports: app.adapters, app.web, app.auth, app.api (internal modules)
-from typing import Any, Protocol
+from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
     GroupPublic,
@@ -22,7 +22,7 @@ class AuditPort(Protocol):
         actor_id: int,
         entity_type: str,
         entity_id: int,
-        details: dict[str, Any] | None = None,
+        changes: dict[str, Any] | None = None,
     ) -> None:
         """Persist an audit log entry. Must share the same transaction as business changes."""
         ...
@@ -62,26 +62,32 @@ class GroupPort(Protocol):
     def save(
         self,
         name: str,
+        *,
+        actor_id: int,
         default_currency: str = "EUR",
         default_split_type: SplitType = SplitType.EVEN,
         tracking_threshold: int = 30,
     ) -> GroupPublic:
-        """Create a new group. Returns the persisted group."""
+        """Create a new group. Returns the persisted group. Auto-audits."""
         ...
 
     def update(
         self,
         group_id: int,
+        *,
+        actor_id: int,
         name: str | None = None,
         default_currency: str | None = None,
         default_split_type: SplitType | None = None,
         tracking_threshold: int | None = None,
     ) -> GroupPublic:
-        """Update group configuration. Returns the updated group."""
+        """Update group configuration. Returns the updated group. Auto-audits."""
         ...
 
-    def add_member(self, group_id: int, user_id: int, role: MemberRole) -> MembershipPublic:
-        """Add a user to a group with specified role."""
+    def add_member(
+        self, group_id: int, user_id: int, role: MemberRole, *, actor_id: int,
+    ) -> MembershipPublic:
+        """Add a user to a group with specified role. Auto-audits."""
         ...
 
     def get_membership(self, user_id: int, group_id: int) -> MembershipPublic | None:

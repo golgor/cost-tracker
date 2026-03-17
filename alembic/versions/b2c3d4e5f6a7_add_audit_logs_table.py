@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("entity_type", sa.String(length=100), nullable=False),
         sa.Column("entity_id", sa.Integer(), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("details", sa.JSON(), nullable=True),
+        sa.Column("changes", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_audit_logs_actor_id", "audit_logs", ["actor_id"])

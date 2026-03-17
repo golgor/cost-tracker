@@ -1,14 +1,18 @@
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
+from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
+from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import UserRow
 from app.domain.models import UserPublic
+
 
 class SqlAlchemyUserAdapter:
     """SQLAlchemy adapter implementing UserPort."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
         self._session = session
+        self._audit = audit
 
     def get_by_id(self, user_id: int) -> UserPublic | None:
         """Retrieve user by database ID."""
@@ -26,14 +30,23 @@ class SqlAlchemyUserAdapter:
         return self._to_public(row)
 
     def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
-        """Create or update a user. Returns the persisted user."""
+        """Create or update a user. Returns the persisted user. Auto-audits."""
         existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).first()
 
         if existing:
             existing.email = email
             existing.display_name = display_name
+            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
+            if changes:
+                self._audit.log(
+                    action="user_updated",
+                    actor_id=existing.id,
+                    entity_type="user",
+                    entity_id=existing.id,
+                    changes=changes,
+                )
             return self._to_public(existing)
 
         row = UserRow(
@@ -41,6 +54,7 @@ class SqlAlchemyUserAdapter:
             email=email,
             display_name=display_name,
         )
+        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at"})
         self._session.add(row)
         try:
             self._session.flush()
@@ -51,9 +65,26 @@ class SqlAlchemyUserAdapter:
             existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).one()
             existing.email = email
             existing.display_name = display_name
+            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
+            if changes:
+                self._audit.log(
+                    action="user_updated",
+                    actor_id=existing.id,
+                    entity_type="user",
+                    entity_id=existing.id,
+                    changes=changes,
+                )
             return self._to_public(existing)
+
+        self._audit.log(
+            action="user_created",
+            actor_id=row.id,
+            entity_type="user",
+            entity_id=row.id,
+            changes=changes,
+        )
         return self._to_public(row)
 
     def _to_public(self, row: UserRow) -> UserPublic:
