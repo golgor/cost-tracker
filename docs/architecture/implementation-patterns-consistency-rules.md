@@ -75,6 +75,56 @@ tests/
 - All tests use PostgreSQL: unit tests use `costtracker_test`, integration tests also use `costtracker_test`
 - `web/conftest.py`: FastAPI `TestClient`, template assertion helpers
 
+## Template Rules
+
+**Templates are purely presentational:**
+
+- ✅ **Allowed:** Variable substitution, iteration (`for` loops), string formatting, conditional flow control (`if` for empty states with pre-computed flags)
+- ❌ **Forbidden:** Business logic, split calculations, domain state validation, filtering based on domain rules
+
+**Examples of forbidden patterns:**
+
+```html
+<!-- ❌ FORBIDDEN: Business rule check in template -->
+{% if expense.is_settled %}
+  <!-- cannot edit -->
+{% endif %}
+
+<!-- ❌ FORBIDDEN: Aggregation or filtering -->
+<p>Total: {{ expenses | sum(attribute='amount') }}</p>
+
+<!-- ❌ FORBIDDEN: Filtering based on domain logic -->
+{% for expense in expenses if not expense.is_settled %}
+```
+
+**Examples of allowed patterns:**
+
+```html
+<!-- ✅ ALLOWED: Iteration over pre-filtered data -->
+{% for expense in unsettled_expenses %}
+  <div>{{ expense.description }}</div>
+{% endfor %}
+
+<!-- ✅ ALLOWED: Variable substitution -->
+<p>{{ balance_summary.amount_owed }}</p>
+
+<!-- ✅ ALLOWED: String formatting -->
+<p>€{{ amount | format_currency }}</p>
+
+<!-- ✅ ALLOWED: Conditional structure (pre-computed flag) -->
+{% if has_unsettled_expenses %}
+  <section>{{ unsettled_count }} unsettled</section>
+{% else %}
+  <p>All expenses settled</p>
+{% endif %}
+```
+
+**Rationale:**
+- **Testability:** Business logic lives in domain/use cases, tested in Python. Templates are implicitly tested via integration tests.
+- **Maintainability:** Logic is centralized in searchable Python code, not scattered across template AST.
+- **Architecture:** Enforces ADR-001 (Domain pure Python) and ADR-006 (View queries read-only). All domain decisions are pre-computed and passed to templates as flags/data.
+- **Enforcement:** Architectural test (`test_templates_contain_no_domain_logic()`) scans templates and blocks forbidden patterns.
+
 ## Format Patterns
 
 **API Response Formats (for future `/api/v1/`):**
@@ -236,10 +286,66 @@ def get_user(request: Request) -> User:
 
 **Pattern Enforcement:**
 
-- `architecture_test.py` validates: domain import purity, `queries.py` read-only, no `utils.py`/`helpers.py`
+- `architecture_test.py` validates: domain import purity, `queries.py` read-only, no `utils.py`/`helpers.py`, template business logic
 - `contract_test.py` validates: round-trip ORM mapping preserves all fields
 - Code review checklist: naming conventions, no per-route error handling, audit logging presence
 - CI runs all enforcement tests on every PR
+
+## Template Rules
+
+**Templates are primarily presentational, with simple boolean state conditionals:**
+
+- ✅ **Allowed:** Boolean state checks (`{% if expense.is_settled %}`), variable substitution, iteration, formatting
+- ❌ **Forbidden:** Value comparisons (`user.role == "admin"`), numeric comparisons (`amount > 100`), aggregations, complex logic (3+ conditions)
+
+**Examples of allowed patterns:**
+
+```html
+<!-- ✅ ALLOWED: Boolean state check for UI visibility -->
+{% if expense.is_settled %}
+  <span class="badge">Settled</span>
+{% else %}
+  <button>Edit</button>
+{% endif %}
+
+<!-- ✅ ALLOWED: Iteration over pre-filtered data -->
+{% for expense in unsettled_expenses %}
+  <div>{{ expense.description }}</div>
+{% endfor %}
+
+<!-- ✅ ALLOWED: Variable substitution and formatting -->
+<p>Balance: {{ balance_summary.amount_owed | currency }}</p>
+
+<!-- ✅ ALLOWED: Empty state conditional -->
+{% if not expenses %}
+  <p>No expenses yet</p>
+{% endif %}
+```
+
+**Examples of forbidden patterns:**
+
+```html
+<!-- ❌ FORBIDDEN: Value comparison to literal -->
+{% if user.role == "admin" %}
+
+<!-- ❌ FORBIDDEN: Numeric comparison -->
+{% if expense.amount > 100 %}
+
+<!-- ❌ FORBIDDEN: Complex multi-condition logic -->
+{% if expense.is_settled and expense.payer_id == user_id and settlement_id %}
+
+<!-- ❌ FORBIDDEN: Aggregation in template -->
+<p>Total: {{ expenses | sum(attribute='amount') }}</p>
+
+<!-- ❌ FORBIDDEN: Filtering by business logic -->
+{% for expense in expenses if not expense.is_settled %}
+```
+
+**Rationale:**  
+Boolean state checks are presentation concerns — they decide what UI to show (settled vs. editable).  
+Value comparisons, calculations, and complex conditionals belong in Python (view queries or use cases) where they're testable and traceable. Pass pre-computed boolean flags to templates instead of raw values to compare.
+
+Enforced by `test_templates_contain_no_complex_business_logic()` in `architecture_test.py`.
 
 ## Pattern Examples
 

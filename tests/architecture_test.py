@@ -114,3 +114,61 @@ def test_no_utils_or_helpers_files() -> None:
     forbidden = list(app_dir.rglob("utils.py")) + list(app_dir.rglob("helpers.py"))
     relative = [str(f.relative_to(REPO_ROOT)) for f in forbidden]
     assert not forbidden, "Forbidden files found (name by purpose instead):\n" + "\n".join(relative)
+
+
+def test_templates_contain_no_complex_business_logic() -> None:
+    \"\"\"Enforce: Jinja2 templates avoid business logic and value comparisons.
+
+    ALLOWED patterns (simple presentation conditionals):
+    - Boolean state checks: {% if expense.is_settled %} (display logic)
+    - Simple iteration over pre-filtered data
+    - Variable substitution and string formatting
+    - Template filters for generic formatting (date, currency, etc.)
+
+    FORBIDDEN patterns (business logic that belongs in Python):
+    - Value comparisons to literals: {% if user.role == \"admin\" %}
+    - Numeric comparisons: {% if expense.amount > threshold %}
+    - Complex conditionals: {% if x and y and z %} (3+ conditions)
+    - Aggregations: {% | sum() %}, {% | selectattr() %}
+    - Filtering by business rules: {% for x in items if x.is_valid %}
+
+    Rationale: Boolean state checks for UI visibility are fine (presentation).
+    Value comparisons and complex logic belong in domain/queries.
+    \"\"\""
+    import re
+
+    template_dir = REPO_ROOT / "app" / "templates"
+    if not template_dir.exists():
+        return  # No templates yet (early MVP)
+
+    forbidden_patterns = [
+        # Value comparisons to literals (role == "admin", status == "active", etc.)
+        (r"if\s+\w+\.\w+\s*==\s*[\"']", "value comparisons belong in Python, not templates"),
+        # Numeric comparisons (amount > threshold, count < 5, etc.)
+        (r"if\s+\w+\.\w+\s*[<>]", "numeric comparisons belong in Python, not templates"),
+        # Aggregations (sum, selectattr, rejectattr)
+        (r"\|\s*sum\(", "aggregations belong in view queries"),
+        (r"\|\s*selectattr\(", "filtering belongs in view queries"),
+        (r"\|\s*rejectattr\(", "filtering belongs in view queries"),
+        # Complex multi-condition logic (3+ 'and's)
+        (r"if\s+.*\s+and\s+.*\s+and\s+", "complex multi-condition logic belongs in Python"),
+    ]
+
+    template_files = sorted(template_dir.rglob("*.html"))
+    violations = []
+
+    for template_file in template_files:
+        content = template_file.read_text(encoding="utf-8")
+        for pattern, description in forbidden_patterns:
+            matches = list(re.finditer(pattern, content))
+            for match in matches:
+                line_num = content[:match.start()].count("\n") + 1
+                violations.append(
+                    f"{template_file.relative_to(REPO_ROOT)}:{line_num} "
+                    f"— {description}"
+                )
+
+    assert not violations, (
+        "Templates contain complex business logic that should live in Python. "
+        "Move to view queries or use cases:\n" + "\n".join(violations)
+    )
