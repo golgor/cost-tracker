@@ -23,6 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Download Tailwind CSS v4 standalone CLI and compile CSS
 ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN set -eux; \
     case "${TARGETARCH}" in \
         amd64) TAILWIND_BIN="tailwindcss-linux-x64" ;; \
