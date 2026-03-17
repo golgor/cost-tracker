@@ -180,6 +180,10 @@ def create_expense(
 - `AuditPort` still exists for direct use if needed, but adapters handle the common case
 - Actions: `snake_case` verbs (e.g., `expense_created`, `expense_deleted`,
   `settlement_confirmed`)
+- **New adapter checklist:** every new adapter with mutating methods must (1) receive
+  `SqlAlchemyAuditAdapter` via constructor, (2) use `compute_changes()` for updates and
+  `snapshot_new()` for creates from `app/adapters/sqlalchemy/changes.py`, (3) accept
+  `actor_id` as a keyword parameter on all mutating methods, (4) include auto-audit tests
 
 ## Process Patterns
 
@@ -226,7 +230,7 @@ def get_user(request: Request) -> User:
 - Never use `utils.py` or `helpers.py` as file names — name by purpose (e.g., `splits.py`, `formatting.py`)
 - Never write to DB in `queries.py` — enforced by architectural test
 - Always use `Decimal` for money values — zero floats in the money path
-- Always call `uow.audit.log()` in use cases that perform state-changing operations
+- Never call `uow.audit.log()` manually in use cases — adapters auto-audit in mutating methods (see Audit Trail Patterns)
 - Never manually assign `created_at` or `updated_at` in adapters — these are server/SQLAlchemy-managed
 - Always use `DateTime(timezone=True)` for datetime columns — never naive timestamps
 
@@ -257,8 +261,7 @@ class SqlAlchemyExpenseAdapter:
 # Use case — pure function, receives UoW
 def create_expense(uow: UnitOfWork, user_id: int, ...) -> Expense:
     expense = Expense(...)
-    saved = uow.expenses.save(expense)
-    uow.audit.log(AuditEntry(entity_type="expense", entity_id=saved.id, action="expense_created", actor_id=user_id))
+    saved = uow.expenses.save(expense, actor_id=user_id)  # adapter auto-audits
     uow.commit()
     return saved
 
@@ -294,10 +297,11 @@ class ExpenseRepository: ...       # NO — use ExpensePort (domain) + SqlAlchem
 # BAD: Floats for money
 amount: float = 19.99              # NO — use Decimal("19.99")
 
-# BAD: Missing audit in use case
-def delete_expense(uow, expense_id):
-    uow.expenses.delete(expense_id)
-    uow.commit()                   # NO — missing uow.audit.log() call
+# BAD: Manual audit.log() in use case — adapters handle this automatically
+def create_expense(uow, user_id, ...):
+    saved = uow.expenses.save(expense, actor_id=user_id)
+    uow.audit.log(...)             # NO — adapter already auto-audited in save()
+    uow.commit()
 
 # BAD: Manual timestamp assignment in adapters
 row.updated_at = datetime.now(UTC)  # NO — onupdate=func.now() handles this

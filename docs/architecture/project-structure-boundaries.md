@@ -258,8 +258,8 @@ in `alembic/env.py`.
 
 ```text
 Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWork
-  → ExpensePort.save() → SqlAlchemyExpenseAdapter → Session
-  → AuditPort.log() → SqlAlchemyAuditAdapter → Session
+  → ExpensePort.save(actor_id=user_id) → SqlAlchemyExpenseAdapter
+    → compute_changes() + AuditAdapter.log() → Session
   → UnitOfWork.commit() → Session.commit() → PostgreSQL
 ```
 
@@ -303,6 +303,8 @@ markdownlint.
 - `Dockerfile` multi-stage: (1) Tailwind CSS build via Tailwind CLI, (2) production image with `uv` and locked
   dependencies
 - Uses `ghcr.io/astral-sh/uv:python3.14-bookworm-slim` as builder base
+- Builder stage requires `apt-get install curl ca-certificates` — slim images don't ship with `curl`, which is needed to
+  download the Tailwind CLI binary
 - Dependencies installed with `uv sync --locked` for reproducible builds
 - No Node.js in production image — Tailwind CLI runs at build time only
 - Single image contains app + static assets + compiled CSS

@@ -56,8 +56,8 @@
 2. **Three-Layer Route Pattern** — Page + HTMX share URL paths (HX-Request header detection via centralized middleware).
    API gets separate `/api/v1/` prefix. Two URL namespaces, not three
 3. **Audit Trail** — Single `audit_log` table with JSON diff columns (entity_type, entity_id, action, actor_id,
-   timestamp, old_values_json, new_values_json). Append-only. Automatic capture via use-case-level calls within
-   UnitOfWork transactions — not manual calls per route
+   timestamp, changes — a single JSON column with `{"field": {"old": ..., "new": ...}}`). Append-only. Automatic
+   capture via adapter-level auto-auditing within UnitOfWork transactions — not manual calls per route
 4. **Use Case Enforcement** — Structurally necessary because three route layers exist. Use cases are the single source
    of truth for business logic. Routes are thin: validate input, call use case, render response
 5. **Input Validation** — Shared Pydantic models for input validation across API and HTMX form routes. Response models

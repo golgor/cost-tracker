@@ -96,8 +96,9 @@ class UnitOfWork(Protocol):
 
 1. **UnitOfWork pattern** — Domain port for transactional operations spanning multiple adapters. SQLAlchemy adapter
    shares a single session across all adapters within a UoW instance
-2. **Audit as domain concern** — `AuditPort` is a domain port, called explicitly in use cases within the same UoW
-   transaction. Atomic with data changes. Not a cross-cutting decorator
+2. **Audit as domain concern** — `AuditPort` is a domain port, with audit logging driven by adapters that auto-audit
+   in mutating methods via constructor-injected `SqlAlchemyAuditAdapter`. Atomic with data changes. Not a cross-cutting
+   decorator
 3. **Domain purity enforced** — `domain/` must not import from `fastapi`, `sqlalchemy`, or `starlette`. Domain models
    use `SQLModel` without `table=True` (pure data + validation, per ADR-011). Enforced by `architecture_test.py`
    (AST-based, runs in CI)
