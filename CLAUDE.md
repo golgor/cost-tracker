@@ -63,6 +63,7 @@ app/
 - Never import framework packages in `domain/` — enforced by `architecture_test.py`
 - Never use `utils.py` or `helpers.py` as file names — name by purpose (e.g., `splits.py`, `formatting.py`)
 - Never write to DB in `queries/` — enforced by architectural test
+- Jinja2 templates contain no value comparisons or complex business logic — only boolean state checks for UI visibility (e.g., `{% if expense.is_settled %}`). Never compare values to literals (`user.role == "admin"`) or do numeric comparisons (`amount > 100`). Pass pre-computed boolean flags from view queries instead. Enforced by `test_templates_contain_no_complex_business_logic()` in `architecture_test.py`
 - Always use `Decimal` for money values — zero floats in the money path
 - Audit logging is built into adapter mutating methods — pass `actor_id` to `save()`, `update()`, `add_member()` etc. Do not call `uow.audit.log()` manually in use cases
 - Every new adapter with mutating methods must implement auto-auditing: receive `SqlAlchemyAuditAdapter` via constructor, use `compute_changes()` for updates and `snapshot_new()` for creates from `app/adapters/sqlalchemy/changes.py`
