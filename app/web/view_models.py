@@ -33,7 +33,7 @@ class UserRowViewModel(BaseModel):
     show_reactivate: bool
 
     @classmethod
-    def from_domain(cls, user: UserPublic) -> "UserRowViewModel":
+    def from_domain(cls, user: UserPublic) -> UserRowViewModel:
         """Transform domain UserPublic → presentation UserRowViewModel."""
         is_admin = user.role == UserRole.ADMIN
         is_active = user.is_active
@@ -49,9 +49,7 @@ class UserRowViewModel(BaseModel):
             else "bg-stone-200 text-stone-900",
             # Status badge
             status_label="Active" if is_active else "Deactivated",
-            status_badge_color="bg-green-700 text-white"
-            if is_active
-            else "bg-red-700 text-white",
+            status_badge_color="bg-green-700 text-white" if is_active else "bg-red-700 text-white",
             status_filter="active" if is_active else "deactivated",
             # Button visibility - only active users can be promoted/demoted/deactivated
             show_promote=is_active and not is_admin,
@@ -71,7 +69,7 @@ class UserProfileViewModel(BaseModel):
     is_admin: bool
 
     @classmethod
-    def from_domain(cls, user: UserPublic) -> "UserProfileViewModel":
+    def from_domain(cls, user: UserPublic) -> UserProfileViewModel:
         """Transform domain UserPublic → presentation UserProfileViewModel."""
         return cls(
             display_name=user.display_name,
@@ -94,7 +92,7 @@ class AuditEntryViewModel(BaseModel):
     badge_color: str  # Tailwind classes for badge
 
     @classmethod
-    def from_dict(cls, entry: dict) -> "AuditEntryViewModel":
+    def from_dict(cls, entry: dict) -> AuditEntryViewModel:
         """Transform query result dict → presentation AuditEntryViewModel."""
         action_lower = entry["action"].lower()
 
