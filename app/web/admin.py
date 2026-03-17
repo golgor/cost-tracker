@@ -76,65 +76,16 @@ async def admin_audit_log_page(
         },
     )
 
-
-# API endpoints for user lifecycle management
+# HTMX endpoints for user lifecycle actions
 
 @router.post("/users/{target_user_id}/promote")
-async def promote_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep):
-    """Promote user to admin role."""
-    _check_admin_access(actor_id, uow)
-
-    user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
-    return JSONResponse(
-        {"success": True, "message": f"User {target_user_id} promoted to admin"},
-        status_code=200,
-    )
-
-
-@router.post("/users/{target_user_id}/demote")
-async def demote_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep):
-    """Demote admin to regular user role."""
-    _check_admin_access(actor_id, uow)
-
-    user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-    return JSONResponse(
-        {"success": True, "message": f"User {target_user_id} demoted to regular user"},
-        status_code=200,
-    )
-
-
-@router.post("/users/{target_user_id}/deactivate")
-async def deactivate_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep):
-    """Deactivate a user."""
-    _check_admin_access(actor_id, uow)
-
-    user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-    return JSONResponse(
-        {"success": True, "message": f"User {target_user_id} deactivated"},
-        status_code=200,
-    )
-
-
-@router.post("/users/{target_user_id}/reactivate")
-async def reactivate_user(target_user_id: int, actor_id: CurrentUserId, uow: UowDep):
-    """Reactivate a deactivated user."""
-    _check_admin_access(actor_id, uow)
-
-    user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-    return JSONResponse(
-        {"success": True, "message": f"User {target_user_id} reactivated"},
-        status_code=200,
-    )
-
-# HTMX endpoints for action buttons
-@router.post("/users/{target_user_id}/promote")
-async def promote_user_htmx(
+async def promote_user(
     target_user_id: int,
     request: Request,
     actor_id: CurrentUserId,
     uow: UowDep,
 ):
-    """Promote user (HTMX response)."""
+    """Promote user to admin role."""
     _check_admin_access(actor_id, uow)
 
     user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
@@ -149,13 +100,13 @@ async def promote_user_htmx(
 
 
 @router.post("/users/{target_user_id}/demote")
-async def demote_user_htmx(
+async def demote_user(
     target_user_id: int,
     request: Request,
     actor_id: CurrentUserId,
     uow: UowDep,
 ):
-    """Demote user (HTMX response)."""
+    """Demote admin to regular user role."""
     _check_admin_access(actor_id, uow)
 
     user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
@@ -187,13 +138,13 @@ async def deactivate_confirm_dialog(
 
 
 @router.post("/users/{target_user_id}/deactivate")
-async def deactivate_user_htmx(
+async def deactivate_user(
     target_user_id: int,
     request: Request,
     actor_id: CurrentUserId,
     uow: UowDep,
 ):
-    """Deactivate user (HTMX response)."""
+    """Deactivate a user."""
     _check_admin_access(actor_id, uow)
 
     user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
@@ -207,13 +158,13 @@ async def deactivate_user_htmx(
 
 
 @router.post("/users/{target_user_id}/reactivate")
-async def reactivate_user_htmx(
+async def reactivate_user(
     target_user_id: int,
     request: Request,
     actor_id: CurrentUserId,
     uow: UowDep,
 ):
-    """Reactivate user (HTMX response)."""
+    """Reactivate a deactivated user."""
     _check_admin_access(actor_id, uow)
 
     user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)

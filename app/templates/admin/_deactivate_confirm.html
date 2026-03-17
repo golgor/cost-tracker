@@ -6,7 +6,7 @@
     </p>
 
     <!-- Error container -->
-    <div id="deactivate-error"></div>
+    <div id="deactivate-error" class="mb-4"></div>
 
     <div class="flex justify-end gap-3">
       <button
@@ -16,7 +16,7 @@
       </button>
       <button
         hx-post="/admin/users/{{ target_user.id }}/deactivate"
-        hx-target="#deactivate-error"
+        hx-target="#deactivate-response-container"
         hx-swap="innerHTML"
         style="background-color: #B8453A; color: white;"
         class="px-4 py-2 text-sm rounded-lg hover:opacity-90 focus-ring">
@@ -24,4 +24,42 @@
       </button>
     </div>
   </div>
+  <!-- Hidden container for response -->
+  <div id="deactivate-response-container" style="display: none;"></div>
 </div>
+
+<script>
+(function() {
+  const container = document.getElementById('deactivate-response-container');
+  console.log('Setting up observer for container:', container);
+
+  const observer = new MutationObserver(function(mutations) {
+    console.log('Observer fired! Mutations:', mutations);
+    const html = container.innerHTML.trim();
+    console.log('Container HTML:', html);
+
+    if (html) {
+      if (html.startsWith('<tr')) {
+        console.log('Success case - updating table row');
+        const targetRow = document.getElementById('user-row-{{ target_user.id }}');
+        if (targetRow) {
+          targetRow.outerHTML = html;
+          // Re-initialize HTMX on the new row so buttons work
+          const newRow = document.getElementById('user-row-{{ target_user.id }}');
+          if (newRow) {
+            htmx.process(newRow);
+          }
+          document.getElementById('deactivate-modal').remove();
+        }
+      } else {
+        console.log('Error case - showing in modal');
+        document.getElementById('deactivate-error').innerHTML = html;
+      }
+      container.innerHTML = '';
+    }
+  });
+
+  observer.observe(container, { childList: true, subtree: true });
+  console.log('Observer started');
+})();
+</script>

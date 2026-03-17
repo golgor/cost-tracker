@@ -56,7 +56,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-stone-200">
           {% for u in users %}
-          <tr class="hover:bg-stone-50">
+          <tr class="hover:bg-stone-50" id="user-row-{{ u.id }}">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-stone-900">
               {{ u.display_name }}
             </td>
@@ -64,7 +64,7 @@
               {{ u.email }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              {% if u.role.value == 'admin' %}
+              {% if u.role == 'admin' %}
               <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-primary-500 text-white">
                 Admin
               </span>
@@ -88,7 +88,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end gap-2">
                 {% if u.is_active %}
-                  {% if u.role.value == 'user' %}
+                  {% if u.role == 'user' %}
                   <button
                     hx-post="/admin/users/{{ u.id }}/promote"
                     hx-swap="outerHTML"
@@ -96,7 +96,7 @@
                     class="px-3 py-1 text-sm bg-stone-100 text-stone-700 rounded hover:bg-stone-200 focus-ring">
                     Promote
                   </button>
-                  {% elif u.role.value == 'admin' %}
+                  {% elif u.role == 'admin' %}
                   <button
                     hx-post="/admin/users/{{ u.id }}/demote"
                     hx-swap="outerHTML"
