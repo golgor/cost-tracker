@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import DateTime
 from sqlmodel import Field, SQLModel
 
 from app.domain.models import GroupBase, MemberRole, UserBase
@@ -27,7 +28,7 @@ class MembershipRow(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", primary_key=True)
     group_id: int = Field(foreign_key="groups.id", primary_key=True)
     role: MemberRole = Field(default=MemberRole.USER)
-    joined_at: datetime = Field(default_factory=_utc_now)
+    joined_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
 
 class UserRow(UserBase, table=True):
@@ -36,8 +37,8 @@ class UserRow(UserBase, table=True):
     __tablename__ = "users"
 
     id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=_utc_now)
-    updated_at: datetime = Field(default_factory=_utc_now)
+    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
 
 class GroupRow(GroupBase, table=True):
@@ -47,8 +48,8 @@ class GroupRow(GroupBase, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     singleton_guard: bool = Field(default=True, unique=True, nullable=False)
-    created_at: datetime = Field(default_factory=_utc_now)
-    updated_at: datetime = Field(default_factory=_utc_now)
+    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
 
 # Re-export SQLModel for Alembic env.py

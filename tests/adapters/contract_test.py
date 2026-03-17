@@ -81,9 +81,8 @@ class TestUserAdapterContract:
         assert user2.id == original_id
         assert user2.email == "new@example.com"
         assert user2.display_name == "New Name"
-        # Compare without timezone info (SQLite doesn't preserve it)
-        assert user2.created_at.replace(tzinfo=None) == original_created.replace(tzinfo=None)
-        assert user2.updated_at.replace(tzinfo=None) >= original_created.replace(tzinfo=None)
+        assert user2.created_at == original_created
+        assert user2.updated_at >= original_created
 
     def test_get_by_id_returns_none_for_missing(self, db_session: Session):
         """get_by_id returns None for non-existent ID."""
