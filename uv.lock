@@ -153,7 +153,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = "~=2.9.1" },
     { name = "python-dotenv", specifier = "~=1.0.1" },
     { name = "python-multipart", specifier = "~=0.0.20" },
-    { name = "sqlmodel", specifier = "~=0.0.24" },
+    { name = "sqlmodel", specifier = "~=0.0.37" },
     { name = "structlog", specifier = "~=25.3.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "~=0.34.3" },
 ]
