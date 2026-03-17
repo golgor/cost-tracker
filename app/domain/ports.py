@@ -9,7 +9,6 @@ from app.domain.models import (
     MembershipPublic,
     SplitType,
     UserPublic,
-    UserRole,
 )
 
 

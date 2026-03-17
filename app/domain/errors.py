@@ -34,6 +34,18 @@ class DeactivatedUserAccessDenied(DomainError):
     """Raised when a deactivated user attempts to access the app."""
 
 
+class UserNotFoundError(DomainError):
+    """Raised when a user cannot be found."""
+
+
+class UserAlreadyAdminError(DomainError):
+    """Raised when attempting to promote a user who is already an admin."""
+
+
+class UserAlreadyRegularError(DomainError):
+    """Raised when attempting to demote a user who is already a regular user."""
+
+
 class UserAlreadyDeactivated(DomainError):
     """Raised when attempting to deactivate an already deactivated user."""
 

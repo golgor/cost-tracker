@@ -10,7 +10,6 @@ from app.dependencies import get_current_user_id, get_uow
 from app.domain.errors import (
     DuplicateHouseholdError,
     DuplicateMembershipError,
-    UnauthorizedGroupActionError,
 )
 from app.domain.models import SplitType
 from app.domain.use_cases import groups as group_use_cases
@@ -235,18 +234,15 @@ async def setup_step_3_post(
             },
         )
 
-    try:
-        group_use_cases.update_group_defaults(
-            uow=uow,
-            actor_user_id=user_id,
-            group_id=group.id,
-            default_currency=default_currency,
-            default_split_type=split_type,
-            tracking_threshold=tracking_threshold,
-        )
-        uow.commit()
-    except UnauthorizedGroupActionError:
-        return RedirectResponse("/", status_code=302)
+    group_use_cases.update_group_defaults(
+        uow=uow,
+        actor_user_id=user_id,
+        group_id=group.id,
+        default_currency=default_currency,
+        default_split_type=split_type,
+        tracking_threshold=tracking_threshold,
+    )
+    uow.commit()
 
     logger.info("User %d completed setup wizard for group %d", user_id, group.id)
 

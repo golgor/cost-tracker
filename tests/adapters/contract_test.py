@@ -295,8 +295,8 @@ class TestAuditAdapterContract:
         assert row is not None
         assert row.changes is None
 
-    def test_to_domain_round_trip_preserves_all_fields(self, db_session: Session):
-        """_to_domain preserves all fields from AuditRow to AuditEntry."""
+    def test_to_public_round_trip_preserves_all_fields(self, db_session: Session):
+        """_to_public preserves all fields from AuditRow to AuditEntry."""
         adapter = SqlAlchemyAuditAdapter(db_session)
 
         adapter.log(
@@ -311,7 +311,7 @@ class TestAuditAdapterContract:
         row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 3)).first()
         assert row is not None
 
-        entry = adapter._to_domain(row)
+        entry = adapter._to_public(row)
 
         assert isinstance(entry, AuditEntry)
         assert entry.id == row.id
@@ -323,7 +323,7 @@ class TestAuditAdapterContract:
         assert entry.changes == {"role": {"old": None, "new": "admin"}}
 
     def test_audit_row_never_leaves_adapter(self, db_session: Session):
-        """_to_domain returns AuditEntry, not AuditRow."""
+        """_to_public returns AuditEntry, not AuditRow."""
         adapter = SqlAlchemyAuditAdapter(db_session)
 
         adapter.log(
@@ -337,7 +337,7 @@ class TestAuditAdapterContract:
         row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 99)).first()
         assert row is not None
 
-        entry = adapter._to_domain(row)
+        entry = adapter._to_public(row)
 
         assert type(entry).__name__ == "AuditEntry"
         assert not isinstance(entry, AuditRow)
