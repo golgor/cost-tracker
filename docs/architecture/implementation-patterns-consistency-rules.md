@@ -123,6 +123,17 @@ def handle_domain_error(request: Request, exc: DomainError):
 - Null handling: explicit `null` in JSON, `None` in Python — never empty string as null substitute
 - Booleans: `true`/`false` (JSON standard)
 
+**Timestamp Patterns:**
+
+- All datetime columns use `TIMESTAMPTZ` (PostgreSQL `TIMESTAMP WITH TIME ZONE`) — never naive `TIMESTAMP`
+- ORM fields declare `sa_type=DateTime(timezone=True)` for timezone-aware storage and retrieval
+- Timestamp defaults are server/SQLAlchemy-managed, not set in Python application code:
+  - `created_at`: `server_default=func.now()` — PostgreSQL generates on INSERT, immutable after creation
+  - `updated_at`: `server_default=func.now()` + `onupdate=func.now()` — SQLAlchemy auto-injects on every UPDATE
+  - `joined_at`, `occurred_at`: `server_default=func.now()` — PostgreSQL generates on INSERT
+- Adapters must never manually assign `row.created_at` or `row.updated_at`
+- Dates in JSON: ISO 8601 strings with timezone (e.g., `"2026-03-15T14:30:00+00:00"`)
+
 **Route Handler Pattern (clean, no try/except):**
 
 ```python
@@ -154,10 +165,25 @@ def create_expense(
 
 **Audit Trail Patterns:**
 
-- Use cases call `uow.audit.log()` explicitly for state-changing operations
+- Adapters auto-audit in mutating methods (`save()`, `update()`, `add_member()`) — use cases
+  don't call audit manually
+- Adapters receive the audit adapter via constructor injection
+- Mutating adapter methods accept `actor_id` as a keyword parameter; user adapter's `save()`
+  self-audits with the user's own ID (OIDC self-provisioning)
+- `compute_changes(row)` reads SQLAlchemy `inspect()` attribute history for updates — captures
+  old→new for changed fields only
+- `snapshot_new(row)` builds a changes dict for creates — old is always `null`
+- Changes stored as a single `changes` JSON column:
+  `{"field": {"old": ..., "new": ...}}`
+- No audit row is created if nothing actually changed (update with identical values)
 - Audit entries are atomic with data changes (same transaction via UoW)
-- Audit entry structure: `entity_type`, `entity_id`, `action`, `actor_id`, `timestamp`, `old_values`, `new_values`
-- Actions: `snake_case` verbs (e.g., `expense_created`, `expense_deleted`, `settlement_confirmed`)
+- `AuditPort` still exists for direct use if needed, but adapters handle the common case
+- Actions: `snake_case` verbs (e.g., `expense_created`, `expense_deleted`,
+  `settlement_confirmed`)
+- **New adapter checklist:** every new adapter with mutating methods must (1) receive
+  `SqlAlchemyAuditAdapter` via constructor, (2) use `compute_changes()` for updates and
+  `snapshot_new()` for creates from `app/adapters/sqlalchemy/changes.py`, (3) accept
+  `actor_id` as a keyword parameter on all mutating methods, (4) include auto-audit tests
 
 ## Process Patterns
 
@@ -204,7 +230,9 @@ def get_user(request: Request) -> User:
 - Never use `utils.py` or `helpers.py` as file names — name by purpose (e.g., `splits.py`, `formatting.py`)
 - Never write to DB in `queries.py` — enforced by architectural test
 - Always use `Decimal` for money values — zero floats in the money path
-- Always call `uow.audit.log()` in use cases that perform state-changing operations
+- Never call `uow.audit.log()` manually in use cases — adapters auto-audit in mutating methods (see Audit Trail Patterns)
+- Never manually assign `created_at` or `updated_at` in adapters — these are server/SQLAlchemy-managed
+- Always use `DateTime(timezone=True)` for datetime columns — never naive timestamps
 
 **Pattern Enforcement:**
 
@@ -228,13 +256,12 @@ class SqlAlchemyExpenseAdapter:
         rows = self._session.query(ExpenseRow).filter_by(
             group_id=group_id, settlement_id=None
         ).all()
-        return [_to_domain(row) for row in rows]
+        return [_to_public(row) for row in rows]
 
 # Use case — pure function, receives UoW
 def create_expense(uow: UnitOfWork, user_id: int, ...) -> Expense:
     expense = Expense(...)
-    saved = uow.expenses.save(expense)
-    uow.audit.log(AuditEntry(entity_type="expense", entity_id=saved.id, action="expense_created", actor_id=user_id))
+    saved = uow.expenses.save(expense, actor_id=user_id)  # adapter auto-audits
     uow.commit()
     return saved
 
@@ -261,7 +288,7 @@ def create_expense(...)
         return templates.TemplateResponse("_error.html", ...)
 
 # BAD: Framework imports in domain
-from pydantic import BaseModel     # NO — domain uses @dataclass
+from pydantic import BaseModel  # NO — domain uses SQLModel (not raw Pydantic)
 from sqlalchemy import Column      # NO — ORM stays in adapters
 
 # BAD: Repository naming (use adapter pattern)
@@ -270,8 +297,16 @@ class ExpenseRepository: ...       # NO — use ExpensePort (domain) + SqlAlchem
 # BAD: Floats for money
 amount: float = 19.99              # NO — use Decimal("19.99")
 
-# BAD: Missing audit in use case
-def delete_expense(uow, expense_id):
-    uow.expenses.delete(expense_id)
-    uow.commit()                   # NO — missing uow.audit.log() call
+# BAD: Manual audit.log() in use case — adapters handle this automatically
+def create_expense(uow, user_id, ...):
+    saved = uow.expenses.save(expense, actor_id=user_id)
+    uow.audit.log(...)             # NO — adapter already auto-audited in save()
+    uow.commit()
+
+# BAD: Manual timestamp assignment in adapters
+row.updated_at = datetime.now(UTC)  # NO — onupdate=func.now() handles this
+row.created_at = datetime.now(UTC)  # NO — server_default=func.now() handles this
+
+# BAD: Python-side default factories for timestamps
+created_at: datetime = Field(default_factory=_utc_now)  # NO — use server_default=func.now()
 ```

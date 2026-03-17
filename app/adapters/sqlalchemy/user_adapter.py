@@ -1,20 +1,18 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
+from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
+from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import UserRow
 from app.domain.models import UserPublic
-
-UTC = ZoneInfo("UTC")
 
 
 class SqlAlchemyUserAdapter:
     """SQLAlchemy adapter implementing UserPort."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
         self._session = session
+        self._audit = audit
 
     def get_by_id(self, user_id: int) -> UserPublic | None:
         """Retrieve user by database ID."""
@@ -32,15 +30,32 @@ class SqlAlchemyUserAdapter:
         return self._to_public(row)
 
     def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
-        """Create or update a user. Returns the persisted user."""
+        """Create or update a user. Returns the persisted user. Auto-audits.
+
+        TODO(1.6): Refactor to accept `actor_id` as keyword parameter like other
+        adapters (GroupAdapter). Currently self-audits with actor_id=user's own ID
+        because there is no provision_user use case to provide actor context.
+        Story 1.6 will introduce the use case with role assignment and deactivation
+        checks — at that point, remove self-auditing here and let the use case pass
+        actor_id through. See: 1-6-admin-bootstrap-and-user-lifecycle-core.md
+        """
         existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).first()
 
         if existing:
             existing.email = email
             existing.display_name = display_name
-            existing.updated_at = datetime.now(UTC)
+            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
+            if changes:
+                assert existing.id is not None  # guaranteed after flush
+                self._audit.log(
+                    action="user_updated",
+                    actor_id=existing.id,
+                    entity_type="user",
+                    entity_id=existing.id,
+                    changes=changes,
+                )
             return self._to_public(existing)
 
         row = UserRow(
@@ -48,6 +63,7 @@ class SqlAlchemyUserAdapter:
             email=email,
             display_name=display_name,
         )
+        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at"})
         self._session.add(row)
         try:
             self._session.flush()
@@ -58,10 +74,28 @@ class SqlAlchemyUserAdapter:
             existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).one()
             existing.email = email
             existing.display_name = display_name
-            existing.updated_at = datetime.now(UTC)
+            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
+            if changes:
+                assert existing.id is not None  # guaranteed after flush
+                self._audit.log(
+                    action="user_updated",
+                    actor_id=existing.id,
+                    entity_type="user",
+                    entity_id=existing.id,
+                    changes=changes,
+                )
             return self._to_public(existing)
+
+        assert row.id is not None  # guaranteed after flush
+        self._audit.log(
+            action="user_created",
+            actor_id=row.id,
+            entity_type="user",
+            entity_id=row.id,
+            changes=changes,
+        )
         return self._to_public(row)
 
     def _to_public(self, row: UserRow) -> UserPublic:

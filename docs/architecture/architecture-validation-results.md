@@ -10,9 +10,10 @@ conflicts.
 
 **Pattern Consistency:**
 Implementation patterns from Step 5 align with the hexagonal architecture decisions in Step 4. Naming conventions
-(`XxxPort`, `SqlAlchemyXxxAdapter`, `XxxRow`) are consistent across all code examples. The `_to_domain()` / `_to_row()`
-mapping pattern is uniformly applied. Error handling flows through a single global exception handler — no conflicting
-per-route patterns.
+(`XxxPort`, `SqlAlchemyXxxAdapter`, `XxxRow`) are consistent across all code examples. Per ADR-011, ORM `XxxRow` models
+inherit from domain `XxxBase` (SQLModel, no `table=True`), and adapters use `_to_public()` to convert ORM rows to public
+domain models (e.g., `UserPublic`, `GroupPublic`). Contract tests verify round-trip mapping preserves all fields via
+`_to_public()`. Error handling flows through a single global exception handler — no conflicting per-route patterns.
 
 **Structure Alignment:**
 The project structure from Step 6 directly reflects the ports & adapters architecture: `domain/` contains only models,
@@ -32,7 +33,8 @@ architectural tests.
 - **FR23–FR29** (Recurring Costs): Covered by `domain/use_cases/recurring.py` + `RecurringPort` + idempotency constraint
 - **FR30–FR35** (Dashboard): Covered by `queries/dashboard_queries.py` (read-only view bypass)
 - **FR36–FR40** (Search/Filter): Covered by `queries/expense_queries.py`
-- **FR41–FR43** (Audit): Covered by `AuditPort` on `UnitOfWork`, called in use cases
+- **FR41–FR43** (Audit): Covered by adapter auto-auditing — mutating methods call `compute_changes()` /
+  `snapshot_new()` internally via injected `AuditPort`. `AuditPort` on `UnitOfWork` still available for direct use
 - **FR44–FR46** (API): Covered by `api/v1/` routes + Swagger UI (public docs, authenticated execution)
 
 **Non-Functional Requirements Coverage (NFR1–NFR21):**

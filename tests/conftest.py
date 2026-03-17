@@ -113,7 +113,8 @@ def db_session(db_engine) -> Session:
     session = Session(bind=connection)
     yield session
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
 
 

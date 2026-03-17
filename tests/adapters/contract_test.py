@@ -4,11 +4,16 @@ Verifies that domain models can be persisted and retrieved without data loss.
 """
 
 from sqlalchemy.orm import Session
+from sqlmodel import select
 
+from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
-from app.adapters.sqlalchemy.orm_models import MembershipRow, UserRow
+from app.adapters.sqlalchemy.orm_models import AuditRow, MembershipRow, UserRow
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
-from app.domain.models import MemberRole, SplitType
+from app.domain.models import AuditEntry, MemberRole, SplitType
+
+# Dummy actor_id used in tests where the audit entry content is not under test.
+_ACTOR = 1
 
 
 class TestUserAdapterContract:
@@ -16,7 +21,7 @@ class TestUserAdapterContract:
 
     def test_save_and_retrieve_by_id(self, db_session: Session):
         """User can be saved and retrieved by ID."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
 
         # Save a new user
         user = adapter.save(
@@ -39,7 +44,7 @@ class TestUserAdapterContract:
 
     def test_save_and_retrieve_by_oidc_sub(self, db_session: Session):
         """User can be retrieved by OIDC subject identifier."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
 
         user = adapter.save(
             oidc_sub="auth0|67890",
@@ -57,7 +62,7 @@ class TestUserAdapterContract:
 
     def test_save_updates_existing_user(self, db_session: Session):
         """Saving with existing OIDC sub updates the user."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
 
         # Create initial user
         user1 = adapter.save(
@@ -81,23 +86,22 @@ class TestUserAdapterContract:
         assert user2.id == original_id
         assert user2.email == "new@example.com"
         assert user2.display_name == "New Name"
-        # Compare without timezone info (SQLite doesn't preserve it)
-        assert user2.created_at.replace(tzinfo=None) == original_created.replace(tzinfo=None)
-        assert user2.updated_at.replace(tzinfo=None) >= original_created.replace(tzinfo=None)
+        assert user2.created_at == original_created
+        assert user2.updated_at >= original_created
 
     def test_get_by_id_returns_none_for_missing(self, db_session: Session):
         """get_by_id returns None for non-existent ID."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
         assert adapter.get_by_id(99999) is None
 
     def test_get_by_oidc_sub_returns_none_for_missing(self, db_session: Session):
         """get_by_oidc_sub returns None for non-existent OIDC sub."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
         assert adapter.get_by_oidc_sub("nonexistent") is None
 
     def test_user_row_never_leaves_adapter(self, db_session: Session):
         """Adapter returns UserPublic, not UserRow."""
-        adapter = SqlAlchemyUserAdapter(db_session)
+        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
 
         user = adapter.save(
             oidc_sub="auth0|boundary_test",
@@ -118,10 +122,12 @@ class TestGroupAdapterContract:
 
     def test_save_and_retrieve_group_by_id(self, db_session: Session):
         """Group can be saved and retrieved by ID with all fields preserved."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
         group = adapter.save(
-            name="Home",
+            "Home",
+            actor_id=_ACTOR,
             default_currency="EUR",
             default_split_type=SplitType.EVEN,
             tracking_threshold=45,
@@ -141,9 +147,10 @@ class TestGroupAdapterContract:
 
     def test_get_default_group_returns_singleton_group(self, db_session: Session):
         """Default group returns the first/only persisted household group."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
-        created = adapter.save(name="Family")
+        created = adapter.save("Family", actor_id=_ACTOR)
         db_session.commit()
 
         default_group = adapter.get_default_group()
@@ -154,18 +161,19 @@ class TestGroupAdapterContract:
 
     def test_add_member_and_get_membership_round_trip(self, db_session: Session):
         """Membership can be added and retrieved with role/joined_at preserved."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        user_adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
+        group_adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
         user = user_adapter.save(
             oidc_sub="auth0|member_contract",
             email="member@example.com",
             display_name="Member User",
         )
-        group = group_adapter.save(name="Apartment")
+        group = group_adapter.save("Apartment", actor_id=_ACTOR)
         db_session.commit()
 
-        membership = group_adapter.add_member(group.id, user.id, MemberRole.ADMIN)
+        membership = group_adapter.add_member(group.id, user.id, MemberRole.ADMIN, actor_id=_ACTOR)
         db_session.commit()
 
         retrieved = group_adapter.get_membership(user.id, group.id)
@@ -182,16 +190,17 @@ class TestGroupAdapterContract:
 
     def test_get_by_user_id_returns_users_group(self, db_session: Session):
         """Group can be resolved from user membership."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        user_adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
+        group_adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
         user = user_adapter.save(
             oidc_sub="auth0|lookup_by_user",
             email="lookup@example.com",
             display_name="Lookup User",
         )
-        group = group_adapter.save(name="Household")
-        group_adapter.add_member(group.id, user.id, MemberRole.USER)
+        group = group_adapter.save("Household", actor_id=_ACTOR)
+        group_adapter.add_member(group.id, user.id, MemberRole.USER, actor_id=_ACTOR)
         db_session.commit()
 
         retrieved_group = group_adapter.get_by_user_id(user.id)
@@ -202,9 +211,10 @@ class TestGroupAdapterContract:
 
     def test_group_row_never_leaves_adapter(self, db_session: Session):
         """Group adapter returns GroupPublic, not GroupRow."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
-        group = adapter.save(name="Boundary Group")
+        group = adapter.save("Boundary Group", actor_id=_ACTOR)
         db_session.commit()
 
         retrieved = adapter.get_by_id(group.id)
@@ -214,19 +224,112 @@ class TestGroupAdapterContract:
 
     def test_membership_row_never_leaves_adapter(self, db_session: Session):
         """Membership adapter method returns MembershipPublic, not MembershipRow."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
+        audit = SqlAlchemyAuditAdapter(db_session)
+        user_adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
+        group_adapter = SqlAlchemyGroupAdapter(db_session, audit)
 
         user = user_adapter.save(
             oidc_sub="auth0|membership_boundary",
             email="membership-boundary@example.com",
             display_name="Membership Boundary",
         )
-        group = group_adapter.save(name="Boundary Household")
+        group = group_adapter.save("Boundary Household", actor_id=_ACTOR)
         db_session.commit()
 
-        membership = group_adapter.add_member(group.id, user.id, MemberRole.USER)
+        membership = group_adapter.add_member(group.id, user.id, MemberRole.USER, actor_id=_ACTOR)
         db_session.commit()
 
         assert type(membership).__name__ == "MembershipPublic"
         assert not isinstance(membership, MembershipRow)
+
+
+class TestAuditAdapterContract:
+    """Contract tests for Audit adapter round-trip mapping."""
+
+    def test_log_persists_entry(self, db_session: Session):
+        """Audit log entry is persisted and retrievable after flush."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="group_created",
+            actor_id=1,
+            entity_type="group",
+            entity_id=42,
+            changes={"name": {"old": None, "new": "Home"}},
+        )
+        db_session.commit()
+
+        row = db_session.exec(
+            select(AuditRow).where(AuditRow.actor_id == 1, AuditRow.entity_id == 42)
+        ).first()
+        assert row is not None
+        assert row.action == "group_created"
+        assert row.entity_type == "group"
+        assert row.entity_id == 42
+        assert row.changes == {"name": {"old": None, "new": "Home"}}
+        assert row.occurred_at is not None
+
+    def test_log_persists_entry_without_changes(self, db_session: Session):
+        """Audit log entry with no changes stores None."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="login",
+            actor_id=7,
+            entity_type="user",
+            entity_id=7,
+        )
+        db_session.commit()
+
+        row = db_session.exec(
+            select(AuditRow).where(AuditRow.actor_id == 7, AuditRow.action == "login")
+        ).first()
+        assert row is not None
+        assert row.changes is None
+
+    def test_to_domain_round_trip_preserves_all_fields(self, db_session: Session):
+        """_to_domain preserves all fields from AuditRow to AuditEntry."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="member_added",
+            actor_id=3,
+            entity_type="membership",
+            entity_id=10,
+            changes={"role": {"old": None, "new": "admin"}},
+        )
+        db_session.commit()
+
+        row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 3)).first()
+        assert row is not None
+
+        entry = adapter._to_domain(row)
+
+        assert isinstance(entry, AuditEntry)
+        assert entry.id == row.id
+        assert entry.actor_id == 3
+        assert entry.action == "member_added"
+        assert entry.entity_type == "membership"
+        assert entry.entity_id == 10
+        assert entry.occurred_at == row.occurred_at
+        assert entry.changes == {"role": {"old": None, "new": "admin"}}
+
+    def test_audit_row_never_leaves_adapter(self, db_session: Session):
+        """_to_domain returns AuditEntry, not AuditRow."""
+        adapter = SqlAlchemyAuditAdapter(db_session)
+
+        adapter.log(
+            action="boundary_test",
+            actor_id=99,
+            entity_type="group",
+            entity_id=1,
+        )
+        db_session.commit()
+
+        row = db_session.exec(select(AuditRow).where(AuditRow.actor_id == 99)).first()
+        assert row is not None
+
+        entry = adapter._to_domain(row)
+
+        assert type(entry).__name__ == "AuditEntry"
+        assert not isinstance(entry, AuditRow)

@@ -31,13 +31,11 @@ def create_household(
             raise GroupNotFoundError("Active admin exists but no default group found")
 
         try:
-            uow.groups.add_member(group.id, user_id, MemberRole.USER)
-            uow.audit.log(
-                action="member_joined_after_race",
+            uow.groups.add_member(
+                group.id,
+                user_id,
+                MemberRole.USER,
                 actor_id=user_id,
-                entity_type="membership",
-                entity_id=group.id,
-                details={"role": MemberRole.USER.value},
             )
             uow.commit()
         except DuplicateMembershipError:
@@ -47,19 +45,13 @@ def create_household(
         return group
 
     group = uow.groups.save(
-        name=name,
+        name,
+        actor_id=user_id,
         default_currency=default_currency,
         default_split_type=default_split_type,
         tracking_threshold=tracking_threshold,
     )
-    uow.groups.add_member(group.id, user_id, MemberRole.ADMIN)
-    uow.audit.log(
-        action="household_created",
-        actor_id=user_id,
-        entity_type="group",
-        entity_id=group.id,
-        details={"role": MemberRole.ADMIN.value},
-    )
+    uow.groups.add_member(group.id, user_id, MemberRole.ADMIN, actor_id=user_id)
     uow.commit()
 
     return group
@@ -80,13 +72,11 @@ def add_member(
     if existing:
         raise DuplicateMembershipError("User is already a member of this group")
 
-    membership = uow.groups.add_member(group_id, user_id, role)
-    uow.audit.log(
-        action="member_added",
+    membership = uow.groups.add_member(
+        group_id,
+        user_id,
+        role,
         actor_id=user_id,
-        entity_type="membership",
-        entity_id=group_id,
-        details={"role": role.value},
     )
     uow.commit()
 
@@ -118,22 +108,10 @@ def update_group_defaults(
         raise UnauthorizedGroupActionError("Only admins can update group defaults")
 
     updated_group = uow.groups.update(
-        group_id=group_id,
+        group_id,
+        actor_id=actor_user_id,
         default_currency=default_currency,
         default_split_type=default_split_type,
         tracking_threshold=tracking_threshold,
-    )
-    uow.audit.log(
-        action="group_defaults_updated",
-        actor_id=actor_user_id,
-        entity_type="group",
-        entity_id=group_id,
-        details={
-            "default_currency": default_currency,
-            "default_split_type": (
-                default_split_type.value if default_split_type is not None else None
-            ),
-            "tracking_threshold": tracking_threshold,
-        },
     )
     return updated_group
