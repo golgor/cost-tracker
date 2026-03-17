@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, func
 from sqlmodel import Field, SQLModel
 
 from app.domain.models import GroupBase, MemberRole, UserBase, UserRole
@@ -26,7 +26,7 @@ class MembershipRow(SQLModel, table=True):
     group_id: int = Field(foreign_key="groups.id", primary_key=True)
     role: MemberRole = Field(
         default=MemberRole.USER,
-        sa_type=String(50),  # type: ignore[arg-type]
+        sa_type=sa.Enum(MemberRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
     )
     joined_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -39,10 +39,10 @@ class UserRow(UserBase, table=True):
 
     __tablename__ = "users"
 
-    # Override role field to force VARCHAR instead of PostgreSQL ENUM
+    # Override role field to use PostgreSQL ENUM
     role: UserRole = Field(  # type: ignore[assignment]
         default=UserRole.USER,
-        sa_type=String(50),  # type: ignore[arg-type]
+        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
     )
 
     id: int | None = Field(default=None, primary_key=True)

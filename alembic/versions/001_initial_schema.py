@@ -50,7 +50,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False),
         sa.Column("default_currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
-        sa.Column("default_split_type", sa.Enum("EVEN", name="splittype"), nullable=False),
+        sa.Column("default_split_type", sa.Enum("even", name="splittype"), nullable=False),
         sa.Column("singleton_guard", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("tracking_threshold", sa.Integer(), nullable=False, server_default=sa.text("30")),
         sa.Column(
@@ -69,12 +69,12 @@ def upgrade() -> None:
         sa.UniqueConstraint("singleton_guard", name="uq_groups_singleton_guard"),
     )
 
-    # Group memberships table (using VARCHAR with CHECK constraint instead of ENUM)
+    # Group memberships table (using roletype ENUM)
     op.create_table(
         "group_memberships",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("group_id", sa.Integer(), nullable=False),
-        sa.Column("role", sa.String(length=50), nullable=False, server_default="user"),
+        sa.Column("role", sa.Enum("admin", "user", name="roletype"), nullable=False, server_default="user"),
         sa.Column(
             "joined_at",
             sa.DateTime(timezone=True),
@@ -84,10 +84,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("user_id", "group_id"),
-        sa.CheckConstraint(
-            "role IN ('admin', 'user')",
-            name="ck_group_memberships_role",
-        ),
     )
     op.create_index("ix_group_memberships_role", "group_memberships", ["role"])
 
@@ -134,3 +130,7 @@ def downgrade() -> None:
     # Drop users
     op.drop_index("ix_users_oidc_sub", table_name="users")
     op.drop_table("users")
+
+    # Drop ENUM types (must be after all tables are dropped)
+    op.execute("DROP TYPE IF EXISTS roletype")
+    op.execute("DROP TYPE IF EXISTS splittype")
