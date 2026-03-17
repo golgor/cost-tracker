@@ -40,9 +40,9 @@ class UserRow(UserBase, table=True):
     __tablename__ = "users"
 
     # Override role field to use PostgreSQL ENUM
-    role: UserRole = Field(  # type: ignore[assignment]
+    role: UserRole = Field(
         default=UserRole.USER,
-        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),
     )
 
     id: int | None = Field(default=None, primary_key=True)
