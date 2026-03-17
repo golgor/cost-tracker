@@ -30,8 +30,9 @@ def get_all_users(session: Session) -> list[UserPublic]:
 
 def get_recent_audit_entries(session: Session, limit: int = 50) -> list:
     """Fetch recent audit log entries (read-only)."""
-    from app.adapters.sqlalchemy.orm_models import AuditRow, UserRow
     from sqlmodel import select
+
+    from app.adapters.sqlalchemy.orm_models import AuditRow, UserRow
 
     statement = (
         select(AuditRow, UserRow)

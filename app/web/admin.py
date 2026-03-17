@@ -4,10 +4,10 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.adapters.sqlalchemy.queries import get_all_users, get_recent_audit_entries
+from app.adapters.sqlalchemy.queries import get_all_users
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
