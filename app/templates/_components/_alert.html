@@ -1,0 +1,53 @@
+{#
+  Alert Component
+  
+  Purpose: Renders error, success, or info alert messages with icon and optional dismiss button
+  
+  Parameters:
+    - message (str): Alert message text
+    - variant (str): Message type (error, success, info)
+    - dismissible (bool, default: false): Whether to show a close button
+    - extra_class (str, optional): Additional Tailwind classes to apply
+  
+  Accessibility:
+    - Uses semantic structure with icon + text (not color-only)
+    - aria-live="polite" for dynamic alerts
+    - aria-label on close button if dismissible
+  
+  Variants (must include icon + color + text):
+    - error: Red background, ✕ icon, error text color
+    - success: Green background, ✓ icon, success text color
+    - info: Blue background, ℹ icon, info text color
+  
+  Example usage:
+    {% set message = "User deactivated successfully" %}
+    {% set variant = "success" %}
+    {% set dismissible = true %}
+    {% include "_components/_alert.html" %}
+#}
+
+{% if variant == "error" %}
+  <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-start gap-3 {{ extra_class | default('') }}" role="alert" aria-live="polite">
+    <span class="text-xl">✕</span>
+    <span>{{ message }}</span>
+    {% if dismissible %}<button type="button" onclick="this.parentElement.remove()" aria-label="Dismiss alert" class="ml-auto text-red-600 hover:text-red-900">×</button>{% endif %}
+  </div>
+{% elif variant == "success" %}
+  <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-start gap-3 {{ extra_class | default('') }}" role="alert" aria-live="polite">
+    <span class="text-xl">✓</span>
+    <span>{{ message }}</span>
+    {% if dismissible %}<button type="button" onclick="this.parentElement.remove()" aria-label="Dismiss alert" class="ml-auto text-green-600 hover:text-green-900">×</button>{% endif %}
+  </div>
+{% elif variant == "info" %}
+  <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg flex items-start gap-3 {{ extra_class | default('') }}" role="alert" aria-live="polite">
+    <span class="text-xl">ℹ</span>
+    <span>{{ message }}</span>
+    {% if dismissible %}<button type="button" onclick="this.parentElement.remove()" aria-label="Dismiss alert" class="ml-auto text-blue-600 hover:text-blue-900">×</button>{% endif %}
+  </div>
+{% else %}
+  {# Fallback for undefined variants #}
+  <div class="bg-neutral-50 border border-neutral-200 text-neutral-800 px-4 py-3 rounded-lg flex items-start gap-3 {{ extra_class | default('') }}" role="alert">
+    <span>{{ message }}</span>
+    {% if dismissible %}<button type="button" onclick="this.parentElement.remove()" aria-label="Dismiss alert" class="ml-auto text-neutral-600">×</button>{% endif %}
+  </div>
+{% endif %}

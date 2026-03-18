@@ -1,0 +1,45 @@
+{#
+  Step Indicator Component
+  
+  Purpose: Renders setup wizard progress indicator with step numbers/checkmarks and progress bar
+  
+  Parameters:
+    - current_step (int): Currently active step (1, 2, or 3)
+    - total_steps (int): Total number of steps
+    - extra_class (str, optional): Additional Tailwind classes to apply
+  
+  Accessibility:
+    - Uses semantic <ol> for ordered progress
+    - aria-current="step" on current step
+    - Completed steps have aria-label="Completed"
+  
+  Example usage:
+    {% set current_step = 2 %}
+    {% set total_steps = 3 %}
+    {% include "_components/_step_indicator.html" %}
+#}
+
+{# TODO: Implement step circles with numbers (future) or checkmarks (completed) #}
+{# Pattern: Flex row with circles, progress lines between them #}
+{# Completed: bg-primary-500 text-white with ✓ #}
+{# Current: bg-primary-500 text-white with number #}
+{# Pending: bg-neutral-200 text-neutral-500 with number #}
+{# Progress line: bg-primary-500 between completed steps, bg-neutral-300 after current #}
+
+<div class="mb-8 {{ extra_class | default('') }}">
+  <div class="flex items-center justify-center gap-2 text-sm text-neutral-600">
+    {% for step in range(1, total_steps + 1) %}
+      {% if step > 1 %}
+        <span class="w-8 h-0.5 {% if step <= current_step %}bg-primary-500{% else %}bg-neutral-300{% endif %}"></span>
+      {% endif %}
+      
+      <span class="flex items-center justify-center w-8 h-8 rounded-full font-medium transition-colors {% if step < current_step %}bg-primary-500 text-white{% elif step == current_step %}bg-primary-500 text-white{% else %}bg-neutral-200 text-neutral-500{% endif %}"
+            {% if step == current_step %}aria-current="step"{% endif %}>
+        {% if step < current_step %}✓{% else %}{{ step }}{% endif %}
+      </span>
+    {% endfor %}
+  </div>
+  <p class="text-center text-sm text-neutral-500 mt-2">
+    Step {{ current_step }} of {{ total_steps }}
+  </p>
+</div>

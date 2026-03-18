@@ -1,0 +1,38 @@
+{#
+  Tab Navigation Component
+  
+  Purpose: Renders a horizontal navigation bar with tabs and active state indicator
+  
+  Parameters:
+    - tabs: List[Dict] - List of tab objects with keys:
+        * label (str): Display text for the tab
+        * href (str): URL to navigate to
+        * active (bool): Whether this tab is currently active
+    - extra_class (str, optional): Additional Tailwind classes to apply to container
+  
+  Accessibility:
+    - Uses semantic <nav> and <a> elements
+    - Active tab has aria-current="page" for screen readers
+    - Focus ring visible on hover/focus
+  
+  Example usage:
+    {% set tabs = [
+      {"label": "Users", "href": "/admin/users", "active": true},
+      {"label": "Audit", "href": "/admin/audit", "active": false}
+    ] %}
+    {% include "_components/_tab_nav.html" %}
+#}
+
+<nav class="flex gap-8 {{ extra_class | default('') }}">
+  {# TODO: Implement tab rendering with Tailwind classes #}
+  {# Pattern: py-4 px-1 border-b-2 border-transparent hover:border-neutral-300 #}
+  {# Active: border-primary-500 text-primary-600 #}
+  {# Inactive: text-neutral-600 hover:text-neutral-900 #}
+  {% for tab in tabs %}
+    <a href="{{ tab.href }}" 
+       class="py-4 px-1 text-sm font-medium transition-colors focus-ring {% if tab.active %}border-b-2 border-primary-500 text-primary-600{% else %}border-b-2 border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300{% endif %}"
+       {% if tab.active %}aria-current="page"{% endif %}>
+      {{ tab.label }}
+    </a>
+  {% endfor %}
+</nav>

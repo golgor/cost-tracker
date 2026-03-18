@@ -1,0 +1,53 @@
+{#
+  Badge Component
+  
+  Purpose: Renders a colored badge for displaying status, action, or category tags
+  
+  Parameters:
+    - label (str): Text to display in the badge
+    - variant (str): Variant name controlling color/icon (e.g., "created", "deactivated", "role-change")
+    - extra_class (str, optional): Additional Tailwind classes to apply
+  
+  Variants (must include text + icon + color, not color-only):
+    - created: Green background, checkmark icon
+    - deactivated: Red background, X icon, text "Deactivated"
+    - reactivated: Green background, checkmark icon, text "Reactivated"
+    - role-change: Blue background, crown icon, text "Role Changed"
+  
+  Accessibility:
+    - Always includes text within badge (not color-only indicator)
+    - Icon + text combination ensures screen reader users understand meaning
+    - Uses semantic span with aria-label if icon-only variant
+  
+  Example usage:
+    {% set label = "Role Changed" %}
+    {% set variant = "role-change" %}
+    {% include "_components/_badge.html" %}
+#}
+
+{% if variant == "created" %}
+  <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full {{ extra_class | default('') }}">
+    <span class="text-lg">✓</span>
+    {{ label }}
+  </span>
+{% elif variant == "deactivated" %}
+  <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full {{ extra_class | default('') }}">
+    <span class="text-lg">✕</span>
+    Deactivated
+  </span>
+{% elif variant == "reactivated" %}
+  <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full {{ extra_class | default('') }}">
+    <span class="text-lg">✓</span>
+    Reactivated
+  </span>
+{% elif variant == "role-change" %}
+  <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full {{ extra_class | default('') }}">
+    <span class="text-lg">👑</span>
+    Role Changed
+  </span>
+{% else %}
+  {# Fallback for undefined variants #}
+  <span class="inline-flex items-center px-3 py-1 text-xs font-medium bg-neutral-100 text-neutral-700 rounded-full {{ extra_class | default('') }}">
+    {{ label }} ({{ variant }})
+  </span>
+{% endif %}
