@@ -157,6 +157,13 @@ async def setup_step_2_post(
     return RedirectResponse("/setup/step-3", status_code=302)
 
 
+def _build_split_type_options() -> list[dict[str, str]]:
+    """Build split type options with display text (removes logic from template)."""
+    return [
+        {"value": SplitType.EVEN.value, "display": "Even (50/50)"}
+    ]
+
+
 @router.get("/step-3", response_class=HTMLResponse)
 async def setup_step_3(request: Request, user_id: CurrentUserId, uow: UowDep):
     """Step 3: Configuration form (currency, split mode, threshold)."""
@@ -178,7 +185,7 @@ async def setup_step_3(request: Request, user_id: CurrentUserId, uow: UowDep):
             "total_steps": 3,
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "currencies": SUPPORTED_CURRENCIES,
-            "split_types": [SplitType.EVEN],
+            "split_type_options": _build_split_type_options(),
             "errors": {},
         },
     )
@@ -226,7 +233,7 @@ async def setup_step_3_post(
                 "total_steps": 3,
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "currencies": SUPPORTED_CURRENCIES,
-                "split_types": [SplitType.EVEN],
+                "split_type_options": _build_split_type_options(),
                 "errors": errors,
                 "default_currency": default_currency,
                 "default_split_type": default_split_type,

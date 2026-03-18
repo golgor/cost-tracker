@@ -23,6 +23,10 @@ run = "uv run pytest tests/ -v --ignore=tests/integration"
 description = "Run integration tests (auto-creates _test database)"
 run = "uv run pytest tests/integration/ -v"
 
+[tasks.types]
+description = "Run type-checking with pyright (fast - ~1s, run frequently)"
+run = "uv run ty check app/"
+
 [tasks.lint]
 description = "Run ruff check, ruff format --check, and ty"
 run = [
