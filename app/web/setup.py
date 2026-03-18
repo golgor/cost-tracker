@@ -138,14 +138,15 @@ async def setup_step_2_post(
         )
 
     try:
-        group = group_use_cases.create_household(
-            uow=uow,
-            user_id=user_id,
-            name=normalized_household_name,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-    except DuplicateHouseholdError, DuplicateMembershipError:
+        with uow:
+            group = group_use_cases.create_household(
+                uow=uow,
+                user_id=user_id,
+                name=normalized_household_name,
+                default_currency="EUR",
+                default_split_type=SplitType.EVEN,
+            )
+    except (DuplicateHouseholdError, DuplicateMembershipError):
         # Idempotent behavior for concurrent setup/login flows.
         group = uow.groups.get_by_user_id(user_id)
         if group is not None:

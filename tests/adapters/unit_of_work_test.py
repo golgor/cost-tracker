@@ -9,7 +9,9 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from sqlmodel import select
 
+from app.adapters.sqlalchemy.orm_models import AuditRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 
 
@@ -133,9 +135,11 @@ class TestUnitOfWorkTransactionIsolation:
         assert fresh_user.oidc_sub == "isolation_test_1"
 
     def test_audit_logging_within_transaction(self, uow: UnitOfWork) -> None:
-        """Verify audit logging happens within transaction context."""
+        """AC: Audit log entry is committed with user in the same transaction."""
         # When a user is created with auto-auditing, the audit log
         # should be persisted along with the user in the same transaction
+        audit_count_before = len(uow.session.exec(select(AuditRow)).all())
+
         with uow:
             user = uow.users.save(
                 oidc_sub="audit_test_user",
@@ -148,3 +152,15 @@ class TestUnitOfWorkTransactionIsolation:
         persisted_user = uow.users.get_by_id(user.id)
         assert persisted_user is not None
         assert persisted_user.display_name == "Audit Test User"
+
+        # Verify corresponding audit row was written and committed
+        audit_rows = uow.session.exec(select(AuditRow)).all()
+        assert len(audit_rows) > audit_count_before
+        # Find the user_created event for our user
+        user_audit_rows = [
+            row for row in audit_rows if row.action == "user_created" and row.entity_id == user.id
+        ]
+        assert len(user_audit_rows) == 1
+        audit_entry = user_audit_rows[0]
+        assert audit_entry.entity_type == "user"
+        assert audit_entry.actor_id == 1
