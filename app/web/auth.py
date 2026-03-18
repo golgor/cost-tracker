@@ -84,65 +84,66 @@ async def callback(request: Request, uow: UowDep):
     email = userinfo.get("email", "")
     display_name = userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
 
-    # Provision/update user with deactivation check via use case
-    try:
-        user = user_use_cases.provision_user(
-            uow,
-            oidc_sub=oidc_sub,
-            email=email,
-            display_name=display_name,
-            actor_id=1,  # Use system actor for OIDC provisioning (no user context yet)
-        )
-    except DeactivatedUserAccessDenied:
-        logger.info("Deactivated user %s attempted login", oidc_sub)
-        return templates.TemplateResponse(
-            request,
-            "auth/error.html",
-            {
-                "csrf_token": "",
-                "message": "Your account is deactivated. Please contact an administrator.",
-            },
-            status_code=403,
-        )
+    # Perform all mutations within transaction context
+    with uow:
+        # Provision/update user with deactivation check via use case
+        try:
+            user = user_use_cases.provision_user(
+                uow,
+                oidc_sub=oidc_sub,
+                email=email,
+                display_name=display_name,
+                actor_id=1,  # Use system actor for OIDC provisioning (no user context yet)
+            )
+        except DeactivatedUserAccessDenied:
+            logger.info("Deactivated user %s attempted login", oidc_sub)
+            return templates.TemplateResponse(
+                request,
+                "auth/error.html",
+                {
+                    "csrf_token": "",
+                    "message": "Your account is deactivated. Please contact an administrator.",
+                },
+                status_code=403,
+            )
 
-    # Check if first user needs admin bootstrap
-    if uow.users.count_active_admins() == 0:
-        # First user gets admin role
-        user = uow.users.promote_to_admin(user.id, actor_id=user.id)
-        uow.commit()
+        # Check if first user needs admin bootstrap
+        if uow.users.count_active_admins() == 0:
+            # First user gets admin role
+            user = uow.users.promote_to_admin(user.id, actor_id=user.id)
+
+        # Determine redirect based on admin bootstrap state (Story 1.4)
+        existing_group = uow.groups.get_by_user_id(user.id)
+        if existing_group:
+            # User already in a group → dashboard
+            redirect_url = "/"
+        elif not uow.groups.has_active_admin():
+            # No active admin exists → redirect to setup wizard (first admin bootstrap)
+            redirect_url = "/setup"
+        else:
+            # Active admin exists → auto-provision as regular user via domain use case
+            group = uow.groups.get_default_group()
+            if group is None:
+                raise GroupNotFoundError("Active admin exists but no default group found")
+
+            try:
+                group_use_cases.add_member(
+                    uow=uow,
+                    group_id=group.id,
+                    user_id=user.id,
+                    role=MemberRole.USER,
+                )
+                logger.info("Auto-provisioned user %d to group %d as USER", user.id, group.id)
+            except DuplicateMembershipError:
+                logger.info(
+                    "User %d already had membership in group %d during callback auto-provision",
+                    user.id,
+                    group.id,
+                )
+            redirect_url = "/"
 
     # Create session cookie
     session_value = encode_session(user.id)
-
-    # Determine redirect based on admin bootstrap state (Story 1.4)
-    existing_group = uow.groups.get_by_user_id(user.id)
-    if existing_group:
-        # User already in a group → dashboard
-        redirect_url = "/"
-    elif not uow.groups.has_active_admin():
-        # No active admin exists → redirect to setup wizard (first admin bootstrap)
-        redirect_url = "/setup"
-    else:
-        # Active admin exists → auto-provision as regular user via domain use case
-        group = uow.groups.get_default_group()
-        if group is None:
-            raise GroupNotFoundError("Active admin exists but no default group found")
-
-        try:
-            group_use_cases.add_member(
-                uow=uow,
-                group_id=group.id,
-                user_id=user.id,
-                role=MemberRole.USER,
-            )
-            logger.info("Auto-provisioned user %d to group %d as USER", user.id, group.id)
-        except DuplicateMembershipError:
-            logger.info(
-                "User %d already had membership in group %d during callback auto-provision",
-                user.id,
-                group.id,
-            )
-        redirect_url = "/"
 
     response = RedirectResponse(redirect_url, status_code=302)
     response.set_cookie(

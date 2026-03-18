@@ -23,7 +23,16 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 
 
 def get_uow(session: DbSession) -> UnitOfWork:
-    """Provide a UnitOfWork instance."""
+    """Provide a UnitOfWork instance configured for context manager usage.
+
+    Usage in route handlers:
+        with uow:
+            # Perform operations on uow.users, uow.groups, etc.
+            # Transaction automatically commits on success, rolls back on exception
+
+    Session lifecycle is managed by get_db_session() generator.
+    UnitOfWork only manages transaction boundaries (commit/rollback).
+    """
     return UnitOfWork(session)
 
 

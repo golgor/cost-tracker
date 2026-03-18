@@ -241,15 +241,15 @@ async def setup_step_3_post(
             },
         )
 
-    group_use_cases.update_group_defaults(
-        uow=uow,
-        actor_user_id=user_id,
-        group_id=group.id,
-        default_currency=default_currency,
-        default_split_type=split_type,
-        tracking_threshold=tracking_threshold,
-    )
-    uow.commit()
+    with uow:
+        group_use_cases.update_group_defaults(
+            uow=uow,
+            actor_user_id=user_id,
+            group_id=group.id,
+            default_currency=default_currency,
+            default_split_type=split_type,
+            tracking_threshold=tracking_threshold,
+        )
 
     logger.info("User %d completed setup wizard for group %d", user_id, group.id)
 
