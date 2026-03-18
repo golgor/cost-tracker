@@ -47,11 +47,70 @@ async def login(request: Request):
         )
 
 
+def _extract_user_info_from_token(token: dict) -> tuple[str, str, str]:
+    """Extract oidc_sub, email, and display_name from OAuth token.
+
+    Raises ValueError if oidc_sub is missing.
+    Returns (oidc_sub, email, display_name).
+    """
+    userinfo = token.get("userinfo", {})
+    oidc_sub = userinfo.get("sub")
+    if not oidc_sub:
+        raise ValueError("Missing OIDC sub claim in token")
+
+    email = userinfo.get("email", "")
+    display_name = (
+        userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
+    )
+
+    return oidc_sub, email, display_name
+
+
+def _determine_redirect_url(uow: UnitOfWork, user_id: int) -> str:
+    """Determine where to redirect after successful login.
+
+    Returns:
+        "/" for dashboard (user already in group or will be auto-assigned)
+        "/setup" for setup wizard (first admin on onboarding)
+    """
+    # Check if user already has group membership
+    existing_group = uow.groups.get_by_user_id(user_id)
+    if existing_group:
+        return "/"
+
+    # Check if we need setup wizard (no active admin yet)
+    if not uow.groups.has_active_admin():
+        return "/setup"
+
+    # Active admin exists - auto-provision user to default group
+    group = uow.groups.get_default_group()
+    if group is None:
+        raise GroupNotFoundError("Active admin exists but no default group found")
+
+    try:
+        group_use_cases.add_member(
+            uow=uow,
+            group_id=group.id,
+            user_id=user_id,
+            role=MemberRole.USER,
+        )
+        logger.info("Auto-provisioned user %d to group %d as USER", user_id, group.id)
+    except DuplicateMembershipError:
+        logger.info(
+            "User %d already had membership in group %d during callback auto-provision",
+            user_id,
+            group.id,
+        )
+
+    return "/"
+
+
 @router.get("/callback")
 async def callback(request: Request, uow: UowDep):
     """Handle OIDC callback, provision user if needed, create session."""
     oauth = get_oauth()
 
+    # Step 1: Get OAuth token and handle errors
     try:
         token = await oauth.authentik.authorize_access_token(request)
     except MismatchingStateError:
@@ -70,10 +129,10 @@ async def callback(request: Request, uow: UowDep):
             status_code=400,
         )
 
-    # Extract user info from ID token
-    userinfo = token.get("userinfo", {})
-    oidc_sub = userinfo.get("sub")
-    if not oidc_sub:
+    # Step 2: Extract user info from token
+    try:
+        oidc_sub, email, display_name = _extract_user_info_from_token(token)
+    except ValueError:
         return templates.TemplateResponse(
             request,
             "auth/error.html",
@@ -81,12 +140,9 @@ async def callback(request: Request, uow: UowDep):
             status_code=400,
         )
 
-    email = userinfo.get("email", "")
-    display_name = userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
-
-    # Perform all mutations within transaction context
+    # Step 3: Provision user and handle all database mutations in transaction
     with uow:
-        # Provision/update user with deactivation check via use case
+        # Provision/update user with deactivation check
         try:
             user = user_use_cases.provision_user(
                 uow,
@@ -107,44 +163,18 @@ async def callback(request: Request, uow: UowDep):
                 status_code=403,
             )
 
-        # Check if first user needs admin bootstrap
-        if uow.users.count_active_admins() == 0:
-            # First user gets admin role
-            user = uow.users.promote_to_admin(user.id, actor_id=user.id)
+        # Bootstrap first admin if needed
+        user, was_promoted = user_use_cases.bootstrap_first_admin(
+            uow, user.id, actor_id=user.id
+        )
+        if was_promoted:
+            logger.info("Promoted first user %d to admin role", user.id)
 
-        # Determine redirect based on admin bootstrap state (Story 1.4)
-        existing_group = uow.groups.get_by_user_id(user.id)
-        if existing_group:
-            # User already in a group → dashboard
-            redirect_url = "/"
-        elif not uow.groups.has_active_admin():
-            # No active admin exists → redirect to setup wizard (first admin bootstrap)
-            redirect_url = "/setup"
-        else:
-            # Active admin exists → auto-provision as regular user via domain use case
-            group = uow.groups.get_default_group()
-            if group is None:
-                raise GroupNotFoundError("Active admin exists but no default group found")
+        # Determine redirect and auto-provision to group if needed
+        redirect_url = _determine_redirect_url(uow, user.id)
 
-            try:
-                group_use_cases.add_member(
-                    uow=uow,
-                    group_id=group.id,
-                    user_id=user.id,
-                    role=MemberRole.USER,
-                )
-                logger.info("Auto-provisioned user %d to group %d as USER", user.id, group.id)
-            except DuplicateMembershipError:
-                logger.info(
-                    "User %d already had membership in group %d during callback auto-provision",
-                    user.id,
-                    group.id,
-                )
-            redirect_url = "/"
-
-    # Create session cookie
+    # Step 4: Create session cookie and redirect
     session_value = encode_session(user.id)
-
     response = RedirectResponse(redirect_url, status_code=302)
     response.set_cookie(
         "cost_tracker_session",

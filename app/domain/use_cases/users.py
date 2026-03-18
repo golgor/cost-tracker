@@ -32,19 +32,23 @@ def provision_user(
     return user
 
 
-def bootstrap_first_admin(uow: UnitOfWorkPort) -> bool:
+def bootstrap_first_admin(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> tuple[UserPublic, bool]:
     """Promote the first user to admin if no active admin exists.
 
-    Returns True if promoted, False if already an admin or admin already exists.
+    Returns tuple of (user, was_promoted) where was_promoted is True if this user
+    was promoted to admin as the first admin.
+
     Transaction must be committed by caller using `with uow:`.
     """
     if uow.users.count_active_admins() > 0:
-        return False
+        user = uow.users.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError(f"User {user_id} not found")
+        return user, False
 
-    # This is called after provision_user, so we need to get the last created user.
-    # In practice, this will be called in auth flow with a known user_id.
-    # For now, we just check if admin exists.
-    return False
+    # First user - promote to admin
+    user = uow.users.promote_to_admin(user_id, actor_id=actor_id)
+    return user, True
 
 
 def promote_user_to_admin(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> UserPublic:
