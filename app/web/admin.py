@@ -48,8 +48,13 @@ async def admin_users_page(
     users_domain = get_all_users(uow.session)
     user_domain = uow.users.get_by_id(user_id)
 
-    # Transform to view models
-    users_view = [UserRowViewModel.from_domain(u) for u in users_domain]
+    # Count active admins to determine demote button visibility
+    active_admin_count = sum(1 for u in users_domain if u.role == UserRole.ADMIN and u.is_active)
+
+    # Transform to view models with active admin count context
+    users_view = [
+        UserRowViewModel.from_domain(u, active_admin_count=active_admin_count) for u in users_domain
+    ]
     user_view = UserProfileViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -105,8 +110,7 @@ async def promote_user(
 
     user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
     # Return updated row
-    users_domain = get_all_users(uow.session)
-    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_domain = uow.users.get_by_id(target_user_id)
     user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -127,8 +131,7 @@ async def demote_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-    users_domain = get_all_users(uow.session)
-    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_domain = uow.users.get_by_id(target_user_id)
     user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -173,8 +176,7 @@ async def deactivate_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-    users_domain = get_all_users(uow.session)
-    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_domain = uow.users.get_by_id(target_user_id)
     user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -195,8 +197,7 @@ async def reactivate_user(
     _check_admin_access(actor_id, uow)
 
     user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-    users_domain = get_all_users(uow.session)
-    user_domain = [u for u in users_domain if u.id == target_user_id][0]
+    user_domain = uow.users.get_by_id(target_user_id)
     user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(

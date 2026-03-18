@@ -5,9 +5,6 @@
       This user will lose access to the app until reactivated. Historical data is preserved.
     </p>
 
-    <!-- Error container -->
-    <div id="deactivate-error" class="mb-4"></div>
-
     <div class="flex justify-end gap-3">
       <button
         onclick="document.getElementById('deactivate-modal').remove()"
@@ -31,35 +28,25 @@
 <script>
 (function() {
   const container = document.getElementById('deactivate-response-container');
-  console.log('Setting up observer for container:', container);
 
   const observer = new MutationObserver(function(mutations) {
-    console.log('Observer fired! Mutations:', mutations);
     const html = container.innerHTML.trim();
-    console.log('Container HTML:', html);
 
-    if (html) {
-      if (html.startsWith('<tr')) {
-        console.log('Success case - updating table row');
-        const targetRow = document.getElementById('user-row-{{ target_user_id }}');
-        if (targetRow) {
-          targetRow.outerHTML = html;
-          // Re-initialize HTMX on the new row so buttons work
-          const newRow = document.getElementById('user-row-{{ target_user_id }}');
-          if (newRow) {
-            htmx.process(newRow);
-          }
-          document.getElementById('deactivate-modal').remove();
+    if (html && html.startsWith('<tr')) {
+      // Success - update the table row and close modal
+      const targetRow = document.getElementById('user-row-{{ target_user_id }}');
+      if (targetRow) {
+        targetRow.outerHTML = html;
+        // Re-initialize HTMX on the new row so buttons work
+        const newRow = document.getElementById('user-row-{{ target_user_id }}');
+        if (newRow) {
+          htmx.process(newRow);
         }
-      } else {
-        console.log('Error case - showing in modal');
-        document.getElementById('deactivate-error').innerHTML = html;
       }
-      container.innerHTML = '';
+      document.getElementById('deactivate-modal').remove();
     }
   });
 
   observer.observe(container, { childList: true, subtree: true });
-  console.log('Observer started');
 })();
 </script>

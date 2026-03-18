@@ -33,10 +33,20 @@ class UserRowViewModel(BaseModel):
     show_reactivate: bool
 
     @classmethod
-    def from_domain(cls, user: UserPublic) -> UserRowViewModel:
-        """Transform domain UserPublic → presentation UserRowViewModel."""
+    def from_domain(
+        cls, user: UserPublic, active_admin_count: int | None = None
+    ) -> UserRowViewModel:
+        """Transform domain UserPublic → presentation UserRowViewModel.
+
+        Args:
+            user: Domain user model
+            active_admin_count: Number of active admins (disables demote/deactivate
+                if last admin)
+        """
         is_admin = user.role == UserRole.ADMIN
         is_active = user.is_active
+        # If active_admin_count not provided, assume actions are allowed
+        can_mutate_admin = active_admin_count is None or active_admin_count > 1
 
         return cls(
             id=user.id,
@@ -52,9 +62,10 @@ class UserRowViewModel(BaseModel):
             status_badge_color="bg-green-700 text-white" if is_active else "bg-red-700 text-white",
             status_filter="active" if is_active else "deactivated",
             # Button visibility - only active users can be promoted/demoted/deactivated
+            # Both demote and deactivate disabled if they're the last active admin
             show_promote=is_active and not is_admin,
-            show_demote=is_active and is_admin,
-            show_deactivate=is_active,
+            show_demote=is_active and is_admin and can_mutate_admin,
+            show_deactivate=is_active and (not is_admin or can_mutate_admin),
             show_reactivate=not is_active,
         )
 
