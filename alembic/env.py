@@ -11,14 +11,8 @@ from alembic import context
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Import SQLModel metadata for Alembic auto-generation
-from sqlmodel import SQLModel
-
-# Import all ORM models to register them with SQLModel.metadata
-from app.adapters.sqlalchemy.orm_models import (  # noqa: F401
-    AuditRow,
-    GroupRow,
-    MembershipRow,
-    UserRow,
+from sqlmodel import (  # noqa: E402 - must be after load_dotenv to ensure env vars are available
+    SQLModel,
 )
 
 config = context.config

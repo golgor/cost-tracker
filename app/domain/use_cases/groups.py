@@ -1,3 +1,5 @@
+import contextlib
+
 from app.domain.errors import (
     DuplicateHouseholdError,
     DuplicateMembershipError,
@@ -32,16 +34,13 @@ def create_household(
         if group is None:
             raise GroupNotFoundError("Active admin exists but no default group found")
 
-        try:
+        with contextlib.suppress(DuplicateMembershipError):
             uow.groups.add_member(
                 group.id,
                 user_id,
                 MemberRole.USER,
                 actor_id=user_id,
             )
-        except DuplicateMembershipError:
-            # Idempotent for concurrent first-login callbacks.
-            pass
 
         return group
 
