@@ -117,7 +117,7 @@ def test_no_utils_or_helpers_files() -> None:
 
 
 def test_templates_contain_no_complex_business_logic() -> None:
-    \"\"\"Enforce: Jinja2 templates avoid business logic and value comparisons.
+    """Enforce: Jinja2 templates avoid business logic and value comparisons.
 
     ALLOWED patterns (simple presentation conditionals):
     - Boolean state checks: {% if expense.is_settled %} (display logic)
@@ -134,7 +134,7 @@ def test_templates_contain_no_complex_business_logic() -> None:
 
     Rationale: Boolean state checks for UI visibility are fine (presentation).
     Value comparisons and complex logic belong in domain/queries.
-    \"\"\""
+    """
     import re
 
     template_dir = REPO_ROOT / "app" / "templates"
@@ -162,10 +162,9 @@ def test_templates_contain_no_complex_business_logic() -> None:
         for pattern, description in forbidden_patterns:
             matches = list(re.finditer(pattern, content))
             for match in matches:
-                line_num = content[:match.start()].count("\n") + 1
+                line_num = content[: match.start()].count("\n") + 1
                 violations.append(
-                    f"{template_file.relative_to(REPO_ROOT)}:{line_num} "
-                    f"— {description}"
+                    f"{template_file.relative_to(REPO_ROOT)}:{line_num} — {description}"
                 )
 
     assert not violations, (
