@@ -32,7 +32,9 @@ def provision_user(
     return user
 
 
-def bootstrap_first_admin(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> tuple[UserPublic, bool]:
+def bootstrap_first_admin(
+    uow: UnitOfWorkPort, user_id: int, *, actor_id: int
+) -> tuple[UserPublic, bool]:
     """Promote the first user to admin if no active admin exists.
 
     Returns tuple of (user, was_promoted) where was_promoted is True if this user

@@ -159,9 +159,7 @@ async def setup_step_2_post(
 
 def _build_split_type_options() -> list[dict[str, str]]:
     """Build split type options with display text (removes logic from template)."""
-    return [
-        {"value": SplitType.EVEN.value, "display": "Even (50/50)"}
-    ]
+    return [{"value": SplitType.EVEN.value, "display": "Even (50/50)"}]
 
 
 @router.get("/step-3", response_class=HTMLResponse)

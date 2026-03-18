@@ -59,9 +59,7 @@ def _extract_user_info_from_token(token: dict) -> tuple[str, str, str]:
         raise ValueError("Missing OIDC sub claim in token")
 
     email = userinfo.get("email", "")
-    display_name = (
-        userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
-    )
+    display_name = userinfo.get("name") or userinfo.get("preferred_username") or email or "Unknown"
 
     return oidc_sub, email, display_name
 
@@ -164,9 +162,7 @@ async def callback(request: Request, uow: UowDep):
             )
 
         # Bootstrap first admin if needed
-        user, was_promoted = user_use_cases.bootstrap_first_admin(
-            uow, user.id, actor_id=user.id
-        )
+        user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id, actor_id=user.id)
         if was_promoted:
             logger.info("Promoted first user %d to admin role", user.id)
 

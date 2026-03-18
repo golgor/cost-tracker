@@ -39,6 +39,7 @@ def process_revision_directives(context, revision, directives):
 
     # Find highest existing numeric revision
     from alembic.script import ScriptDirectory
+
     script_dir = ScriptDirectory.from_config(config)
 
     max_num = 0
@@ -46,13 +47,14 @@ def process_revision_directives(context, revision, directives):
         try:
             num = int(rev.revision)
             max_num = max(max_num, num)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Skip non-numeric revisions
             continue
 
     # Generate next sequential ID
-    if directives and hasattr(directives[0], 'rev_id'):
+    if directives and hasattr(directives[0], "rev_id"):
         directives[0].rev_id = f"{max_num + 1:03d}"
+
 
 # Allow DATABASE_URL env var to override alembic.ini
 database_url = os.environ.get("DATABASE_URL")
