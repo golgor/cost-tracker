@@ -130,3 +130,41 @@ class GroupPort(Protocol):
     def has_active_admin(self) -> bool:
         """Check if any active admin exists in the system (admin bootstrap trigger)."""
         ...
+
+
+class UnitOfWorkPort(Protocol):
+    """Port for unit of work pattern with context manager support.
+
+    Provides coordinated access to multiple adapters within a transaction boundary.
+    Usage:
+        with uow:
+            user = uow.users.save(...)
+            group = uow.groups.save(...)
+        # Transaction commits on success or rolls back on exception
+    """
+
+    users: UserPort
+    groups: GroupPort
+    audit: AuditPort
+
+    def __enter__(self) -> UnitOfWorkPort:
+        """Enter context manager - prepares transaction."""
+        ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
+        """Exit context manager - commits transaction or rolls back on exception.
+
+        Args:
+            exc_type: Exception class (None if no exception)
+            exc_val: Exception instance (None if no exception)
+            exc_tb: Traceback object (None if no exception)
+
+        Returns:
+            False - never suppress exceptions
+        """
+        ...

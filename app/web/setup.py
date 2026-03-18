@@ -138,13 +138,14 @@ async def setup_step_2_post(
         )
 
     try:
-        group = group_use_cases.create_household(
-            uow=uow,
-            user_id=user_id,
-            name=normalized_household_name,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
+        with uow:
+            group = group_use_cases.create_household(
+                uow=uow,
+                user_id=user_id,
+                name=normalized_household_name,
+                default_currency="EUR",
+                default_split_type=SplitType.EVEN,
+            )
     except DuplicateHouseholdError, DuplicateMembershipError:
         # Idempotent behavior for concurrent setup/login flows.
         group = uow.groups.get_by_user_id(user_id)
@@ -159,9 +160,7 @@ async def setup_step_2_post(
 
 def _build_split_type_options() -> list[dict[str, str]]:
     """Build split type options with display text (removes logic from template)."""
-    return [
-        {"value": SplitType.EVEN.value, "display": "Even (50/50)"}
-    ]
+    return [{"value": SplitType.EVEN.value, "display": "Even (50/50)"}]
 
 
 @router.get("/step-3", response_class=HTMLResponse)
@@ -241,15 +240,15 @@ async def setup_step_3_post(
             },
         )
 
-    group_use_cases.update_group_defaults(
-        uow=uow,
-        actor_user_id=user_id,
-        group_id=group.id,
-        default_currency=default_currency,
-        default_split_type=split_type,
-        tracking_threshold=tracking_threshold,
-    )
-    uow.commit()
+    with uow:
+        group_use_cases.update_group_defaults(
+            uow=uow,
+            actor_user_id=user_id,
+            group_id=group.id,
+            default_currency=default_currency,
+            default_split_type=split_type,
+            tracking_threshold=tracking_threshold,
+        )
 
     logger.info("User %d completed setup wizard for group %d", user_id, group.id)
 

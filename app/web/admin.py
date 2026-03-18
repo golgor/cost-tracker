@@ -47,6 +47,8 @@ async def admin_users_page(
     # Fetch all users for display
     users_domain = get_all_users(uow.session)
     user_domain = uow.users.get_by_id(user_id)
+    if user_domain is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     # Count active admins to determine demote button visibility
     active_admin_count = sum(1 for u in users_domain if u.role == UserRole.ADMIN and u.is_active)
@@ -78,6 +80,8 @@ async def admin_audit_log_page(
     _check_admin_access(user_id, uow)
 
     user_domain = uow.users.get_by_id(user_id)
+    if user_domain is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     audit_entries_dicts = get_recent_audit_entries(uow.session, limit=100)
 
     # Transform to view models
@@ -108,10 +112,13 @@ async def promote_user(
     """Promote user to admin role."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
-    # Return updated row
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
+        # Return updated row
+        user_domain = uow.users.get_by_id(target_user_id)
+        if user_domain is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -130,9 +137,12 @@ async def demote_user(
     """Demote admin to regular user role."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        if user_domain is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -152,6 +162,8 @@ async def deactivate_confirm_dialog(
     _check_admin_access(user_id, uow)
 
     target_user_domain = uow.users.get_by_id(target_user_id)
+    if target_user_domain is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     target_user_view = UserProfileViewModel.from_domain(target_user_domain)
 
     return templates.TemplateResponse(
@@ -175,9 +187,12 @@ async def deactivate_user(
     """Deactivate a user."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        if user_domain is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -196,9 +211,12 @@ async def reactivate_user(
     """Reactivate a deactivated user."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        if user_domain is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,

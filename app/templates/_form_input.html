@@ -41,6 +41,11 @@
     {% if input_required %}<span class="text-balance-neg" aria-hidden="true">*</span>{% endif %}
   </label>
   
+  {# Build aria-describedby list to handle both error and help text #}
+  {% set described_ids = [] %}
+  {% if input_error %}{% set _ = described_ids.append(input_name + '-error') %}{% endif %}
+  {% if input_help %}{% set _ = described_ids.append(input_name + '-help') %}{% endif %}
+
   <input
     type="{{ input_type | default('text') }}"
     id="{{ input_name }}"
@@ -48,7 +53,8 @@
     value="{{ input_value | default('') }}"
     placeholder="{{ input_placeholder | default('') }}"
     {% if input_required %}required aria-required="true"{% endif %}
-    {% if input_error %}aria-describedby="{{ input_name }}-error" aria-invalid="true"{% endif %}
+    {% if input_error %}aria-invalid="true"{% endif %}
+    {% if described_ids %}aria-describedby="{{ described_ids | join(' ') }}"{% endif %}
     class="px-3 py-2 min-h-[44px] rounded-lg border transition-colors focus-ring
       {% if input_error %}
         border-balance-neg bg-red-50
@@ -61,7 +67,8 @@
     <p id="{{ input_name }}-error" class="text-sm text-balance-neg" role="alert">
       {{ input_error }}
     </p>
-  {% elif input_help %}
-    <p class="text-sm text-stone-500">{{ input_help }}</p>
+  {% endif %}
+  {% if input_help %}
+    <p id="{{ input_name }}-help" class="text-sm text-stone-500">{{ input_help }}</p>
   {% endif %}
 </div>

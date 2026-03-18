@@ -8,12 +8,12 @@ from app.domain.models import UserPublic
 
 def get_all_users(session: Session) -> list[UserPublic]:
     """Fetch all users for admin display (read-only)."""
-    statement = select(UserRow).order_by(UserRow.created_at.desc())
+    statement = select(UserRow).order_by(UserRow.created_at.desc())  # type: ignore[attr-defined]
     rows = session.exec(statement).all()
 
     return [
         UserPublic(
-            id=row.id,
+            id=row.id,  # type: ignore[arg-type]
             oidc_sub=row.oidc_sub,
             email=row.email,
             display_name=row.display_name,
@@ -36,8 +36,8 @@ def get_recent_audit_entries(session: Session, limit: int = 50) -> list:
 
     statement = (
         select(AuditRow, UserRow)
-        .join(UserRow, AuditRow.actor_id == UserRow.id, isouter=True)
-        .order_by(AuditRow.occurred_at.desc())
+        .join(UserRow, onclause=(AuditRow.actor_id == UserRow.id), isouter=True)  # type: ignore[arg-type]
+        .order_by(AuditRow.occurred_at.desc())  # type: ignore[attr-defined]
         .limit(limit)
     )
 

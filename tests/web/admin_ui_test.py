@@ -14,28 +14,28 @@ from app.main import app
 @pytest.fixture
 def admin_user(uow: UnitOfWork):
     """Create an admin user for testing."""
-    user = uow.users.save(
-        oidc_sub="admin@test.com",
-        email="admin@test.com",
-        display_name="Admin User",
-        actor_id=1,
-    )
-    # Promote to admin
-    admin = uow.users.promote_to_admin(user.id, actor_id=user.id)
-    uow.commit()
+    with uow:
+        user = uow.users.save(
+            oidc_sub="admin@test.com",
+            email="admin@test.com",
+            display_name="Admin User",
+            actor_id=1,
+        )
+        # Promote to admin
+        admin = uow.users.promote_to_admin(user.id, actor_id=user.id)
     return admin
 
 
 @pytest.fixture
 def regular_user(uow: UnitOfWork):
     """Create a regular (non-admin) user for testing."""
-    user = uow.users.save(
-        oidc_sub="user@test.com",
-        email="user@test.com",
-        display_name="Regular User",
-        actor_id=2,
-    )
-    uow.commit()
+    with uow:
+        user = uow.users.save(
+            oidc_sub="user@test.com",
+            email="user@test.com",
+            display_name="Regular User",
+            actor_id=2,
+        )
     return user
 
 
@@ -173,8 +173,8 @@ class TestUserRowViewModel:
         from app.web.view_models import UserRowViewModel
 
         # Deactivate the user
-        uow.users.deactivate(admin_user.id, actor_id=admin_user.id)
-        uow.commit()
+        with uow:
+            uow.users.deactivate(admin_user.id, actor_id=admin_user.id)
         deactivated_user = uow.users.get_by_id(admin_user.id)
 
         vm = UserRowViewModel.from_domain(deactivated_user)
@@ -242,8 +242,8 @@ class TestUserRowViewModel:
         """Deactivated users have status_filter='deactivated'."""
         from app.web.view_models import UserRowViewModel
 
-        uow.users.deactivate(regular_user.id, actor_id=regular_user.id)
-        uow.commit()
+        with uow:
+            uow.users.deactivate(regular_user.id, actor_id=regular_user.id)
         deactivated = uow.users.get_by_id(regular_user.id)
 
         vm = UserRowViewModel.from_domain(deactivated)

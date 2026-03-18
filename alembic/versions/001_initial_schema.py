@@ -74,7 +74,9 @@ def upgrade() -> None:
         "group_memberships",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("group_id", sa.Integer(), nullable=False),
-        sa.Column("role", sa.Enum("ADMIN", "USER", name="roletype"), nullable=False, server_default="USER"),
+        sa.Column(
+            "role", sa.Enum("ADMIN", "USER", name="roletype"), nullable=False, server_default="USER"
+        ),
         sa.Column(
             "joined_at",
             sa.DateTime(timezone=True),

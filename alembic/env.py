@@ -11,14 +11,8 @@ from alembic import context
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Import SQLModel metadata for Alembic auto-generation
-from sqlmodel import SQLModel
-
-# Import all ORM models to register them with SQLModel.metadata
-from app.adapters.sqlalchemy.orm_models import (  # noqa: F401
-    AuditRow,
-    GroupRow,
-    MembershipRow,
-    UserRow,
+from sqlmodel import (  # noqa: E402 - must be after load_dotenv to ensure env vars are available
+    SQLModel,
 )
 
 config = context.config
@@ -39,6 +33,7 @@ def process_revision_directives(context, revision, directives):
 
     # Find highest existing numeric revision
     from alembic.script import ScriptDirectory
+
     script_dir = ScriptDirectory.from_config(config)
 
     max_num = 0
@@ -46,13 +41,14 @@ def process_revision_directives(context, revision, directives):
         try:
             num = int(rev.revision)
             max_num = max(max_num, num)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Skip non-numeric revisions
             continue
 
     # Generate next sequential ID
-    if directives and hasattr(directives[0], 'rev_id'):
+    if directives and hasattr(directives[0], "rev_id"):
         directives[0].rev_id = f"{max_num + 1:03d}"
+
 
 # Allow DATABASE_URL env var to override alembic.ini
 database_url = os.environ.get("DATABASE_URL")

@@ -104,13 +104,13 @@ class TestUnitOfWorkAuditAtomicity:
 
     def test_audit_log_committed_with_business_change(self, uow: UnitOfWork):
         """Audit entry is auto-created and persisted when the UoW commits a business change."""
-        user = uow.users.save(
-            oidc_sub="auth0|atomic_commit",
-            email="atomic@example.com",
-            display_name="Atomic User",
-            actor_id=1,
-        )
-        uow.commit()
+        with uow:
+            user = uow.users.save(
+                oidc_sub="auth0|atomic_commit",
+                email="atomic@example.com",
+                display_name="Atomic User",
+                actor_id=1,
+            )
 
         # Both user and audit row should exist
         retrieved_user = uow.users.get_by_id(user.id)
@@ -123,17 +123,21 @@ class TestUnitOfWorkAuditAtomicity:
         assert audit_rows[0].changes["oidc_sub"] == {"old": None, "new": "auth0|atomic_commit"}
 
     def test_audit_log_rolled_back_with_business_change(self, uow: UnitOfWork):
-        """Auto-audit entry is rolled back when the UoW rolls back a business change."""
-        uow.users.save(
-            oidc_sub="auth0|atomic_rollback",
-            email="rollback@example.com",
-            display_name="Rollback User",
-            actor_id=1,
-        )
-        # Rollback without committing — both user and auto-audit row should vanish
-        uow.rollback()
+        """Auto-audit entry is rolled back when an exception occurs in the context manager."""
+        try:
+            with uow:
+                uow.users.save(
+                    oidc_sub="auth0|atomic_rollback",
+                    email="rollback@example.com",
+                    display_name="Rollback User",
+                    actor_id=1,
+                )
+                # Simulate an error that triggers rollback
+                raise ValueError("Intentional rollback test")
+        except ValueError:
+            pass  # Exception is expected
 
-        # Neither user nor audit row should be visible in a fresh query
+        # Neither user nor audit row should be visible after rollback
         audit_rows = uow.session.exec(
             select(AuditRow).where(AuditRow.action == "user_created")
         ).all()
@@ -253,11 +257,16 @@ class TestAdapterAutoAudit:
         assert changes["role"] == {"old": None, "new": "ADMIN"}
 
     def test_auto_audit_shares_transaction_with_business_data(self, uow: UnitOfWork):
-        """Auto-audit rows are rolled back together with business changes."""
-        uow.groups.save("Rollback Test", actor_id=1)
-        # Don't commit — rollback instead
-        uow.rollback()
+        """Auto-audit rows are rolled back together with business changes on exception."""
+        try:
+            with uow:
+                uow.groups.save("Rollback Test", actor_id=1)
+                # Simulate an error that triggers rollback
+                raise RuntimeError("Intentional rollback test")
+        except RuntimeError:
+            pass  # Exception is expected
 
+        # Audit row should be rolled back with the business change
         rows = uow.session.exec(select(AuditRow).where(AuditRow.action == "group_created")).all()
         assert len(rows) == 0
 
