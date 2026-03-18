@@ -28,7 +28,7 @@ class UnitOfWork:
         self.users = SqlAlchemyUserAdapter(session, self.audit)
         self.groups = SqlAlchemyGroupAdapter(session, self.audit)
 
-    def __enter__(self) -> "UnitOfWork":
+    def __enter__(self) -> UnitOfWork:
         """Enter context manager - return self for use in with block."""
         return self
 

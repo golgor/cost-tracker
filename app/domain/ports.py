@@ -147,7 +147,7 @@ class UnitOfWorkPort(Protocol):
     groups: GroupPort
     audit: AuditPort
 
-    def __enter__(self) -> "UnitOfWorkPort":
+    def __enter__(self) -> UnitOfWorkPort:
         """Enter context manager - prepares transaction."""
         ...
 

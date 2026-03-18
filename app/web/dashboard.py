@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -23,6 +23,8 @@ async def dashboard(
 ):
     """Dashboard page - placeholder showing authenticated user info."""
     user_domain = uow.users.get_by_id(user_id)
+    if user_domain is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     user_view = UserProfileViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(

@@ -5,13 +5,11 @@ behaviour (commit/rollback) with the context manager protocol.
 """
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from sqlmodel import Session
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.domain.models import UserPublic
 
 
 class TestUnitOfWorkContextManager:
@@ -75,9 +73,8 @@ class TestUnitOfWorkContextManager:
         """AC: Original exception is not masked by __exit__."""
         original_error = ValueError("Test error message")
 
-        with pytest.raises(ValueError, match="Test error message"):
-            with uow:
-                raise original_error
+        with pytest.raises(ValueError, match="Test error message"), uow:
+            raise original_error
 
     def test_rollback_failure_logged_not_raised(self, uow: UnitOfWork, caplog: Any) -> None:
         """AC: Rollback errors are logged but don't mask the original exception."""
@@ -86,9 +83,8 @@ class TestUnitOfWorkContextManager:
         # Mock the session.rollback to simulate a rollback failure
         with patch.object(uow.session, "rollback", side_effect=Exception("Rollback failed")):
             # The original exception should still be raised
-            with pytest.raises(RuntimeError, match="Original error"):
-                with uow:
-                    raise original_error
+            with pytest.raises(RuntimeError, match="Original error"), uow:
+                raise original_error
 
             # The rollback failure should be logged
             assert any(
