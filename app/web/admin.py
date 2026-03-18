@@ -108,10 +108,11 @@ async def promote_user(
     """Promote user to admin role."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
-    # Return updated row
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
+        # Return updated row
+        user_domain = uow.users.get_by_id(target_user_id)
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -130,9 +131,10 @@ async def demote_user(
     """Demote admin to regular user role."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -175,9 +177,10 @@ async def deactivate_user(
     """Deactivate a user."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
@@ -196,9 +199,10 @@ async def reactivate_user(
     """Reactivate a deactivated user."""
     _check_admin_access(actor_id, uow)
 
-    user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
-    user_domain = uow.users.get_by_id(target_user_id)
-    user_view = UserRowViewModel.from_domain(user_domain)
+    with uow:
+        user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_domain = uow.users.get_by_id(target_user_id)
+        user_view = UserRowViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
         request,
