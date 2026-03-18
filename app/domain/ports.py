@@ -4,6 +4,7 @@
 from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
+    ExpensePublic,
     GroupPublic,
     MemberRole,
     MembershipPublic,
@@ -132,6 +133,27 @@ class GroupPort(Protocol):
         ...
 
 
+class ExpensePort(Protocol):
+    """Port for Expense persistence operations."""
+
+    def save(
+        self,
+        expense: ExpensePublic,
+        *,
+        actor_id: int,
+    ) -> ExpensePublic:
+        """Create a new expense. Returns the persisted expense. Auto-audits."""
+        ...
+
+    def get_by_id(self, expense_id: int) -> ExpensePublic | None:
+        """Retrieve expense by database ID."""
+        ...
+
+    def list_by_group(self, group_id: int) -> list[ExpensePublic]:
+        """List all expenses for a group, ordered by date descending."""
+        ...
+
+
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.
 
@@ -145,6 +167,7 @@ class UnitOfWorkPort(Protocol):
 
     users: UserPort
     groups: GroupPort
+    expenses: ExpensePort
     audit: AuditPort
 
     def __enter__(self) -> UnitOfWorkPort:

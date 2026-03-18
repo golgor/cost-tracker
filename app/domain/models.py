@@ -19,7 +19,8 @@
 #       id: int
 #       created_at: datetime
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -120,3 +121,33 @@ class AuditEntry(SQLModel):
 # Full implementation is deferred to Epic 2. This comment documents the
 # decision so Epic 2 can build without ambiguity.
 # ---------------------------------------------------------------------------
+
+
+class ExpenseStatus(StrEnum):
+    """Expense lifecycle status."""
+
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    GIFT = "GIFT"
+
+
+class ExpenseBase(SQLModel):
+    """Domain base for Expense — validation + business data. No table."""
+
+    group_id: int
+    amount: Decimal = Field(decimal_places=2, ge=Decimal("0.01"))
+    description: str = Field(max_length=255)
+    date: date
+    creator_id: int
+    payer_id: int
+    currency: str = Field(max_length=3)
+    split_type: SplitType = Field(default=SplitType.EVEN)
+    status: ExpenseStatus = Field(default=ExpenseStatus.PENDING)
+
+
+class ExpensePublic(ExpenseBase):
+    """Output schema for Expense — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime

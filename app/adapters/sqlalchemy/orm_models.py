@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, func
 from sqlmodel import Field, SQLModel
 
-from app.domain.models import GroupBase, MemberRole, SplitType, UserBase, UserRole
+from app.domain.models import (
+    ExpenseBase,
+    ExpenseStatus,
+    GroupBase,
+    MemberRole,
+    SplitType,
+    UserBase,
+    UserRole,
+)
 
 # SQLModel.metadata serves as the declarative base for Alembic migrations.
 # Table models (XxxRow) inherit from domain models with table=True.
@@ -100,5 +109,44 @@ class AuditRow(SQLModel, table=True):
     )
 
 
+class ExpenseRow(ExpenseBase, table=True):
+    """ORM model for Expense — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "expenses"
+
+    # Override status to use PostgreSQL ENUM
+    status: ExpenseStatus = Field(
+        default=ExpenseStatus.PENDING,
+        sa_type=sa.Enum(ExpenseStatus, name="expensestatus", native_enum=True),  # type: ignore[arg-type]
+    )
+
+    # Override split_type to use PostgreSQL ENUM
+    split_type: SplitType = Field(
+        default=SplitType.EVEN,
+        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    amount: Decimal = Field(
+        sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
+    )
+
+    # Foreign key constraints
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
+        sa.ForeignKeyConstraint(["creator_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.Index("ix_expenses_group_id_date", "group_id", "date"),
+    )
+
+
 # Re-export SQLModel for Alembic env.py
-__all__ = ["SQLModel", "UserRow", "GroupRow", "MembershipRow", "AuditRow"]
+__all__ = ["SQLModel", "UserRow", "GroupRow", "MembershipRow", "AuditRow", "ExpenseRow"]
