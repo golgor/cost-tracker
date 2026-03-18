@@ -42,7 +42,7 @@ class UserRow(UserBase, table=True):
     # Override role field to use PostgreSQL ENUM
     role: UserRole = Field(
         default=UserRole.USER,
-        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),
+        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -62,7 +62,7 @@ class GroupRow(GroupBase, table=True):
     __tablename__ = "groups"
 
     # Override default_split_type to use PostgreSQL ENUM
-    default_split_type: SplitType = Field(  # type: ignore[assignment]
+    default_split_type: SplitType = Field(
         default=SplitType.EVEN,
         sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
     )
