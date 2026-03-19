@@ -1,0 +1,211 @@
+<!-- Desktop expense capture form (UX-DR5) -->
+<aside
+    id="expense-sidebar"
+    class="hidden md:block md:w-80 bg-white border-l border-stone-200 p-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto"
+>
+    <h2 class="text-lg font-semibold text-stone-900 mb-6">Add Expense</h2>
+
+    <form
+        id="desktop-expense-form"
+        hx-post="/expenses/create"
+        hx-target="#expense-feed"
+        hx-swap="afterbegin"
+        hx-disabled-elt="button[type=submit]"
+        hx-on::after-request="handleDesktopFormSubmit(event)"
+        class="space-y-4"
+    >
+        <!-- Amount field (keyboard flow start) -->
+        <div>
+            <label for="desktop-amount" class="block text-sm font-medium text-stone-700 mb-1">
+                Amount <span class="text-red-600">*</span>
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{currency_symbol|e}}</span>
+                <input
+                    type="text"
+                    id="desktop-amount"
+                    name="amount"
+                    inputmode="decimal"
+                    required
+                    class="w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
+                    placeholder="0.00"
+                    tabindex="1"
+                >
+            </div>
+            <p class="mt-1 text-sm text-red-600 hidden" data-error-for="amount"></p>
+        </div>
+
+        <!-- Where/What field (UX-DR31) -->
+        <div>
+            <label for="desktop-description" class="block text-sm font-medium text-stone-700 mb-1">
+                Where / What
+            </label>
+            <input
+                type="text"
+                id="desktop-description"
+                name="description"
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
+                placeholder="e.g., Spar, Netflix, birthday supplies"
+                tabindex="2"
+            >
+            <p class="mt-1 text-sm text-red-600 hidden" data-error-for="description"></p>
+        </div>
+
+        <!-- Date field (defaults to today) -->
+        <div>
+            <label for="desktop-date" class="block text-sm font-medium text-stone-700 mb-1">
+                Date
+            </label>
+            <input
+                type="date"
+                id="desktop-date"
+                name="date"
+                value="{{ today }}"
+                max="{{ today }}"
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
+                tabindex="3"
+            >
+            <p class="mt-1 text-sm text-red-600 hidden" data-error-for="date"></p>
+        </div>
+
+        <!-- Split type (even only, future: other modes) -->
+        <div>
+            <label for="desktop-split" class="block text-sm font-medium text-stone-700 mb-1">
+                Split
+            </label>
+            <select
+                id="desktop-split"
+                name="split_type"
+                disabled
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
+                tabindex="4"
+            >
+                <option value="even" selected>Even (50/50)</option>
+            </select>
+            <p class="text-xs text-stone-500 mt-1">Other split modes coming in Epic 4</p>
+        </div>
+
+        <!-- Paid by field (persists between entries) -->
+        <div>
+            <label for="desktop-payer" class="block text-sm font-medium text-stone-700 mb-1">
+                Paid by <span class="text-red-600">*</span>
+            </label>
+            <select
+                id="desktop-payer"
+                name="payer_id"
+                required
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
+                tabindex="5"
+            >
+                <option value="">Select who paid</option>
+                {% for member in group_members %}
+                <option value="{{ member.user_id }}" {% if member.user_id == current_user_id %}selected{% endif %}>
+                    {{ users[member.user_id].display_name if users and member.user_id in users else 'User ' ~ member.user_id }}
+                </option>
+                {% endfor %}
+            </select>
+            <p class="mt-1 text-sm text-red-600 hidden" data-error-for="payer_id"></p>
+        </div>
+
+        <!-- Currency (display only for now) -->
+        <div>
+            <label for="desktop-currency" class="block text-sm font-medium text-stone-700 mb-1">
+                Currency
+            </label>
+            <input
+                type="text"
+                id="desktop-currency"
+                name="currency"
+                value="{{ group.default_currency }}"
+                readonly
+                class="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
+            >
+        </div>
+
+        <!-- Submit button -->
+        <button
+            type="submit"
+            class="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            tabindex="6"
+        >
+            <span class="htmx-indicator inline-block">
+                <svg class="inline w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </span>
+            Add Expense
+        </button>
+    </form>
+
+    <!-- Batch entry helper text -->
+    <p class="mt-4 text-xs text-stone-500 italic">
+        💡 Tip: After saving, the form clears and "Paid by" persists for quick batch entry
+    </p>
+</aside>
+
+<script>
+// Batch entry: clear form and refocus on success (UX-DR5)
+function handleDesktopFormSubmit(event) {
+    const xhr = event.detail.xhr;
+    
+    if (xhr.status >= 200 && xhr.status < 300) {
+        // Success: implement "Save & Next" behavior
+        const form = document.getElementById('desktop-expense-form');
+        const payerId = document.getElementById('desktop-payer').value;
+        
+        // Clear all fields except paid-by
+        form.reset();
+        
+        // Restore paid-by (persistence for batch entry)
+        document.getElementById('desktop-payer').value = payerId;
+        
+        // Persist to localStorage for session continuity (MEDIUM-2: wrap in try-catch)
+        try {
+            localStorage.setItem('last-payer-id', payerId);
+        } catch (e) {
+            console.warn('localStorage quota exceeded or disabled:', e);
+        }
+        
+        // Reset date to today
+        document.getElementById('desktop-date').value = '{{ today }}';
+        
+        // Focus amount field for next entry
+        document.getElementById('desktop-amount').focus();
+        
+        // Clear any previous error messages
+        document.querySelectorAll('[data-error-for]').forEach(el => {
+            el.classList.add('hidden');
+            el.textContent = '';
+        });
+    } else {
+        // Error: show inline errors (handled by HTMX response)
+        // No form clear — preserve data for correction
+    }
+}
+
+// On page load: restore last payer from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const lastPayerId = localStorage.getItem('last-payer-id');
+        if (lastPayerId) {
+            const payerSelect = document.getElementById('desktop-payer');
+            // MEDIUM-1: Fix template literal injection by escaping selector
+            const escapedId = CSS.escape(lastPayerId);
+            if (payerSelect && payerSelect.querySelector(`option[value="${escapedId}"]`)) {
+                payerSelect.value = lastPayerId;
+            }
+        }
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+});
+
+// Keyboard shortcut: Cmd/Ctrl + K to focus amount field
+document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('desktop-amount')?.focus();
+    }
+});
+</script>

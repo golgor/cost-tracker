@@ -11,23 +11,30 @@
       <a href="/" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
         Dashboard
       </a>
-      <a href="/expenses" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+      <button disabled class="px-4 py-2 rounded-lg text-stone-400 cursor-not-allowed flex items-center justify-center transition-colors" title="Coming soon">
         Expenses
-      </a>
-      <a href="/recurring" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+      </button>
+      <button disabled class="px-4 py-2 rounded-lg text-stone-400 cursor-not-allowed flex items-center justify-center transition-colors" title="Coming soon">
         Recurring
-      </a>
-      <a href="/settlements" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
-        Settlements
-      </a>
+      </button>
+      <button disabled class="px-4 py-2 rounded-lg text-stone-400 cursor-not-allowed flex items-center justify-center transition-colors" title="Coming soon">
+        Settle Up
+      </button>
     </div>
   </div>
 
   <!-- Right side: Add button and user area -->
   <div class="flex items-center gap-4">
-    <!-- + Add Expense button placeholder -->
-    <button type="button" class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring touch-target flex items-center justify-center gap-2 font-medium transition-colors" hx-disabled-elt="this">
-      <span aria-hidden="true">+</span> Add Expense
+    <!-- + Add Expense button (UX-DR3) -->
+    <button 
+      type="button" 
+      onclick="focusExpenseForm()" 
+      class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus-ring touch-target flex items-center justify-center gap-2 font-medium transition-colors"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Add Expense
     </button>
 
     <!-- User badge with logout dropdown -->

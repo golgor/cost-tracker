@@ -9,7 +9,7 @@ This module lives in the adapter layer because it depends on SQLAlchemy internal
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, cast
@@ -99,7 +99,7 @@ def snapshot_new(
 def _serialize(value: Any) -> Any:
     """Serialize a value for JSON storage in the audit log.
 
-    Handles enums (→ ``.value``), Decimals (→ ``str``), and datetimes (→ ISO 8601)
+    Handles enums (→ ``.value``), Decimals (→ ``str``), dates and datetimes (→ ISO 8601)
     so the result is always JSON-serializable.
     """
     if value is None:
@@ -109,5 +109,7 @@ def _serialize(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)
     if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
         return value.isoformat()
     return value

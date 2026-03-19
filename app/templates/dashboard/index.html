@@ -4,10 +4,14 @@
 
 {% block content %}
 <main class="flex-1 overflow-auto bg-stone-50">
-  <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+  <!-- Desktop layout with sidebar -->
+  <div class="md:flex md:gap-6 h-full">
+    <!-- Main content area -->
+    <div class="flex-1 overflow-auto">
+      <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
     
-    <!-- Balance Bar Widget -->
-    <div class="bg-surface-card rounded-lg shadow-sm mb-6 p-6">
+        <!-- Balance Bar Widget -->
+        <div id="balance-bar" class="bg-surface-card rounded-lg shadow-sm mb-6 p-6">
       <h2 class="text-sm font-semibold text-stone-600 uppercase tracking-wide mb-4">Current Balance</h2>
       
       {% if balance.is_zero %}
@@ -57,21 +61,39 @@
         <h2 class="text-lg font-semibold text-stone-900">Recent Expenses</h2>
       </div>
       
-      {% if not expenses %}
-        <!-- Empty State -->
-        <div class="px-6 py-12 text-center">
-          <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-4">
-            <span class="text-2xl">💰</span>
+      <!-- Expense feed - always rendered so HTMX can target it -->
+      <div id="expense-feed" class="divide-y divide-stone-200">
+        {% if not expenses %}
+          <!-- Empty State -->
+          <div class="px-6 py-12 text-center">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-4">
+              <span class="text-2xl">💰</span>
+            </div>
+            <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses yet</h3>
+            <p class="text-stone-600 mb-6">Start tracking your shared expenses and see them appear here.</p>
+            
+            <!-- Mobile: Load bottom sheet form via HTMX -->
+            <button
+              type="button"
+              hx-get="/expenses/capture-form"
+              hx-target="#expense-bottom-sheet"
+              hx-swap="innerHTML"
+              class="inline-flex md:hidden items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors"
+            >
+              <span>+</span> Add Your First Expense
+            </button>
+            
+            <!-- Desktop: Focus sidebar form -->
+            <button
+              type="button"
+              onclick="focusExpenseForm()"
+              class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors"
+            >
+              <span>+</span> Add Your First Expense
+            </button>
           </div>
-          <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses yet</h3>
-          <p class="text-stone-600 mb-6">Start tracking your shared expenses and see them appear here.</p>
-          <a href="#" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors">
-            <span>+</span> Add Your First Expense
-          </a>
-        </div>
-      {% else %}
-        <!-- Expense List with Date Grouping -->
-        <div class="divide-y divide-stone-200">
+        {% else %}
+          <!-- Expense List with Date Grouping -->
           {% set current_date = None %}
           {% for expense in expenses %}
             {% set expense_date = expense.date %}
@@ -116,10 +138,51 @@
               </div>
             </div>
           {% endfor %}
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </div>
+      </div>
+    </div>
+    
+    <!-- Desktop sidebar form (hidden on mobile) -->
+    {% include 'expenses/_capture_form_desktop.html' %}
   </div>
 </main>
+
+<!-- Mobile FAB (hidden on desktop) -->
+{% include 'expenses/_fab_button.html' %}
+
+<!-- Mobile bottom sheet container (hidden on desktop) -->
+{% include 'expenses/_bottom_sheet.html' %}
+
+<!-- JavaScript for HTMX events -->
+<script>
+// Refresh balance bar when expense is created (UX-DR25)
+// HIGH-2: Use HTMX to refresh balance bar instead of full page reload
+document.body.addEventListener('expenseCreated', function() {
+    // Trigger HTMX request to refresh the entire page content to update balance
+    // Use hx-get to fetch dashboard and swap balance section
+    htmx.trigger('#balance-bar', 'refresh', {});
+});
+
+// Listen for refresh trigger and reload balance data
+document.getElementById('balance-bar')?.addEventListener('refresh', function() {
+    window.location.reload();
+});
+
+// Scroll to sidebar form and focus amount field (UX-DR3)
+function focusExpenseForm() {
+    const sidebar = document.getElementById('expense-sidebar');
+    const amountField = document.getElementById('desktop-amount');
+    
+    if (sidebar && amountField) {
+        // Scroll sidebar into view if needed
+        sidebar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Focus amount field
+        amountField.focus();
+    }
+}
+</script>
 {% endblock %}
 

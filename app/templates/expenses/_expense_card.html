@@ -1,0 +1,50 @@
+<!-- Expense card with optional highlight animation (UX-DR25) -->
+<div
+    class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150 {% if is_new %}animate-highlight{% endif %}"
+    id="expense-{{ expense.id }}"
+>
+    <div class="flex items-center gap-4">
+        <!-- Paid-By Badge -->
+        {% set payer = users.get(expense.payer_id) if users else None %}
+        {% if payer %}
+            {% set initials = (payer.display_name[0] + (payer.display_name.split()[-1][0] if ' ' in payer.display_name else ''))|upper %}
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
+                {% if expense.payer_id == current_user_id %}bg-amber-500{% else %}bg-teal-500{% endif %}">
+                {{ initials }}
+            </div>
+        {% else %}
+            <!-- Fallback for missing user data -->
+            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">
+                ?
+            </div>
+        {% endif %}
+        
+        <!-- Expense Details -->
+        <div class="flex-1 min-w-0">
+            <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
+            {% set payer = users.get(expense.payer_id) if users else None %}
+            <p class="text-xs text-stone-500">
+                Paid by {{ payer.display_name if payer else 'Unknown User' }}
+            </p>
+        </div>
+        
+        <!-- Amount -->
+        <p class="text-lg font-semibold text-stone-900 flex-shrink-0">€{{ expense.amount|format_decimal }}</p>
+    </div>
+</div>
+
+<style>
+/* Highlight animation for newly added expenses (UX-DR25) */
+@keyframes highlight {
+    from {
+        background-color: rgb(253 230 138 / 0.3); /* primary-50 equivalent with opacity */
+    }
+    to {
+        background-color: white;
+    }
+}
+
+.animate-highlight {
+    animation: highlight 1.5s ease-out forwards;
+}
+</style>

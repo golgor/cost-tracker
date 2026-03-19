@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -55,7 +56,6 @@ async def dashboard(
 
         # Get all group members for badge colors/names in expense feed
         members = get_group_members(uow.session, group.id)
-        group_members = {m.user_id: m for m in members}
 
         # Fetch user data for displaying names (bulk fetch to avoid N+1)
         member_user_ids = [m.user_id for m in members]
@@ -67,12 +67,21 @@ async def dashboard(
             else:
                 # Log data integrity issue: group member references non-existent user
                 import structlog
+
                 logger = structlog.get_logger()
                 logger.warning(
                     "group_member_references_missing_user",
                     group_id=group.id,
                     user_id=user_id,
                 )
+
+    # Currency symbol mapping for form display
+    currency_symbols = {
+        "EUR": "€",
+        "USD": "$",
+        "GBP": "£",
+        "SEK": "kr",
+    }
 
     return templates.TemplateResponse(
         request,
@@ -83,8 +92,11 @@ async def dashboard(
             "expenses": expenses,
             "balance": balance_data,
             "this_month_total": this_month_total,
-            "group_members": group_members,
+            "group_members": members,  # List of MembershipPublic for forms
             "users": users_by_id,
+            "current_user_id": user_id,  # For form defaults
+            "today": date.today().isoformat(),  # For date field default
+            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
