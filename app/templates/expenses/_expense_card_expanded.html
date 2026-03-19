@@ -105,12 +105,15 @@
         <div class="flex gap-3 pt-4">
             {% if not is_settled %}
                 <!-- Edit button for unsettled expenses -->
-                <a
-                    href="/expenses/{{ expense.id }}/edit"
+                <button
+                    type="button"
                     class="flex-1 px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
+                    hx-get="/expenses/{{ expense.id }}/edit"
+                    hx-target="body"
+                    hx-swap="beforeend"
                 >
                     Edit Expense
-                </a>
+                </button>
                 <!-- Delete button for unsettled expenses -->
                 <button
                     type="button"
