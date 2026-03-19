@@ -105,9 +105,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         # Check form field for regular form submissions
         content_type = request.headers.get("content-type", "")
-        if content_type.startswith("application/x-www-form-urlencoded"):
+        if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
             try:
                 form = await request.form()
+                # Cache form in request.state so route handlers can access it
+                # (body stream can only be read once)
+                request.state._cached_form = form
                 form_token = form.get(CSRF_FORM_FIELD)
                 if form_token == expected_token:
                     return True

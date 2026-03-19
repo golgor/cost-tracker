@@ -1,8 +1,9 @@
 """Expense domain use cases."""
 
+from datetime import date as date_type
 from decimal import Decimal
 
-from app.domain.errors import GroupNotFoundError
+from app.domain.errors import CannotEditSettledExpenseError, DomainError, GroupNotFoundError
 from app.domain.models import ExpensePublic, ExpenseStatus, SplitType
 from app.domain.ports import UnitOfWorkPort
 
@@ -38,8 +39,6 @@ def create_expense(
 
     Transaction must be committed by caller using `with uow:`.
     """
-    from datetime import date as date_type
-
     # Validate group exists
     group = uow.groups.get_by_id(group_id)
     if group is None:
@@ -69,3 +68,64 @@ def create_expense(
     saved_expense = uow.expenses.save(expense, actor_id=creator_id)
 
     return saved_expense
+
+
+def update_expense(
+    uow: UnitOfWorkPort,
+    expense_id: int,
+    actor_id: int,
+    amount: Decimal | None = None,
+    description: str | None = None,
+    date: date_type | None = None,
+    payer_id: int | None = None,
+    currency: str | None = None,
+) -> None:
+    """Update an existing expense.
+
+    Validates:
+    - Expense must not be settled (immutability check)
+    - Amount must be positive
+    - Date cannot be in the future
+
+    Audit logging: Records all changed fields with previous values.
+
+    Args:
+        uow: Unit of work for transaction management
+        expense_id: ID of expense to update
+        actor_id: User ID performing the update
+        amount: New amount (optional)
+        description: New description (optional)
+        date: New date (optional)
+        payer_id: New payer ID (optional)
+        currency: New currency (optional)
+
+    Raises:
+        CannotEditSettledExpenseError: If expense is settled
+        DomainError: If validation fails
+    """
+    # Get existing expense
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise DomainError(f"Expense {expense_id} not found")
+
+    # Immutability check: cannot edit settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        raise CannotEditSettledExpenseError(expense_id)
+
+    # Validation
+    if amount is not None and amount <= 0:
+        raise DomainError("Amount must be greater than zero")
+
+    if date and date > date_type.today():
+        raise DomainError("Expense date cannot be in the future")
+
+    # Update fields (adapter handles change tracking and audit)
+    uow.expenses.update(
+        expense_id=expense_id,
+        amount=amount,
+        description=description,
+        date=date,
+        payer_id=payer_id,
+        currency=currency,
+        actor_id=actor_id,
+    )

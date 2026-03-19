@@ -50,5 +50,13 @@ class UserAlreadyDeactivated(DomainError):
     """Raised when attempting to deactivate an already deactivated user."""
 
 
+class CannotEditSettledExpenseError(DomainError):
+    """Raised when attempting to edit a settled expense (immutable)."""
+
+    def __init__(self, expense_id: int):
+        super().__init__(f"Cannot edit expense {expense_id}: expense is settled and immutable")
+        self.expense_id = expense_id
+
+
 class UserAlreadyActive(DomainError):
     """Raised when attempting to activate an already active user."""
