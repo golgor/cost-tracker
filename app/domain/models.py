@@ -67,6 +67,11 @@ class UserPublic(UserBase):
     created_at: datetime
     updated_at: datetime
 
+    @property
+    def is_admin(self) -> bool:
+        """Pre-computed boolean flag for template visibility checks."""
+        return self.role == UserRole.ADMIN
+
 
 class GroupBase(SQLModel):
     """Domain base for Group — validation + business data. No table."""
