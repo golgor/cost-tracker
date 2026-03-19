@@ -10,7 +10,7 @@
     <div class="bg-surface-card rounded-lg shadow-sm mb-6 p-6">
       <h2 class="text-sm font-semibold text-stone-600 uppercase tracking-wide mb-4">Current Balance</h2>
       
-      {% if balance.current_user_is_owed == 0 %}
+      {% if balance.is_zero %}
         <!-- Zero Balance State -->
         <div class="text-center py-4">
           <p class="text-2xl font-semibold text-emerald-600">✓ All square!</p>
@@ -23,17 +23,17 @@
             <!-- Left Side (Current User) -->
             <div class="flex-1 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-lg shadow-sm flex flex-col justify-end p-3">
               <p class="text-white font-semibold text-sm">{{ user.display_name }}</p>
-              {% if balance.current_user_is_owed > 0 %}
+              {% if balance.is_positive %}
                 <p class="text-white text-lg font-bold">€{{ balance.current_user_is_owed|format_decimal }}</p>
               {% endif %}
             </div>
             
             <!-- Right Side (Partner) -->
-            {% if balance.partner_id and group_members.get(balance.partner_id) %}
-              {% set partner_name = group_members.get(balance.partner_id).user.display_name %}
+            {% if balance.partner_id and users.get(balance.partner_id) %}
+              {% set partner_name = users.get(balance.partner_id).display_name %}
               <div class="flex-1 bg-gradient-to-t from-rose-500 to-rose-400 rounded-t-lg shadow-sm flex flex-col justify-end p-3">
                 <p class="text-white font-semibold text-sm">{{ partner_name }}</p>
-                {% if balance.current_user_is_owed < 0 %}
+                {% if balance.is_negative %}
                   <p class="text-white text-lg font-bold">€{{ (balance.current_user_is_owed * -1)|format_decimal }}</p>
                 {% endif %}
               </div>
@@ -88,8 +88,8 @@
             <div class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150">
               <div class="flex items-center gap-4">
                 <!-- Paid-By Badge -->
-                {% if group_members.get(expense.payer_id) %}
-                  {% set payer = group_members.get(expense.payer_id).user %}
+                {% if users.get(expense.payer_id) %}
+                  {% set payer = users.get(expense.payer_id) %}
                   {% set initials = (payer.display_name[0] + (payer.display_name.split()[-1][0] if ' ' in payer.display_name else ''))|upper %}
                   <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
                     {% if expense.payer_id == user.id %}bg-amber-500{% else %}bg-teal-500{% endif %}">
@@ -100,8 +100,8 @@
                 <!-- Expense Details -->
                 <div class="flex-1 min-w-0">
                   <p class="font-medium text-stone-900 truncate">{{ expense.description }}</p>
-                  {% if group_members.get(expense.payer_id) %}
-                    <p class="text-xs text-stone-500">Paid by {{ group_members.get(expense.payer_id).user.display_name }}</p>
+                  {% if users.get(expense.payer_id) %}
+                    <p class="text-xs text-stone-500">Paid by {{ users.get(expense.payer_id).display_name }}</p>
                   {% endif %}
                 </div>
                 

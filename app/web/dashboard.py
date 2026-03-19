@@ -57,6 +57,13 @@ async def dashboard(
         members = get_group_members(uow.session, group.id)
         group_members = {m.user_id: m for m in members}
 
+        # Fetch user data for displaying names
+        users_by_id = {}
+        for member in members:
+            user = uow.users.get_by_id(member.user_id)
+            if user:
+                users_by_id[member.user_id] = user
+
     return templates.TemplateResponse(
         request,
         "dashboard/index.html",
@@ -67,6 +74,7 @@ async def dashboard(
             "balance": balance_data,
             "this_month_total": this_month_total,
             "group_members": group_members,
+            "users": users_by_id,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )

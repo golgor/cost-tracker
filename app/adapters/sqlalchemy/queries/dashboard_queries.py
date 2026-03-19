@@ -5,21 +5,18 @@ from decimal import Decimal
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, GroupRow, MembershipRow, UserRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, MembershipRow
 from app.domain.models import ExpensePublic, MembershipPublic
 
 
 def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]:
     """Fetch all members of a group with their roles.
-    
+
     Used for dashboard to display group member info (badges, names, etc).
     """
-    statement = (
-        select(MembershipRow)
-        .where(MembershipRow.group_id == group_id)
-    )
+    statement = select(MembershipRow).where(MembershipRow.group_id == group_id)
     rows = session.exec(statement).all()
-    
+
     return [
         MembershipPublic(
             user_id=row.user_id,
@@ -39,10 +36,8 @@ def get_group_expenses(session: Session, group_id: int) -> list[ExpensePublic]:
     Note: In Epic 4 (Story 4.3), this will filter out gift-status expenses.
     Epic 4 (Story 4.2) will switch to selecting from expense_splits table for split-mode support.
     """
-    statement = (
-        select(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
-        .order_by(ExpenseRow.date.desc())
+    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id).order_by(
+        ExpenseRow.date.desc()  # type: ignore[attr-defined]
     )
     rows = session.exec(statement).all()
 
@@ -105,6 +100,9 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         "current_user_is_owed": balance,
         "partner_id": partner_id,
         "formatted_message": message,
+        "is_positive": balance > 0,  # Pre-computed flag for template
+        "is_negative": balance < 0,  # Pre-computed flag for template
+        "is_zero": balance == 0,  # Pre-computed flag for template
     }
 
 
@@ -137,6 +135,11 @@ def get_this_month_total(session: Session, group_id: int) -> Decimal:
 
 def _expense_row_to_public(row: ExpenseRow) -> ExpensePublic:
     """Convert ORM row to domain model. Mirrors ExpenseAdapter._to_public()."""
+    # row.id is guaranteed to be set for rows fetched from database
+    assert row.id is not None, "ExpenseRow.id must be set for persisted rows"
+    assert row.created_at is not None
+    assert row.updated_at is not None
+
     return ExpensePublic(
         id=row.id,
         group_id=row.group_id,
