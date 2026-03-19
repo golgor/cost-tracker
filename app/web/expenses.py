@@ -69,9 +69,9 @@ async def get_mobile_capture_form(
     selected_payer_id = user_id
 
     return templates.TemplateResponse(
+        request,
         "expenses/_capture_form_mobile.html",
         {
-            "request": request,
             "group": group,
             "group_members": group_members,
             "users": users_dict,
@@ -170,9 +170,9 @@ async def create_expense_endpoint(
         selected_payer_id = payer_id if payer_id else user_id
 
         return templates.TemplateResponse(
+            request,
             "expenses/_capture_form_mobile.html",
             {
-                "request": request,
                 "errors": errors,
                 "form_data": {
                     "amount": amount,
@@ -217,9 +217,9 @@ async def create_expense_endpoint(
 
     # Return: new expense card
     response = templates.TemplateResponse(
+        request,
         "expenses/_expense_card.html",
         {
-            "request": request,
             "expense": expense,
             "users": users_dict,
             "current_user_id": user_id,
@@ -232,3 +232,281 @@ async def create_expense_endpoint(
     response.headers["HX-Trigger-After-Settle"] = "closeBottomSheet"
 
     return response
+
+
+@router.get("/expenses/{expense_id}/detail", response_class=HTMLResponse)
+async def get_expense_detail(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Load expense detail view (HTMX partial) - full expense card with detail."""
+    # Get expense
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Authorization: user must be in the expense's group
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get creator and payer names
+    creator = uow.users.get_by_id(expense.creator_id)
+    payer = uow.users.get_by_id(expense.payer_id)
+    group_members = get_group_members(uow.session, group.id)
+
+    # Get all users for display
+    users_dict = {}
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_card_expanded.html",
+        {
+            "expense": expense,
+            "creator": creator,
+            "payer": payer,
+            "group_members": group_members,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "group": group,
+            "is_settled": expense.status == "SETTLED",
+        },
+    )
+
+
+@router.get("/expenses/{expense_id}/collapse", response_class=HTMLResponse)
+async def collapse_expense_detail(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Collapse expense detail back to card (HTMX partial)."""
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Authorization
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get user details for display
+    users_dict = {}
+    group_members = get_group_members(uow.session, group.id)
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_card.html",
+        {
+            "expense": expense,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "is_new": False,
+        },
+    )
+
+
+@router.get("/expenses/{expense_id}/edit", response_class=HTMLResponse)
+async def edit_expense_page(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Render expense edit page (full page, not inline per UX-DR26)."""
+    # Get expense
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Authorization
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get group members for paid-by selector
+    group_members = get_group_members(uow.session, group.id)
+
+    # Get user details for display
+    users_dict = {}
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/edit.html",
+        {
+            "expense": expense,
+            "group": group,
+            "group_members": group_members,
+            "users": users_dict,
+            "today": date.today().isoformat(),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+            "is_settled": expense.status == "SETTLED",
+        },
+    )
+
+
+class UpdateExpenseForm(BaseModel):
+    """Form validation for expense updates."""
+
+    amount: Decimal = Field(gt=0, le=Decimal("1000000.00"))
+    description: str = Field(default="", max_length=200)
+    date: date
+    payer_id: int
+    currency: str = Field(max_length=3)
+
+
+@router.post("/expenses/{expense_id}/update", response_class=HTMLResponse)
+async def update_expense_endpoint(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Update expense (form submission)."""
+    # Parse form data (use cached form from CSRF middleware if available)
+    if hasattr(request.state, "_cached_form"):
+        form = request.state._cached_form
+    else:
+        form = await request.form()
+    
+    amount = form.get("amount", "")
+    description = form.get("description", "")
+    date_str = form.get("date", "")
+    payer_id_str = form.get("payer_id", "")
+    currency = form.get("currency", "")
+    
+    # Convert payer_id to int
+    try:
+        payer_id = int(payer_id_str) if payer_id_str else None
+    except ValueError:
+        payer_id = None
+
+    # Authorization
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Validate form
+    errors = {}
+    try:
+        # Parse amount
+        try:
+            amount_decimal = Decimal(amount)
+        except (InvalidOperation, ValueError):
+            errors["amount"] = "Invalid amount format"
+            amount_decimal = None
+
+        # Parse date
+        try:
+            expense_date = date.fromisoformat(date_str)
+        except ValueError:
+            errors["date"] = "Invalid date format"
+            expense_date = None
+
+        # Validate date is not in the future
+        if expense_date and expense_date > date.today():
+            errors["date"] = "Date cannot be in the future"
+
+        # Validate payer_id is a member of the group
+        if payer_id:
+            group_members = get_group_members(uow.session, group.id)
+            valid_payer_ids = {member.user_id for member in group_members}
+            if payer_id not in valid_payer_ids:
+                errors["payer_id"] = "Selected payer is not a member of your group"
+
+        # Validate with Pydantic if no parse errors
+        if not errors:
+            form_data = UpdateExpenseForm(
+                amount=amount_decimal,
+                description=description,
+                date=expense_date,
+                payer_id=payer_id,
+                currency=currency,
+            )
+    except ValidationError as e:
+        for error in e.errors():
+            field = error["loc"][0]
+            errors[field] = error["msg"]
+        form_data = None
+
+    # If validation errors, return form with errors
+    if errors:
+        group_members = get_group_members(uow.session, group.id)
+
+        # Get user details
+        users_dict = {}
+        for member in group_members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_dict[member.user_id] = user_obj
+
+        return templates.TemplateResponse(
+            request,
+            "expenses/edit.html",
+            {
+                "errors": errors,
+                "expense": expense,
+                "group": group,
+                "group_members": group_members,
+                "users": users_dict,
+                "today": date.today().isoformat(),
+                "csrf_token": getattr(request.state, "csrf_token", ""),
+                "is_settled": expense.status == "SETTLED",
+            },
+            status_code=400,
+        )
+
+    # Update via use case
+    from app.domain.use_cases.expenses import update_expense
+
+    with uow:
+        update_expense(
+            uow=uow,
+            expense_id=expense_id,
+            amount=form_data.amount,
+            description=form_data.description,
+            date=form_data.date,
+            payer_id=form_data.payer_id,
+            currency=form_data.currency,
+            actor_id=user_id,
+        )
+
+    # Redirect to dashboard with success message
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url="/?updated=true", status_code=303)

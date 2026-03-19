@@ -1,7 +1,10 @@
+from datetime import date
+from decimal import Decimal
+
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import snapshot_new
+from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import ExpenseRow
 from app.domain.models import ExpensePublic
 
@@ -61,6 +64,53 @@ class SqlAlchemyExpenseAdapter:
         )
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
+
+    def update(
+        self,
+        expense_id: int,
+        *,
+        actor_id: int,
+        amount: Decimal | None = None,
+        description: str | None = None,
+        date: date | None = None,
+        payer_id: int | None = None,
+        currency: str | None = None,
+    ) -> None:
+        """Update expense fields. Only provided fields are updated. Auto-audits."""
+        row = self._session.get(ExpenseRow, expense_id)
+        if not row:
+            raise ValueError(f"Expense {expense_id} not found")
+
+        # Apply updates
+        if amount is not None:
+            row.amount = amount
+        if description is not None:
+            row.description = description
+        if date is not None:
+            row.date = date
+        if payer_id is not None:
+            row.payer_id = payer_id
+        if currency is not None:
+            row.currency = currency
+
+        # Compute changes for audit log (must be done before flush)
+        changes = compute_changes(
+            row,
+            fields=["amount", "description", "date", "payer_id", "currency"],
+        )
+
+        # Only audit if changes exist
+        if changes:
+            self._session.add(row)
+            self._session.flush()
+
+            self._audit.log(
+                action="expense_updated",
+                actor_id=actor_id,
+                entity_type="expense",
+                entity_id=expense_id,
+                changes=changes,
+            )
 
     def _to_public(self, row: ExpenseRow) -> ExpensePublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""

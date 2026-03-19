@@ -153,6 +153,20 @@ class ExpensePort(Protocol):
         """List all expenses for a group, ordered by date descending."""
         ...
 
+    def update(
+        self,
+        expense_id: int,
+        *,
+        actor_id: int,
+        amount: Any | None = None,
+        description: str | None = None,
+        date: Any | None = None,
+        payer_id: int | None = None,
+        currency: str | None = None,
+    ) -> None:
+        """Update expense fields. Only provided fields are updated. Auto-audits."""
+        ...
+
 
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.

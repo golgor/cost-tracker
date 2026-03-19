@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth.middleware import AuthMiddleware, CSRFMiddleware
 from app.dependencies import engine, get_db_session
 from app.domain.errors import (
+    CannotEditSettledExpenseError,
     DeactivatedUserAccessDenied,
     DomainError,
     DuplicateHouseholdError,
@@ -48,6 +49,7 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     UserAlreadyRegularError: 409,
     UserAlreadyDeactivated: 409,
     UserAlreadyActive: 409,
+    CannotEditSettledExpenseError: 403,
 }
 
 

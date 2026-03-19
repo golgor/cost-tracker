@@ -134,6 +134,7 @@ class ExpenseStatus(StrEnum):
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
     GIFT = "GIFT"
+    SETTLED = "SETTLED"  # Added for Epic 2.4 - expenses locked after settlement
 
 
 class ExpenseBase(SQLModel):

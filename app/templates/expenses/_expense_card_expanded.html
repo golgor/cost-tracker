@@ -1,0 +1,123 @@
+<!-- Expense card with expanded detail view -->
+<div
+    class="px-6 py-4 bg-stone-50 border-l-4 border-primary"
+    id="expense-{{ expense.id }}"
+>
+    <!-- Card header (same as collapsed) -->
+    <div class="flex items-center gap-4 mb-4">
+        <!-- Paid-By Badge -->
+        {% set payer_user = users.get(expense.payer_id) if users else None %}
+        {% if payer_user %}
+            {% set initials = (payer_user.display_name[0] + (payer_user.display_name.split()[-1][0] if ' ' in payer_user.display_name else ''))|upper %}
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
+                {% if expense.payer_id == current_user_id %}bg-amber-500{% else %}bg-teal-500{% endif %}">
+                {{ initials }}
+            </div>
+        {% else %}
+            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">
+                ?
+            </div>
+        {% endif %}
+        
+        <!-- Expense Details -->
+        <div class="flex-1 min-w-0">
+            <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
+            <p class="text-xs text-stone-500">
+                Paid by {{ payer_user.display_name if payer_user else 'Unknown User' }}
+            </p>
+        </div>
+        
+        <!-- Amount -->
+        <p class="text-lg font-semibold text-stone-900 flex-shrink-0">€{{ expense.amount|format_decimal }}</p>
+    </div>
+
+    <!-- Detail section -->
+    <div class="pt-4 border-t border-stone-200 space-y-3">
+        <!-- Full description -->
+        <div>
+            <p class="text-sm font-medium text-stone-700">Description</p>
+            <p class="text-stone-900">{{ expense.description or "No description" }}</p>
+        </div>
+        
+        <!-- Amount & Currency -->
+        <div class="flex gap-6">
+            <div>
+                <p class="text-sm font-medium text-stone-700">Amount</p>
+                <p class="text-stone-900">€{{ "%.2f"|format(expense.amount) }} {{ expense.currency }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-stone-700">Date</p>
+                <p class="text-stone-900">{{ expense.date.strftime('%B %d, %Y') }}</p>
+            </div>
+        </div>
+        
+        <!-- Creator & Payer (FR8, FR42 display) -->
+        <div class="flex gap-6">
+            <div>
+                <p class="text-sm font-medium text-stone-700">Created by</p>
+                {% set creator_user = users.get(expense.creator_id) if users else None %}
+                <p class="text-stone-900">{{ creator_user.display_name if creator_user else 'Unknown' }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-stone-700">Paid by</p>
+                <p class="text-stone-900">{{ payer_user.display_name if payer_user else 'Unknown' }}</p>
+            </div>
+        </div>
+        
+        <!-- Split breakdown (even split for MVP) -->
+        <div>
+            <p class="text-sm font-medium text-stone-700 mb-2">Split (Even)</p>
+            <div class="space-y-1">
+                {% for member in group_members %}
+                    {% set member_user = users.get(member.user_id) %}
+                    {% if member_user %}
+                    <div class="flex justify-between text-sm">
+                        <span class="text-stone-600">{{ member_user.display_name }}</span>
+                        <span class="text-stone-900">€{{ "%.2f"|format(expense.amount / 2) }}</span>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <p class="text-xs text-stone-500 mt-2">Note: Advanced split modes coming in Epic 4</p>
+        </div>
+        
+        <!-- Status -->
+        <div>
+            <p class="text-sm font-medium text-stone-700">Status</p>
+            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium 
+                {% if is_settled %}bg-stone-200 text-stone-700
+                {% else %}bg-green-100 text-green-800{% endif %}">
+                {{ expense.status|title }}
+            </span>
+        </div>
+        
+        <!-- Action buttons -->
+        <div class="flex gap-3 pt-4">
+            {% if not is_settled %}
+                <!-- Edit button for unsettled expenses -->
+                <a
+                    href="/expenses/{{ expense.id }}/edit"
+                    class="flex-1 px-4 py-2 bg-primary text-white text-center rounded-lg hover:bg-amber-600 transition-colors"
+                >
+                    Edit Expense
+                </a>
+            {% else %}
+                <!-- Settled expense cannot be edited -->
+                <div class="flex-1 px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
+                    Settled (Cannot Edit)
+                </div>
+            {% endif %}
+            
+            <!-- Collapse detail button -->
+            <button
+                type="button"
+                hx-get="/expenses/{{ expense.id }}/collapse"
+                hx-target="#expense-{{ expense.id }}"
+                hx-swap="outerHTML"
+                class="flex-1 px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors"
+            >
+                Collapse
+            </button>
+        </div>
+    </div>
+</div>
