@@ -25,7 +25,7 @@ target_metadata = SQLModel.metadata
 
 def process_revision_directives(context, revision, directives):
     """Generate sequential revision IDs (001, 002, etc.)."""
-    if config.cmd_opts and config.cmd_opts.autogenerate:
+    if config.cmd_opts and getattr(config.cmd_opts, "autogenerate", False):
         script = directives[0]
         if script.upgrade_ops.is_empty():
             directives[:] = []

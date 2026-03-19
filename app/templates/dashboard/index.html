@@ -3,35 +3,123 @@
 {% block title %}Dashboard - Cost Tracker{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-  <div class="bg-surface-card p-6 rounded-lg shadow-sm mb-6">
-    <h1 class="text-2xl font-semibold text-stone-900 mb-2">Welcome, {{ user.display_name }}!</h1>
-    <p class="text-stone-600">You are successfully authenticated.</p>
-  </div>
-  
-  <div class="bg-surface-card p-6 rounded-lg shadow-sm">
-    <h2 class="text-lg font-medium text-stone-800 mb-4">Your Profile</h2>
-    <dl class="space-y-3">
-      <div>
-        <dt class="text-sm text-stone-500">Email</dt>
-        <dd class="text-stone-900">{{ user.email }}</dd>
-      </div>
-      <div>
-        <dt class="text-sm text-stone-500">Display Name</dt>
-        <dd class="text-stone-900">{{ user.display_name }}</dd>
-      </div>
-      <div>
-        <dt class="text-sm text-stone-500">Member Since</dt>
-        <dd class="text-stone-900">{{ user.member_since }}</dd>
-      </div>
-    </dl>
+<main class="flex-1 overflow-auto bg-stone-50">
+  <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
     
-    <div class="mt-6 pt-6 border-t border-stone-200">
-      <a href="/auth/logout" 
-         class="px-4 py-2 bg-stone-100 text-stone-700 rounded-lg hover:bg-stone-200 focus-ring touch-target inline-flex items-center justify-center gap-2 font-medium transition-colors">
-        Logout
-      </a>
+    <!-- Balance Bar Widget -->
+    <div class="bg-surface-card rounded-lg shadow-sm mb-6 p-6">
+      <h2 class="text-sm font-semibold text-stone-600 uppercase tracking-wide mb-4">Current Balance</h2>
+      
+      {% if balance.is_zero %}
+        <!-- Zero Balance State -->
+        <div class="text-center py-4">
+          <p class="text-2xl font-semibold text-emerald-600">✓ All square!</p>
+          <p class="text-stone-600 text-sm mt-2">No one owes anyone. Nice work!</p>
+        </div>
+      {% else %}
+        <!-- Balance Bar -->
+        <div class="space-y-3">
+          <div class="flex items-end gap-4 h-32">
+            <!-- Left Side (Current User) -->
+            <div class="flex-1 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-lg shadow-sm flex flex-col justify-end p-3">
+              <p class="text-white font-semibold text-sm">{{ user.display_name }}</p>
+              {% if balance.is_positive %}
+                <p class="text-white text-lg font-bold">€{{ balance.current_user_is_owed|format_decimal }}</p>
+              {% endif %}
+            </div>
+            
+            <!-- Right Side (Partner) -->
+            {% if balance.partner_id and users.get(balance.partner_id) %}
+              {% set partner_name = users.get(balance.partner_id).display_name %}
+              <div class="flex-1 bg-gradient-to-t from-rose-500 to-rose-400 rounded-t-lg shadow-sm flex flex-col justify-end p-3">
+                <p class="text-white font-semibold text-sm">{{ partner_name }}</p>
+                {% if balance.is_negative %}
+                  <p class="text-white text-lg font-bold">€{{ (balance.current_user_is_owed * -1)|format_decimal }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+          <p class="text-center text-stone-600 text-sm">{{ balance.formatted_message }}</p>
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- This Month Widget -->
+    <div class="bg-surface-card rounded-lg shadow-sm mb-6 p-6">
+      <h2 class="text-sm font-semibold text-stone-600 uppercase tracking-wide mb-2">This Month</h2>
+      <p class="text-3xl font-bold text-stone-900">€{{ this_month_total|format_decimal }}</p>
+      <p class="text-stone-600 text-sm mt-1">Shared expenses this month</p>
+    </div>
+    
+    <!-- Expense Feed -->
+    <div class="bg-surface-card rounded-lg shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-stone-200">
+        <h2 class="text-lg font-semibold text-stone-900">Recent Expenses</h2>
+      </div>
+      
+      {% if not expenses %}
+        <!-- Empty State -->
+        <div class="px-6 py-12 text-center">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-4">
+            <span class="text-2xl">💰</span>
+          </div>
+          <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses yet</h3>
+          <p class="text-stone-600 mb-6">Start tracking your shared expenses and see them appear here.</p>
+          <a href="#" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors">
+            <span>+</span> Add Your First Expense
+          </a>
+        </div>
+      {% else %}
+        <!-- Expense List with Date Grouping -->
+        <div class="divide-y divide-stone-200">
+          {% set current_date = None %}
+          {% for expense in expenses %}
+            {% set expense_date = expense.date %}
+            
+            <!-- Date Header (on date change) -->
+            {% if current_date != expense_date %}
+              {% set current_date = expense_date %}
+              <div class="px-6 py-3 bg-stone-50 border-t border-stone-200">
+                <p class="text-xs font-semibold text-stone-600 uppercase tracking-wide">{{ expense_date|strftime('%A, %B %d') }}</p>
+              </div>
+            {% endif %}
+            
+            <!-- Expense Card -->
+            <div class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150">
+              <div class="flex items-center gap-4">
+                <!-- Paid-By Badge -->
+                {% set payer = users.get(expense.payer_id) %}
+                {% if payer %}
+                  {% set initials = (payer.display_name[0] + (payer.display_name.split()[-1][0] if ' ' in payer.display_name else ''))|upper %}
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
+                    {% if expense.payer_id == user.id %}bg-amber-500{% else %}bg-teal-500{% endif %}">
+                    {{ initials }}
+                  </div>
+                {% else %}
+                  <!-- Fallback for missing user data -->
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">
+                    ?
+                  </div>
+                {% endif %}
+                
+                <!-- Expense Details -->
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-stone-900 truncate">{{ expense.description }}</p>
+                  {% set payer = users.get(expense.payer_id) %}
+                  <p class="text-xs text-stone-500">
+                    Paid by {{ payer.display_name if payer else 'Unknown User' }}
+                  </p>
+                </div>
+                
+                <!-- Amount -->
+                <p class="text-lg font-semibold text-stone-900 flex-shrink-0">€{{ expense.amount|format_decimal }}</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
   </div>
-</div>
+</main>
 {% endblock %}
+
