@@ -79,7 +79,8 @@ tests/
 
 **Templates are purely presentational:**
 
-- ✅ **Allowed:** Variable substitution, iteration (`for` loops), string formatting, conditional flow control (`if` for empty states with pre-computed flags)
+- ✅ **Allowed:** Variable substitution, iteration (`for` loops), string formatting, conditional flow control
+  (`if` for empty states with pre-computed flags)
 - ❌ **Forbidden:** Business logic, split calculations, domain state validation, filtering based on domain rules
 
 **Examples of forbidden patterns:**
@@ -120,10 +121,14 @@ tests/
 ```
 
 **Rationale:**
-- **Testability:** Business logic lives in domain/use cases, tested in Python. Templates are implicitly tested via integration tests.
+
+- **Testability:** Business logic lives in domain/use cases, tested in Python. Templates are implicitly tested via
+  integration tests.
 - **Maintainability:** Logic is centralized in searchable Python code, not scattered across template AST.
-- **Architecture:** Enforces ADR-001 (Domain pure Python) and ADR-006 (View queries read-only). All domain decisions are pre-computed and passed to templates as flags/data.
-- **Enforcement:** Architectural test (`test_templates_contain_no_domain_logic()`) scans templates and blocks forbidden patterns.
+- **Architecture:** Enforces ADR-001 (Domain pure Python) and ADR-006 (View queries read-only). All domain decisions
+  are pre-computed and passed to templates as flags/data.
+- **Enforcement:** Architectural test (`test_templates_contain_no_domain_logic()`) scans templates and blocks
+  forbidden patterns.
 
 ## Format Patterns
 
@@ -297,6 +302,7 @@ async def dashboard(
 ```
 
 **Critical Rules:**
+
 - ✅ All reads via `uow.adapters.*` or `queries.*(uow.session)` inside `with uow:` block
 - ✅ All writes via `uow.adapters.*` inside `with uow:` block
 - ✅ Template rendering **outside** the `with uow:` block
@@ -320,17 +326,19 @@ async def dashboard(
 
 **Pattern Enforcement:**
 
-- `architecture_test.py` validates: domain import purity, `queries.py` read-only, no `utils.py`/`helpers.py`, template business logic
+- `architecture_test.py` validates: domain import purity, `queries.py` read-only, no `utils.py`/`helpers.py`,
+  template business logic
 - `contract_test.py` validates: round-trip ORM mapping preserves all fields
 - Code review checklist: naming conventions, no per-route error handling, audit logging presence
 - CI runs all enforcement tests on every PR
 
-## Template Rules
+## Template Logic Constraints
 
 **Templates are primarily presentational, with simple boolean state conditionals:**
 
 - ✅ **Allowed:** Boolean state checks (`{% if expense.is_settled %}`), variable substitution, iteration, formatting
-- ❌ **Forbidden:** Value comparisons (`user.role == "admin"`), numeric comparisons (`amount > 100`), aggregations, complex logic (3+ conditions)
+- ❌ **Forbidden:** Value comparisons (`user.role == "admin"`), numeric comparisons (`amount > 100`), aggregations,
+  complex logic (3+ conditions)
 
 **Examples of allowed patterns:**
 
@@ -377,7 +385,8 @@ async def dashboard(
 
 **Rationale:**  
 Boolean state checks are presentation concerns — they decide what UI to show (settled vs. editable).  
-Value comparisons, calculations, and complex conditionals belong in Python (view queries or use cases) where they're testable and traceable. Pass pre-computed boolean flags to templates instead of raw values to compare.
+Value comparisons, calculations, and complex conditionals belong in Python (view queries or use cases)
+where they're testable and traceable. Pass pre-computed boolean flags to templates instead of raw values to compare.
 
 Enforced by `test_templates_contain_no_complex_business_logic()` in `architecture_test.py`.
 

@@ -219,6 +219,7 @@ contains `_to_domain()` / `_to_row()` helpers.~~
 `Session`. UnitOfWork implements context manager protocol (`__enter__`/`__exit__`) for automatic transaction management.
 
 **Context Manager Usage:**
+
 - All UoW operations (reads and writes via adapters) must occur inside `with uow:` block
 - Automatic `commit()` on successful exit (no exception raised)
 - Automatic `rollback()` on exception exit
@@ -226,6 +227,7 @@ contains `_to_domain()` / `_to_row()` helpers.~~
 - Do NOT nest `with uow:` blocks — enforced by implementation (raises error on re-entry)
 
 **Route Handler Pattern:**
+
 ```python
 @router.get("/path")
 async def handler(
@@ -242,7 +244,9 @@ async def handler(
     return templates.TemplateResponse(...)
 ```
 
-**Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection. Automatic transaction management reduces boilerplate and prevents session leaks. Context manager boundary ensures templates don't access closed sessions.
+**Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection. Automatic
+transaction management reduces boilerplate and prevents session leaks. Context manager boundary ensures templates
+don't access closed sessions.
 
 ### ADR-004: Audit Logging as Domain Concern
 

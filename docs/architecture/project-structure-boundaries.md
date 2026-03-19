@@ -278,6 +278,7 @@ Browser → HTMX GET → web/dashboard.py
 ```
 
 **Session Lifecycle (UoW Context Manager):**
+
 1. Route handler receives `UnitOfWork` via dependency injection
 2. `with uow:` enters context → `UnitOfWork.__enter__()` called
 3. All reads/writes occur via `uow.adapters.*` or `queries.*(uow.session)`
