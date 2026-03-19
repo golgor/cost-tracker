@@ -28,7 +28,7 @@ def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]
     ]
 
 
-def get_group_expenses(session: Session, group_id: int) -> list[ExpensePublic]:
+def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> list[ExpensePublic]:
     """Fetch all unsettled expenses for a group, newest first.
 
     Used for dashboard expense feed. Sorted by date descending for feed display.
@@ -42,9 +42,51 @@ def get_group_expenses(session: Session, group_id: int) -> list[ExpensePublic]:
         .order_by(
             ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
         )
+        .limit(limit)
     )
     rows = session.exec(statement).all()
 
+    return [_expense_row_to_public(row) for row in rows]
+
+
+def get_filtered_expenses(
+    session: Session,
+    group_id: int,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    payer_id: int | None = None,
+    limit: int = 100,
+) -> list[ExpensePublic]:
+    """Fetch expenses with optional filters, sorted newest first.
+    
+    Args:
+        session: Database session
+        group_id: Group ID to fetch expenses for
+        date_from: Optional start date (inclusive)
+        date_to: Optional end date (inclusive)
+        payer_id: Optional payer user ID filter
+        limit: Maximum number of results (default 100)
+    
+    Returns:
+        List of expenses matching filters
+    
+    Used by /expenses route for filtered expense list viewing.
+    """
+    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id)
+    
+    # Apply optional filters
+    if date_from:
+        statement = statement.where(ExpenseRow.date >= date_from)
+    if date_to:
+        statement = statement.where(ExpenseRow.date <= date_to)
+    if payer_id:
+        statement = statement.where(ExpenseRow.payer_id == payer_id)
+    
+    statement = statement.order_by(
+        ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
+    ).limit(limit)
+    
+    rows = session.exec(statement).all()
     return [_expense_row_to_public(row) for row in rows]
 
 

@@ -183,7 +183,7 @@ class TestExpenseEditPage:
         )
 
         assert response.status_code == 303  # Redirect
-        assert response.headers["location"] == "/?updated=true"
+        assert response.headers["location"] == "/expenses?updated=true"
 
         # Verify update persisted
         updated = uow.expenses.get_by_id(test_expense.id)

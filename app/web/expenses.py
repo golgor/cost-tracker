@@ -1,14 +1,19 @@
 """Expense creation routes for mobile and desktop."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, ValidationError
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import (
+    calculate_balance,
+    get_filtered_expenses,
+    get_group_members,
+    get_this_month_total,
+)
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.use_cases.expenses import create_expense
@@ -232,6 +237,190 @@ async def create_expense_endpoint(
     response.headers["HX-Trigger-After-Settle"] = "closeBottomSheet"
 
     return response
+
+
+@router.get("/expenses", response_class=HTMLResponse)
+async def expenses_list(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+):
+    """Dedicated expenses list page with filtering.
+    
+    Shows all expenses for the group with filter controls.
+    Distinct from dashboard which shows recent expenses only.
+    """
+    with uow:
+        # Get user and group
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters if provided
+        date_from_parsed = None
+        date_to_parsed = None
+        if date_from:
+            try:
+                date_from_parsed = date.fromisoformat(date_from)
+            except ValueError:
+                pass  # Ignore invalid dates
+        if date_to:
+            try:
+                date_to_parsed = date.fromisoformat(date_to)
+            except ValueError:
+                pass  # Ignore invalid dates
+
+        # Get filtered expenses
+        expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+        )
+
+        # Get balance data
+        balance_data = calculate_balance(uow.session, group.id, user_id)
+        
+        # Get this month total
+        this_month_total = get_this_month_total(uow.session, group.id)
+
+        # Get group members for display and filters
+        members = get_group_members(uow.session, group.id)
+
+        # Get user details for expense cards
+        member_user_ids = [m.user_id for m in members]
+        users_by_id = {}
+        for uid in member_user_ids:
+            user_obj = uow.users.get_by_id(uid)
+            if user_obj:
+                users_by_id[uid] = user_obj
+
+    # Currency symbol mapping
+    currency_symbols = {
+        "EUR": "€",
+        "USD": "$",
+        "GBP": "£",
+        "SEK": "kr",
+    }
+
+    # Result count message
+    expense_count = len(expenses)
+    if expense_count == 0:
+        count_message = "No expenses"
+    elif expense_count == 1:
+        count_message = "1 expense"
+    else:
+        count_message = f"{expense_count} expenses"
+
+    # Check if any filters are active
+    has_active_filters = any([date_from, date_to, payer_id])
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/index.html",
+        {
+            "user": user,
+            "group": group,
+            "expenses": expenses,
+            "balance": balance_data,
+            "this_month_total": this_month_total,
+            "group_members": members,
+            "users": users_by_id,
+            "current_user_id": user_id,
+            "today": date.today().isoformat(),
+            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+            # Filter values for form persistence
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+            "filter_payer_id": payer_id or "",
+        },
+    )
+
+
+@router.get("/expenses/filtered", response_class=HTMLResponse)
+async def expenses_filtered(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+):
+    """HTMX endpoint for filtered expense feed partial.
+    
+    Returns only the expense feed section for HTMX partial swap.
+    """
+    with uow:
+        # Get user's group
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters
+        date_from_parsed = None
+        date_to_parsed = None
+        if date_from:
+            try:
+                date_from_parsed = date.fromisoformat(date_from)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                date_to_parsed = date.fromisoformat(date_to)
+            except ValueError:
+                pass
+
+        # Get filtered expenses
+        expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+        )
+
+        # Get user details
+        members = get_group_members(uow.session, group.id)
+        users_by_id = {}
+        for member in members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_by_id[member.user_id] = user_obj
+
+    # Result count message
+    expense_count = len(expenses)
+    if expense_count == 0:
+        count_message = "No expenses"
+    elif expense_count == 1:
+        count_message = "1 expense"
+    else:
+        count_message = f"{expense_count} expenses"
+
+    # Check if filters are active
+    has_active_filters = any([date_from, date_to, payer_id])
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_feed.html",
+        {
+            "expenses": expenses,
+            "users": users_by_id,
+            "current_user_id": user_id,
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+        },
+    )
 
 
 @router.get("/expenses/{expense_id}/detail", response_class=HTMLResponse)
@@ -506,7 +695,7 @@ async def update_expense_endpoint(
             actor_id=user_id,
         )
 
-    # Redirect to dashboard with success message
+    # Redirect to expense list with success message
     from fastapi.responses import RedirectResponse
 
-    return RedirectResponse(url="/?updated=true", status_code=303)
+    return RedirectResponse(url="/expenses?updated=true", status_code=303)

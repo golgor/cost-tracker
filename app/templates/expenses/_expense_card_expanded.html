@@ -3,8 +3,11 @@
     class="px-6 py-4 bg-stone-50 border-l-4 border-primary"
     id="expense-{{ expense.id }}"
 >
-    <!-- Card header (same as collapsed) -->
-    <div class="flex items-center gap-4 mb-4">
+    <!-- Card header (clickable to collapse) -->
+    <div class="flex items-center gap-4 mb-4 cursor-pointer hover:bg-stone-100 rounded-lg p-2 -m-2 transition-colors"
+         hx-get="/expenses/{{ expense.id }}/collapse"
+         hx-target="#expense-{{ expense.id }}"
+         hx-swap="outerHTML">
         <!-- Paid-By Badge -->
         {% set payer_user = users.get(expense.payer_id) if users else None %}
         {% if payer_user %}
@@ -97,27 +100,16 @@
                 <!-- Edit button for unsettled expenses -->
                 <a
                     href="/expenses/{{ expense.id }}/edit"
-                    class="flex-1 px-4 py-2 bg-primary text-white text-center rounded-lg hover:bg-amber-600 transition-colors"
+                    class="px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
                 >
                     Edit Expense
                 </a>
             {% else %}
                 <!-- Settled expense cannot be edited -->
-                <div class="flex-1 px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
+                <div class="px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
                     Settled (Cannot Edit)
                 </div>
             {% endif %}
-            
-            <!-- Collapse detail button -->
-            <button
-                type="button"
-                hx-get="/expenses/{{ expense.id }}/collapse"
-                hx-target="#expense-{{ expense.id }}"
-                hx-swap="outerHTML"
-                class="flex-1 px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors"
-            >
-                Collapse
-            </button>
         </div>
     </div>
 </div>
