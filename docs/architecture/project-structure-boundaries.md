@@ -254,22 +254,38 @@ in `alembic/env.py`.
 - GHCR: `.github/workflows/docker.yml` (build + push)
 - ArgoCD: watches GHCR for new images (external to repo)
 
-**Data Flow (write path):**
+**Data Flow (write path with UoW context manager):**
 
 ```text
-Browser → HTMX POST → web/expenses.py → use_cases/expenses.py → UnitOfWork
-  → ExpensePort.save(actor_id=user_id) → SqlAlchemyExpenseAdapter
-    → compute_changes() + AuditAdapter.log() → Session
-  → UnitOfWork.commit() → Session.commit() → PostgreSQL
+Browser → HTMX POST → web/expenses.py
+  → with uow: [
+      use_cases/expenses.py → UnitOfWork
+        → ExpensePort.save(actor_id=user_id) → SqlAlchemyExpenseAdapter
+          → compute_changes() + AuditAdapter.log() → Session
+    ] → UnitOfWork.__exit__() → Session.commit() → PostgreSQL
+  → Jinja2 template (after context close) → HTML fragment
 ```
 
-**Data Flow (read path — view query):**
+**Data Flow (read path — view query with UoW context manager):**
 
 ```text
-Browser → HTMX GET → web/dashboard.py → queries/dashboard_queries.py
-  → Session.execute(SELECT ...) → PostgreSQL
-  → DashboardData → Jinja2 template → HTML fragment
+Browser → HTMX GET → web/dashboard.py
+  → with uow: [
+      queries/dashboard_queries.py → Session.execute(SELECT ...) → PostgreSQL
+        → DashboardData
+    ] → UnitOfWork.__exit__() → Session.close()
+  → Jinja2 template (after context close) → HTML fragment
 ```
+
+**Session Lifecycle (UoW Context Manager):**
+1. Route handler receives `UnitOfWork` via dependency injection
+2. `with uow:` enters context → `UnitOfWork.__enter__()` called
+3. All reads/writes occur via `uow.adapters.*` or `queries.*(uow.session)`
+4. Context exit triggers `UnitOfWork.__exit__()`:
+   - If no exception: `session.commit()` → changes persisted
+   - If exception raised: `session.rollback()` → changes discarded
+   - Always: `session.close()` → connection returned to pool
+5. Template rendering occurs **after** step 4 — session is closed, no lazy-loading possible
 
 ## Documentation Structure
 

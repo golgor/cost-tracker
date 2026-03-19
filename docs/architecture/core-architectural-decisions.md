@@ -216,8 +216,33 @@ contains `_to_domain()` / `_to_row()` helpers.~~
 **Status:** Accepted
 **Context:** Settlement flow requires atomic operations across expenses + settlements + audit.
 **Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single
-`Session`.
-**Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection.
+`Session`. UnitOfWork implements context manager protocol (`__enter__`/`__exit__`) for automatic transaction management.
+
+**Context Manager Usage:**
+- All UoW operations (reads and writes via adapters) must occur inside `with uow:` block
+- Automatic `commit()` on successful exit (no exception raised)
+- Automatic `rollback()` on exception exit
+- Template rendering must occur **after** the context manager closes to ensure session cleanup
+- Do NOT nest `with uow:` blocks — enforced by implementation (raises error on re-entry)
+
+**Route Handler Pattern:**
+```python
+@router.get("/path")
+async def handler(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    with uow:
+        # All UoW operations inside context manager
+        data = uow.adapter.get_something()
+        # Session flushes/commits automatically on exit
+    
+    # Template rendering AFTER context manager closes
+    return templates.TemplateResponse(...)
+```
+
+**Consequences:** Broad access accepted — discipline via code review. Simplifies dependency injection. Automatic transaction management reduces boilerplate and prevents session leaks. Context manager boundary ensures templates don't access closed sessions.
 
 ### ADR-004: Audit Logging as Domain Concern
 

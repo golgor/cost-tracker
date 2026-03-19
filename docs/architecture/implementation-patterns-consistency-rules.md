@@ -269,6 +269,40 @@ def get_user(request: Request) -> User:
 - Use cases receive `UnitOfWork` as a parameter — no global state, no service locator
 - Current user enters domain as `user_id: int` parameter, not framework-specific request context
 
+**UnitOfWork Context Manager Pattern:**
+
+```python
+# Route handler pattern — all UoW operations in context manager
+@router.get("/dashboard")
+async def dashboard(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    # UoW operations inside context manager
+    with uow:
+        user = uow.users.get_by_id(user_id)
+        group = uow.groups.get_by_user_id(user_id)
+        # Read-only queries also use the session
+        expenses = get_group_expenses(uow.session, group.id)
+        # Session commits automatically on __exit__ (if no exception)
+    
+    # Template rendering AFTER context manager closes
+    # This ensures session is cleaned up before Jinja2 renders
+    return templates.TemplateResponse(
+        request,
+        "dashboard/index.html",
+        {"user": user, "group": group, "expenses": expenses},
+    )
+```
+
+**Critical Rules:**
+- ✅ All reads via `uow.adapters.*` or `queries.*(uow.session)` inside `with uow:` block
+- ✅ All writes via `uow.adapters.*` inside `with uow:` block
+- ✅ Template rendering **outside** the `with uow:` block
+- ❌ Do NOT nest `with uow:` blocks — raises error on re-entry
+- ❌ Do NOT access lazy-loaded relationships after context closes — eager load or pass primitives to template
+
 ## Enforcement Guidelines
 
 **All AI Agents MUST:**
