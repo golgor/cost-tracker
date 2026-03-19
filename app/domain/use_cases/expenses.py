@@ -129,3 +129,39 @@ def update_expense(
         currency=currency,
         actor_id=actor_id,
     )
+
+
+def delete_expense(
+    uow: UnitOfWorkPort,
+    expense_id: int,
+    actor_id: int,
+) -> None:
+    """Delete an expense (only if unsettled).
+
+    Validates:
+    - Expense must exist
+    - Expense must not be settled (immutability check)
+
+    Audit logging: Records deletion with pre-delete snapshot of all fields.
+
+    Args:
+        uow: Unit of work for transaction management
+        expense_id: ID of expense to delete
+        actor_id: User ID performing the deletion
+
+    Raises:
+        DomainError: If expense not found
+        CannotEditSettledExpenseError: If expense is settled (immutable)
+    """
+    # Get existing expense
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise DomainError(f"Expense {expense_id} not found")
+
+    # Immutability check: cannot delete settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        raise CannotEditSettledExpenseError(expense_id)
+
+    # Delete (adapter handles audit logging with snapshot)
+    uow.expenses.delete(expense_id=expense_id, actor_id=actor_id)
+

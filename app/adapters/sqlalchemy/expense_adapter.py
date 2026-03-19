@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
+from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
 from app.adapters.sqlalchemy.orm_models import ExpenseRow
 from app.domain.models import ExpensePublic
 
@@ -111,6 +111,26 @@ class SqlAlchemyExpenseAdapter:
                 entity_id=expense_id,
                 changes=changes,
             )
+
+    def delete(self, expense_id: int, *, actor_id: int) -> None:
+        """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
+        row = self._session.get(ExpenseRow, expense_id)
+        if not row:
+            raise ValueError(f"Expense {expense_id} not found")
+
+        # Capture pre-deletion snapshot (must be before delete)
+        changes = snapshot_deleted(row, exclude={"id", "created_at", "updated_at"})
+
+        self._session.delete(row)
+        self._session.flush()
+
+        self._audit.log(
+            action="expense_deleted",
+            actor_id=actor_id,
+            entity_type="expense",
+            entity_id=expense_id,
+            changes=changes,
+        )
 
     def _to_public(self, row: ExpenseRow) -> ExpensePublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""

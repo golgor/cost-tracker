@@ -24,7 +24,14 @@
         
         <!-- Expense Details -->
         <div class="flex-1 min-w-0">
-            <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
+            <div class="flex items-center gap-2">
+                <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
+                {% if is_settled %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-stone-200 text-stone-700 flex-shrink-0">
+                        Settled
+                    </span>
+                {% endif %}
+            </div>
             <p class="text-xs text-stone-500">
                 Paid by {{ payer_user.display_name if payer_user else 'Unknown User' }}
             </p>
@@ -100,14 +107,24 @@
                 <!-- Edit button for unsettled expenses -->
                 <a
                     href="/expenses/{{ expense.id }}/edit"
-                    class="px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
+                    class="flex-1 px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
                 >
                     Edit Expense
                 </a>
+                <!-- Delete button for unsettled expenses -->
+                <button
+                    type="button"
+                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
+                    hx-get="/expenses/{{ expense.id }}/delete-confirm"
+                    hx-target="body"
+                    hx-swap="beforeend"
+                >
+                    Delete
+                </button>
             {% else %}
-                <!-- Settled expense cannot be edited -->
-                <div class="px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
-                    Settled (Cannot Edit)
+                <!-- Settled expense cannot be edited or deleted -->
+                <div class="flex-1 px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
+                    Settled (Immutable)
                 </div>
             {% endif %}
         </div>

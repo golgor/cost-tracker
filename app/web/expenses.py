@@ -220,22 +220,10 @@ async def create_expense_endpoint(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
-    # Return: new expense card
-    response = templates.TemplateResponse(
-        request,
-        "expenses/_expense_card.html",
-        {
-            "expense": expense,
-            "users": users_dict,
-            "current_user_id": user_id,
-            "is_new": True,  # Trigger highlight animation
-        },
-    )
-
-    # Add HTMX triggers for balance bar refresh and bottom sheet close
-    response.headers["HX-Trigger"] = "expenseCreated"
-    response.headers["HX-Trigger-After-Settle"] = "closeBottomSheet"
-
+    # Redirect to expenses list page
+    response = HTMLResponse(content="", status_code=200)
+    response.headers["HX-Redirect"] = "/expenses"
+    
     return response
 
 
@@ -548,7 +536,7 @@ async def edit_expense_page(
 
     return templates.TemplateResponse(
         request,
-        "expenses/edit.html",
+        "expenses/_edit_modal.html",
         {
             "expense": expense,
             "group": group,
@@ -666,7 +654,7 @@ async def update_expense_endpoint(
 
         return templates.TemplateResponse(
             request,
-            "expenses/edit.html",
+            "expenses/_edit_modal.html",
             {
                 "errors": errors,
                 "expense": expense,
@@ -699,3 +687,67 @@ async def update_expense_endpoint(
     from fastapi.responses import RedirectResponse
 
     return RedirectResponse(url="/expenses?updated=true", status_code=303)
+
+
+@router.get("/expenses/{expense_id}/delete-confirm", response_class=HTMLResponse)
+async def get_delete_confirmation(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Show delete confirmation modal via HTMX."""
+    # Get expense and validate authorization
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Verify user has access to this expense's group
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Render confirmation modal
+    return templates.TemplateResponse(
+        request,
+        "expenses/_delete_confirmation_modal.html",
+        {
+            "expense": expense,
+        },
+    )
+
+
+@router.post("/expenses/{expense_id}/delete")
+async def delete_expense_route(
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Delete an expense and redirect to dashboard."""
+    from fastapi.responses import RedirectResponse
+    from app.domain.use_cases.expenses import delete_expense
+
+    # Authorization check - get expense and validate group membership
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Execute delete use case (includes immutability check)
+    with uow:
+        delete_expense(
+            uow=uow,
+            expense_id=expense_id,
+            actor_id=user_id,
+        )
+
+    # Redirect to expense list (modal closes automatically, page refreshes)
+    return RedirectResponse(url="/expenses", status_code=303)
+

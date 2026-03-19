@@ -167,6 +167,10 @@ class ExpensePort(Protocol):
         """Update expense fields. Only provided fields are updated. Auto-audits."""
         ...
 
+    def delete(self, expense_id: int, *, actor_id: int) -> None:
+        """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
+        ...
+
 
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.
