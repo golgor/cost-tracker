@@ -36,8 +36,12 @@ def get_group_expenses(session: Session, group_id: int) -> list[ExpensePublic]:
     Note: In Epic 4 (Story 4.3), this will filter out gift-status expenses.
     Epic 4 (Story 4.2) will switch to selecting from expense_splits table for split-mode support.
     """
-    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id).order_by(
-        ExpenseRow.date.desc()  # type: ignore[attr-defined]
+    statement = (
+        select(ExpenseRow)
+        .where(ExpenseRow.group_id == group_id)
+        .order_by(
+            ExpenseRow.date.desc()  # type: ignore[attr-defined]
+        )
     )
     rows = session.exec(statement).all()
 

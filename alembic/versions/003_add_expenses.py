@@ -33,8 +33,18 @@ def upgrade() -> None:
         sa.Column("creator_id", sa.Integer(), nullable=False),
         sa.Column("payer_id", sa.Integer(), nullable=False),
         sa.Column("currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
-        sa.Column("split_type", postgresql.ENUM("EVEN", name="splittype", create_type=False), nullable=False, server_default="EVEN"),
-        sa.Column("status", postgresql.ENUM("PENDING", "ACCEPTED", "GIFT", name="expensestatus", create_type=True), nullable=False, server_default="PENDING"),
+        sa.Column(
+            "split_type",
+            postgresql.ENUM("EVEN", name="splittype", create_type=False),
+            nullable=False,
+            server_default="EVEN",
+        ),
+        sa.Column(
+            "status",
+            postgresql.ENUM("PENDING", "ACCEPTED", "GIFT", name="expensestatus", create_type=True),
+            nullable=False,
+            server_default="PENDING",
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

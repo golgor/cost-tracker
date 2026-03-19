@@ -25,7 +25,7 @@ target_metadata = SQLModel.metadata
 
 def process_revision_directives(context, revision, directives):
     """Generate sequential revision IDs (001, 002, etc.)."""
-    if config.cmd_opts and getattr(config.cmd_opts, 'autogenerate', False):
+    if config.cmd_opts and getattr(config.cmd_opts, "autogenerate", False):
         script = directives[0]
         if script.upgrade_ops.is_empty():
             directives[:] = []
@@ -41,7 +41,7 @@ def process_revision_directives(context, revision, directives):
         try:
             num = int(rev.revision)
             max_num = max(max_num, num)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Skip non-numeric revisions
             continue
 
