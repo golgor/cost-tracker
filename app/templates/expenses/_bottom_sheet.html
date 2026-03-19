@@ -17,24 +17,24 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 });
 
 // Close bottom sheet (MEDIUM-4: prevent race condition)
-let closeTimeout = null;
-function closeBottomSheet() {
+// Use window object to avoid redeclaration errors with HTMX
+window.closeBottomSheet = function() {
     const sheet = document.getElementById('expense-bottom-sheet');
     if (sheet) {
         sheet.classList.add('translate-y-full');
         // Clear any pending timeout to avoid race condition
-        if (closeTimeout) {
-            clearTimeout(closeTimeout);
+        if (window._bottomSheetCloseTimeout) {
+            clearTimeout(window._bottomSheetCloseTimeout);
         }
-        closeTimeout = setTimeout(() => {
+        window._bottomSheetCloseTimeout = setTimeout(() => {
             sheet.innerHTML = '';
-            closeTimeout = null;
+            window._bottomSheetCloseTimeout = null;
         }, 300);
     }
-}
+};
 
 // Close bottom sheet on HTMX trigger
 document.body.addEventListener('closeBottomSheet', function() {
-    closeBottomSheet();
+    window.closeBottomSheet();
 });
 </script>
