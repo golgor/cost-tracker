@@ -1,0 +1,40 @@
+<!-- Bottom sheet container (hidden by default) -->
+<div
+    id="expense-bottom-sheet"
+    class="fixed inset-x-0 bottom-0 z-50 transform translate-y-full transition-transform duration-300 md:hidden"
+    data-bottom-sheet="true"
+>
+    <!-- Content loaded via HTMX -->
+</div>
+
+<script>
+// Open bottom sheet when content is loaded
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target.id === 'expense-bottom-sheet') {
+        const sheet = evt.detail.target;
+        sheet.classList.remove('translate-y-full');
+    }
+});
+
+// Close bottom sheet (MEDIUM-4: prevent race condition)
+let closeTimeout = null;
+function closeBottomSheet() {
+    const sheet = document.getElementById('expense-bottom-sheet');
+    if (sheet) {
+        sheet.classList.add('translate-y-full');
+        // Clear any pending timeout to avoid race condition
+        if (closeTimeout) {
+            clearTimeout(closeTimeout);
+        }
+        closeTimeout = setTimeout(() => {
+            sheet.innerHTML = '';
+            closeTimeout = null;
+        }, 300);
+    }
+}
+
+// Close bottom sheet on HTMX trigger
+document.body.addEventListener('closeBottomSheet', function() {
+    closeBottomSheet();
+});
+</script>

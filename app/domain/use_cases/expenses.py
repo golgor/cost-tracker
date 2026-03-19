@@ -52,7 +52,8 @@ def create_expense(
     effective_date = date or date_type.today()
 
     # Create expense with even split (Epic 2 only)
-    expense = ExpensePublic(
+    # Use model_construct to bypass validation since id/created_at/updated_at are DB-generated
+    expense = ExpensePublic.model_construct(
         group_id=group_id,
         amount=amount,
         description=description,
