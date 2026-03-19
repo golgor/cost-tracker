@@ -40,7 +40,7 @@ def get_group_expenses(session: Session, group_id: int) -> list[ExpensePublic]:
         select(ExpenseRow)
         .where(ExpenseRow.group_id == group_id)
         .order_by(
-            ExpenseRow.date.desc()  # type: ignore[attr-defined]
+            ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
         )
     )
     rows = session.exec(statement).all()

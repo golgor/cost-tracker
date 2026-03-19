@@ -88,21 +88,27 @@
             <div class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150">
               <div class="flex items-center gap-4">
                 <!-- Paid-By Badge -->
-                {% if users.get(expense.payer_id) %}
-                  {% set payer = users.get(expense.payer_id) %}
+                {% set payer = users.get(expense.payer_id) %}
+                {% if payer %}
                   {% set initials = (payer.display_name[0] + (payer.display_name.split()[-1][0] if ' ' in payer.display_name else ''))|upper %}
                   <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
                     {% if expense.payer_id == user.id %}bg-amber-500{% else %}bg-teal-500{% endif %}">
                     {{ initials }}
+                  </div>
+                {% else %}
+                  <!-- Fallback for missing user data -->
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">
+                    ?
                   </div>
                 {% endif %}
                 
                 <!-- Expense Details -->
                 <div class="flex-1 min-w-0">
                   <p class="font-medium text-stone-900 truncate">{{ expense.description }}</p>
-                  {% if users.get(expense.payer_id) %}
-                    <p class="text-xs text-stone-500">Paid by {{ users.get(expense.payer_id).display_name }}</p>
-                  {% endif %}
+                  {% set payer = users.get(expense.payer_id) %}
+                  <p class="text-xs text-stone-500">
+                    Paid by {{ payer.display_name if payer else 'Unknown User' }}
+                  </p>
                 </div>
                 
                 <!-- Amount -->

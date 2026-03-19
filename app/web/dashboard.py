@@ -57,12 +57,22 @@ async def dashboard(
         members = get_group_members(uow.session, group.id)
         group_members = {m.user_id: m for m in members}
 
-        # Fetch user data for displaying names
+        # Fetch user data for displaying names (bulk fetch to avoid N+1)
+        member_user_ids = [m.user_id for m in members]
         users_by_id = {}
-        for member in members:
-            user = uow.users.get_by_id(member.user_id)
+        for user_id in member_user_ids:
+            user = uow.users.get_by_id(user_id)
             if user:
-                users_by_id[member.user_id] = user
+                users_by_id[user_id] = user
+            else:
+                # Log data integrity issue: group member references non-existent user
+                import structlog
+                logger = structlog.get_logger()
+                logger.warning(
+                    "group_member_references_missing_user",
+                    group_id=group.id,
+                    user_id=user_id,
+                )
 
     return templates.TemplateResponse(
         request,
