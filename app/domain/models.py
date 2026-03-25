@@ -157,3 +157,22 @@ class ExpensePublic(ExpenseBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class SettlementBase(SQLModel):
+    """Domain base for Settlement — validation + business data. No table."""
+
+    group_id: int
+    reference_id: str = Field(max_length=100)  # e.g., "March 2025"
+    settled_by_id: int  # User who confirmed the settlement
+    total_amount: Decimal = Field(decimal_places=2, ge=0)
+    transfer_from_user_id: int  # User who pays
+    transfer_to_user_id: int  # User who receives
+    settled_at: datetime
+
+
+class SettlementPublic(SettlementBase):
+    """Output schema for Settlement — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime

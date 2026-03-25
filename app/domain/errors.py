@@ -60,3 +60,22 @@ class CannotEditSettledExpenseError(DomainError):
 
 class UserAlreadyActive(DomainError):
     """Raised when attempting to activate an already active user."""
+
+
+class SettlementError(DomainError):
+    """Base error for settlement operations."""
+
+
+class EmptySettlementError(SettlementError):
+    """Raised when attempting to settle with no expenses."""
+
+    def __init__(self) -> None:
+        super().__init__("Please select at least one expense to settle")
+
+
+class StaleExpenseError(SettlementError):
+    """Raised when a selected expense is already settled."""
+
+    def __init__(self, expense_id: int) -> None:
+        super().__init__(f"Expense {expense_id} has already been settled")
+        self.expense_id = expense_id

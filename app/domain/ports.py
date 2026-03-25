@@ -8,6 +8,7 @@ from app.domain.models import (
     GroupPublic,
     MemberRole,
     MembershipPublic,
+    SettlementPublic,
     SplitType,
     UserPublic,
 )
@@ -172,6 +173,36 @@ class ExpensePort(Protocol):
         ...
 
 
+class SettlementPort(Protocol):
+    """Port for settlement persistence operations."""
+
+    def save(
+        self,
+        settlement: SettlementPublic,
+        expense_ids: list[int],
+        *,
+        actor_id: int,
+    ) -> SettlementPublic:
+        """Create a new settlement with linked expenses. Auto-audits."""
+        ...
+
+    def get_by_id(self, settlement_id: int) -> SettlementPublic | None:
+        """Retrieve settlement by database ID."""
+        ...
+
+    def list_by_group(
+        self,
+        group_id: int,
+        limit: int = 100,
+    ) -> list[SettlementPublic]:
+        """List settlements for a group, newest first."""
+        ...
+
+    def get_expense_ids(self, settlement_id: int) -> list[int]:
+        """Get expense IDs linked to a settlement."""
+        ...
+
+
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.
 
@@ -187,6 +218,7 @@ class UnitOfWorkPort(Protocol):
     groups: GroupPort
     expenses: ExpensePort
     audit: AuditPort
+    settlements: SettlementPort
 
     def __enter__(self) -> UnitOfWorkPort:
         """Enter context manager - prepares transaction."""
