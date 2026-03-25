@@ -50,7 +50,7 @@ async def dashboard(
             )
 
         # Fetch dashboard data via read-only queries
-        expenses = get_group_expenses(uow.session, group.id)
+        expenses = get_group_expenses(uow.session, group.id, limit=20)  # Recent 20 for dashboard
         balance_data = calculate_balance(uow.session, group.id, user_id)
         this_month_total = get_this_month_total(uow.session, group.id)
 

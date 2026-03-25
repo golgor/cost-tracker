@@ -187,14 +187,13 @@ def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1):
         uow.session.commit()
 
     # Attempt to update settled expense should raise error
-    with pytest.raises(CannotEditSettledExpenseError) as exc_info:
-        with uow:
-            update_expense(
-                uow=uow,
-                expense_id=expense.id,
-                amount=Decimal("99.99"),
-                actor_id=user1.id,
-            )
+    with pytest.raises(CannotEditSettledExpenseError) as exc_info, uow:
+        update_expense(
+            uow=uow,
+            expense_id=expense.id,
+            amount=Decimal("99.99"),
+            actor_id=user1.id,
+        )
 
     assert exc_info.value.expense_id == expense.id
 
@@ -213,14 +212,13 @@ def test_update_expense_validates_positive_amount(uow, test_group, user1):
             payer_id=user1.id,
         )
 
-    with pytest.raises(DomainError, match="Amount must be greater than zero"):
-        with uow:
-            update_expense(
-                uow=uow,
-                expense_id=expense.id,
-                amount=Decimal("-10.00"),
-                actor_id=user1.id,
-            )
+    with pytest.raises(DomainError, match="Amount must be greater than zero"), uow:
+        update_expense(
+            uow=uow,
+            expense_id=expense.id,
+            amount=Decimal("-10.00"),
+            actor_id=user1.id,
+        )
 
 
 def test_update_expense_validates_future_date(uow, test_group, user1):
@@ -238,14 +236,13 @@ def test_update_expense_validates_future_date(uow, test_group, user1):
         )
 
     future_date = date.today() + timedelta(days=1)
-    with pytest.raises(DomainError, match="cannot be in the future"):
-        with uow:
-            update_expense(
-                uow=uow,
-                expense_id=expense.id,
-                date=future_date,
-                actor_id=user1.id,
-            )
+    with pytest.raises(DomainError, match="cannot be in the future"), uow:
+        update_expense(
+            uow=uow,
+            expense_id=expense.id,
+            date=future_date,
+            actor_id=user1.id,
+        )
 
 
 def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1):

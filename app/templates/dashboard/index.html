@@ -78,7 +78,7 @@
               hx-get="/expenses/capture-form"
               hx-target="#expense-bottom-sheet"
               hx-swap="innerHTML"
-              class="inline-flex md:hidden items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors"
+              class="inline-flex md:hidden items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target shadow-md hover:shadow-lg active:scale-95 transition-all"
             >
               <span>+</span> Add Your First Expense
             </button>
@@ -87,7 +87,7 @@
             <button
               type="button"
               onclick="focusExpenseForm()"
-              class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target transition-colors"
+              class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target shadow-md hover:shadow-lg active:scale-95 transition-all"
             >
               <span>+</span> Add Your First Expense
             </button>

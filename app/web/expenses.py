@@ -1,14 +1,20 @@
 """Expense creation routes for mobile and desktop."""
 
+import contextlib
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, ValidationError
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import (
+    calculate_balance,
+    get_filtered_expenses,
+    get_group_members,
+    get_this_month_total,
+)
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.use_cases.expenses import create_expense
@@ -19,6 +25,52 @@ templates = setup_templates("app/templates")
 
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 UowDep = Annotated[UnitOfWork, Depends(get_uow)]
+
+
+def _parse_date_filters(
+    date_from: str | None, date_to: str | None
+) -> tuple[date | None, date | None]:
+    """Parse date filter strings into date objects, ignoring invalid dates."""
+    date_from_parsed = None
+    date_to_parsed = None
+
+    if date_from:
+        with contextlib.suppress(ValueError):
+            date_from_parsed = date.fromisoformat(date_from)
+
+    if date_to:
+        with contextlib.suppress(ValueError):
+            date_to_parsed = date.fromisoformat(date_to)
+
+    return date_from_parsed, date_to_parsed
+
+
+def _build_expense_count_message(expense_count: int) -> str:
+    """Build human-readable expense count message."""
+    if expense_count == 0:
+        return "No expenses"
+    elif expense_count == 1:
+        return "1 expense"
+    else:
+        return f"{expense_count} expenses"
+
+
+def _has_active_expense_filters(
+    date_from: str | None, date_to: str | None, payer_id: int | None
+) -> bool:
+    """Check if any expense filters are active."""
+    return any([date_from, date_to, payer_id])
+
+
+def _get_currency_symbol(default_currency: str) -> str:
+    """Get currency symbol for a given currency code."""
+    currency_symbols = {
+        "EUR": "€",
+        "USD": "$",
+        "GBP": "£",
+        "SEK": "kr",
+    }
+    return currency_symbols.get(default_currency, default_currency)
 
 
 class CreateExpenseForm(BaseModel):
@@ -57,14 +109,6 @@ async def get_mobile_capture_form(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
-    # Currency symbol mapping
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-
     # Pre-select current user as payer (simplify template logic)
     selected_payer_id = user_id
 
@@ -78,7 +122,7 @@ async def get_mobile_capture_form(
             "current_user_id": user_id,
             "selected_payer_id": selected_payer_id,
             "today": date.today().isoformat(),
-            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 
@@ -134,6 +178,8 @@ async def create_expense_endpoint(
                 errors["payer_id"] = "Selected payer is not a member of your group"
         # Validate with Pydantic if no parse errors
         if not errors:
+            assert amount_decimal is not None, "amount_decimal should not be None when no errors"
+            assert expense_date is not None, "expense_date should not be None when no errors"
             form_data = CreateExpenseForm(
                 amount=amount_decimal,
                 description=description,
@@ -149,7 +195,7 @@ async def create_expense_endpoint(
         form_data = None
 
     # If validation errors, return form with errors (UX-DR24)
-    if errors:
+    if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
         # Get user details
@@ -158,13 +204,6 @@ async def create_expense_endpoint(
             user_obj = uow.users.get_by_id(member.user_id)
             if user_obj:
                 users_dict[member.user_id] = user_obj
-
-        currency_symbols = {
-            "EUR": "€",
-            "USD": "$",
-            "GBP": "£",
-            "SEK": "kr",
-        }
 
         # Preserve payer_id from form data for error case
         selected_payer_id = payer_id if payer_id else user_id
@@ -187,16 +226,14 @@ async def create_expense_endpoint(
                 "current_user_id": user_id,
                 "selected_payer_id": selected_payer_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": currency_symbols.get(
-                    group.default_currency, group.default_currency
-                ),
+                "currency_symbol": _get_currency_symbol(group.default_currency),
             },
             status_code=400,
         )
 
     # Create expense via use case
     with uow:
-        expense = create_expense(
+        create_expense(
             uow=uow,
             group_id=group.id,
             amount=form_data.amount,
@@ -215,23 +252,149 @@ async def create_expense_endpoint(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
-    # Return: new expense card
-    response = templates.TemplateResponse(
+    # Redirect to expenses list page
+    response = HTMLResponse(content="", status_code=200)
+    response.headers["HX-Redirect"] = "/expenses"
+
+    return response
+
+
+@router.get("/expenses", response_class=HTMLResponse)
+async def expenses_list(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+):
+    """Dedicated expenses list page with filtering.
+
+    Shows all expenses for the group with filter controls.
+    Distinct from dashboard which shows recent expenses only.
+    """
+    with uow:
+        # Get user and group
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+        )
+
+        # Get balance data
+        balance_data = calculate_balance(uow.session, group.id, user_id)
+
+        # Get this month total
+        this_month_total = get_this_month_total(uow.session, group.id)
+
+        # Get group members for display and filters
+        members = get_group_members(uow.session, group.id)
+
+        # Get user details for expense cards
+        member_user_ids = [m.user_id for m in members]
+        users_by_id = {}
+        for uid in member_user_ids:
+            user_obj = uow.users.get_by_id(uid)
+            if user_obj:
+                users_by_id[uid] = user_obj
+
+    # Result count message
+    count_message = _build_expense_count_message(len(expenses))
+
+    # Check if any filters are active
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
+
+    return templates.TemplateResponse(
         request,
-        "expenses/_expense_card.html",
+        "expenses/index.html",
         {
-            "expense": expense,
-            "users": users_dict,
+            "user": user,
+            "group": group,
+            "expenses": expenses,
+            "balance": balance_data,
+            "this_month_total": this_month_total,
+            "group_members": members,
+            "users": users_by_id,
             "current_user_id": user_id,
-            "is_new": True,  # Trigger highlight animation
+            "today": date.today().isoformat(),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+            # Filter values for form persistence
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+            "filter_payer_id": payer_id or "",
         },
     )
 
-    # Add HTMX triggers for balance bar refresh and bottom sheet close
-    response.headers["HX-Trigger"] = "expenseCreated"
-    response.headers["HX-Trigger-After-Settle"] = "closeBottomSheet"
 
-    return response
+@router.get("/expenses/filtered", response_class=HTMLResponse)
+async def expenses_filtered(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+):
+    """HTMX endpoint for filtered expense feed partial.
+
+    Returns only the expense feed section for HTMX partial swap.
+    """
+    with uow:
+        # Get user's group
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+        )
+
+        # Get user details
+        members = get_group_members(uow.session, group.id)
+        users_by_id = {}
+        for member in members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_by_id[member.user_id] = user_obj
+
+    # Result count message
+    count_message = _build_expense_count_message(len(expenses))
+
+    # Check if filters are active
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_feed.html",
+        {
+            "expenses": expenses,
+            "users": users_by_id,
+            "current_user_id": user_id,
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+        },
+    )
 
 
 @router.get("/expenses/{expense_id}/detail", response_class=HTMLResponse)
@@ -359,7 +522,7 @@ async def edit_expense_page(
 
     return templates.TemplateResponse(
         request,
-        "expenses/edit.html",
+        "expenses/_edit_modal.html",
         {
             "expense": expense,
             "group": group,
@@ -368,6 +531,7 @@ async def edit_expense_page(
             "today": date.today().isoformat(),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 
@@ -395,13 +559,20 @@ async def update_expense_endpoint(
         form = request.state._cached_form
     else:
         form = await request.form()
-    
+
     amount = form.get("amount", "")
     description = form.get("description", "")
     date_str = form.get("date", "")
     payer_id_str = form.get("payer_id", "")
     currency = form.get("currency", "")
-    
+
+    # Assert form fields are strings (not UploadFile)
+    assert isinstance(amount, str), "Form field 'amount' must be a string"
+    assert isinstance(description, str), "Form field 'description' must be a string"
+    assert isinstance(date_str, str), "Form field 'date' must be a string"
+    assert isinstance(payer_id_str, str), "Form field 'payer_id' must be a string"
+    assert isinstance(currency, str), "Form field 'currency' must be a string"
+
     # Convert payer_id to int
     try:
         payer_id = int(payer_id_str) if payer_id_str else None
@@ -427,7 +598,7 @@ async def update_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except (InvalidOperation, ValueError):
+        except InvalidOperation, ValueError:
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
@@ -442,8 +613,10 @@ async def update_expense_endpoint(
         if expense_date and expense_date > date.today():
             errors["date"] = "Date cannot be in the future"
 
-        # Validate payer_id is a member of the group
-        if payer_id:
+        # Validate payer_id is provided and is a member of the group
+        if payer_id is None:
+            errors["payer_id"] = "Payer is required"
+        else:
             group_members = get_group_members(uow.session, group.id)
             valid_payer_ids = {member.user_id for member in group_members}
             if payer_id not in valid_payer_ids:
@@ -451,6 +624,9 @@ async def update_expense_endpoint(
 
         # Validate with Pydantic if no parse errors
         if not errors:
+            assert amount_decimal is not None, "amount_decimal should not be None when no errors"
+            assert expense_date is not None, "expense_date should not be None when no errors"
+            assert payer_id is not None, "payer_id should not be None when no errors"
             form_data = UpdateExpenseForm(
                 amount=amount_decimal,
                 description=description,
@@ -465,7 +641,7 @@ async def update_expense_endpoint(
         form_data = None
 
     # If validation errors, return form with errors
-    if errors:
+    if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
         # Get user details
@@ -477,7 +653,7 @@ async def update_expense_endpoint(
 
         return templates.TemplateResponse(
             request,
-            "expenses/edit.html",
+            "expenses/_edit_modal.html",
             {
                 "errors": errors,
                 "expense": expense,
@@ -487,6 +663,7 @@ async def update_expense_endpoint(
                 "today": date.today().isoformat(),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
+                "currency_symbol": _get_currency_symbol(group.default_currency),
             },
             status_code=400,
         )
@@ -506,7 +683,72 @@ async def update_expense_endpoint(
             actor_id=user_id,
         )
 
-    # Redirect to dashboard with success message
+    # Redirect to expense list with success message
     from fastapi.responses import RedirectResponse
 
-    return RedirectResponse(url="/?updated=true", status_code=303)
+    return RedirectResponse(url="/expenses?updated=true", status_code=303)
+
+
+@router.get("/expenses/{expense_id}/delete-confirm", response_class=HTMLResponse)
+async def get_delete_confirmation(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Show delete confirmation modal via HTMX."""
+    # Get expense and validate authorization
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Verify user has access to this expense's group
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Render confirmation modal
+    return templates.TemplateResponse(
+        request,
+        "expenses/_delete_confirmation_modal.html",
+        {
+            "expense": expense,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.post("/expenses/{expense_id}/delete")
+async def delete_expense_route(
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Delete an expense and redirect to dashboard."""
+    from fastapi.responses import RedirectResponse
+
+    from app.domain.use_cases.expenses import delete_expense
+
+    # Authorization check - get expense and validate group membership
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Execute delete use case (includes immutability check)
+    with uow:
+        delete_expense(
+            uow=uow,
+            expense_id=expense_id,
+            actor_id=user_id,
+        )
+
+    # Redirect to expense list (modal closes automatically, page refreshes)
+    return RedirectResponse(url="/expenses", status_code=303)

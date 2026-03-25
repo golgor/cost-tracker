@@ -96,6 +96,43 @@ def snapshot_new(
     return changes
 
 
+def snapshot_deleted(
+    row: SQLModel,
+    fields: list[str] | None = None,
+    *,
+    exclude: set[str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Build a changes dict for a deleted row (new is always ``None``).
+
+    Must be called **before** ``session.delete(row)`` to capture the current values.
+
+    Args:
+        row: A mapped SQLModel instance that will be deleted.
+        fields: Optional list of field names to include. When ``None``, all
+            mapper column attributes are included.
+        exclude: Optional set of field names to skip (e.g. ``{"id"}``).
+
+    Returns:
+        A dict keyed by field name, each value being ``{"old": ..., "new": None}``.
+    """
+    state = cast(InstanceState[SQLModel], inspect(row))
+    mapper = state.mapper
+    _exclude = exclude or set()
+
+    if fields is None:
+        fields = [attr.key for attr in mapper.column_attrs if attr.key not in _exclude]
+    else:
+        fields = [f for f in fields if f not in _exclude]
+
+    changes: dict[str, dict[str, Any]] = {}
+    for field in fields:
+        value = getattr(row, field)
+        if value is not None:
+            changes[field] = {"old": _serialize(value), "new": None}
+
+    return changes
+
+
 def _serialize(value: Any) -> Any:
     """Serialize a value for JSON storage in the audit log.
 
