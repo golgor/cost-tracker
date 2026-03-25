@@ -178,6 +178,8 @@ async def create_expense_endpoint(
                 errors["payer_id"] = "Selected payer is not a member of your group"
         # Validate with Pydantic if no parse errors
         if not errors:
+            assert amount_decimal is not None, "amount_decimal should not be None when no errors"
+            assert expense_date is not None, "expense_date should not be None when no errors"
             form_data = CreateExpenseForm(
                 amount=amount_decimal,
                 description=description,
@@ -193,7 +195,7 @@ async def create_expense_endpoint(
         form_data = None
 
     # If validation errors, return form with errors (UX-DR24)
-    if errors:
+    if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
         # Get user details
@@ -564,6 +566,13 @@ async def update_expense_endpoint(
     payer_id_str = form.get("payer_id", "")
     currency = form.get("currency", "")
 
+    # Assert form fields are strings (not UploadFile)
+    assert isinstance(amount, str), "Form field 'amount' must be a string"
+    assert isinstance(description, str), "Form field 'description' must be a string"
+    assert isinstance(date_str, str), "Form field 'date' must be a string"
+    assert isinstance(payer_id_str, str), "Form field 'payer_id' must be a string"
+    assert isinstance(currency, str), "Form field 'currency' must be a string"
+
     # Convert payer_id to int
     try:
         payer_id = int(payer_id_str) if payer_id_str else None
@@ -604,8 +613,10 @@ async def update_expense_endpoint(
         if expense_date and expense_date > date.today():
             errors["date"] = "Date cannot be in the future"
 
-        # Validate payer_id is a member of the group
-        if payer_id:
+        # Validate payer_id is provided and is a member of the group
+        if payer_id is None:
+            errors["payer_id"] = "Payer is required"
+        else:
             group_members = get_group_members(uow.session, group.id)
             valid_payer_ids = {member.user_id for member in group_members}
             if payer_id not in valid_payer_ids:
@@ -613,6 +624,9 @@ async def update_expense_endpoint(
 
         # Validate with Pydantic if no parse errors
         if not errors:
+            assert amount_decimal is not None, "amount_decimal should not be None when no errors"
+            assert expense_date is not None, "expense_date should not be None when no errors"
+            assert payer_id is not None, "payer_id should not be None when no errors"
             form_data = UpdateExpenseForm(
                 amount=amount_decimal,
                 description=description,
@@ -627,7 +641,7 @@ async def update_expense_endpoint(
         form_data = None
 
     # If validation errors, return form with errors
-    if errors:
+    if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
         # Get user details

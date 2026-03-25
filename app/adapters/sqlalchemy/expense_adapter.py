@@ -60,7 +60,7 @@ class SqlAlchemyExpenseAdapter:
         statement = (
             select(ExpenseRow)
             .where(ExpenseRow.group_id == group_id)
-            .order_by(ExpenseRow.date.desc())
+            .order_by(ExpenseRow.date.desc())  # type: ignore
         )
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]

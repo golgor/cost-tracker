@@ -141,7 +141,7 @@ class ExpenseBase(SQLModel):
     """Domain base for Expense — validation + business data. No table."""
 
     group_id: int
-    amount: Decimal = Field(decimal_places=2, ge=Decimal("0.01"))
+    amount: Decimal = Field(decimal_places=2, ge=0.01)
     description: str = Field(max_length=255)
     date: date
     creator_id: int
