@@ -15,6 +15,16 @@
   --color-primary-500: #C27B5A;
   --color-primary-600: #A8654A;
 
+  /* Terracotta — Alias for Primary */
+  --color-terracotta-50: #FDF5F0;
+  --color-terracotta-100: #FCE8DD;
+  --color-terracotta-200: #F8CDBA;
+  --color-terracotta-300: #F3AD8E;
+  --color-terracotta-400: #D4896A;
+  --color-terracotta-500: #C27B5A;
+  --color-terracotta-600: #A8654A;
+  --color-terracotta-700: #8B5239;
+
   /* Surface */
   --color-surface-bg: #FAF8F6;
   --color-surface-card: #FFFFFF;

@@ -52,7 +52,9 @@
         {% include "expenses/_filter_bar.html" %}
         
         <!-- Expense Feed -->
-        {% include "expenses/_expense_feed.html" %}
+        {% with currency_symbol=currency_symbol, csrf_token=csrf_token %}
+          {% include "expenses/_expense_feed.html" %}
+        {% endwith %}
     
       </div>
     </div>

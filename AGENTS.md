@@ -92,6 +92,43 @@ mise run lint:docs        # Lint markdown in docs/
 - Test pattern: `*_test.py`
 - Use fixtures from `conftest.py` for UoW and sessions
 
+### Test Fixture Transaction Management
+**NEVER call `uow.session.commit()` in test fixtures.** Each test runs in a transaction that gets rolled back after the test. Committing early causes:
+- Data leaks between tests
+- Route transaction handling conflicts
+- Inconsistent test state
+
+**Correct pattern for test fixtures:**
+```python
+@pytest.fixture
+def test_entity(uow: UnitOfWork):
+    entity = EntityRow(name="test")
+    uow.session.add(entity)
+    uow.session.flush()  # Get ID without committing
+    return entity
+```
+
+Use `flush()` to get auto-generated IDs without committing the transaction.
+
+### CSRF Middleware & Form Data
+**CRITICAL:** The CSRF middleware consumes the request body with `await request.form()` to validate the CSRF token. Once consumed, FastAPI's `Form()` dependency receives empty data because the body stream can only be read once.
+
+**Solution:** Routes that use form data AND have CSRF protection must check for cached form data:
+
+```python
+# In routes that handle form POSTs with CSRF protection
+cached_form = getattr(request.state, "_cached_form", None)
+if cached_form:
+    # Use cached form data (populated by CSRF middleware)
+    expense_ids_str = cached_form.getlist("expense_ids")
+    expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
+else:
+    # Use FastAPI's Form dependency
+    expense_ids: list[int] = Form(default=[])
+```
+
+**Always test POST routes with CSRF tokens** to catch this issue early.
+
 ### Templates (Jinja2)
 - No complex business logic in templates
 - Only boolean state checks for UI visibility

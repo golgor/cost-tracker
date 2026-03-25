@@ -13,6 +13,7 @@ from app.domain.models import (
     ExpenseStatus,
     GroupBase,
     MemberRole,
+    SettlementBase,
     SplitType,
     UserBase,
     UserRole,
@@ -148,5 +149,48 @@ class ExpenseRow(ExpenseBase, table=True):
     )
 
 
+class SettlementRow(SettlementBase, table=True):
+    """ORM model for Settlement — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "settlements"
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    total_amount: Decimal = Field(
+        sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
+    )
+
+    # Foreign key constraints
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
+        sa.ForeignKeyConstraint(["settled_by_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["transfer_from_user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["transfer_to_user_id"], ["users.id"]),
+        sa.Index("ix_settlements_group_id_settled_at", "group_id", "settled_at"),
+        sa.UniqueConstraint("group_id", "reference_id", name="uq_group_reference"),
+    )
+
+
+class SettlementExpenseRow(SQLModel, table=True):
+    """Join table linking settlements to expenses."""
+
+    __tablename__ = "settlement_expenses"
+
+    settlement_id: int = Field(foreign_key="settlements.id", primary_key=True)
+    expense_id: int = Field(foreign_key="expenses.id", primary_key=True)
+
+
 # Re-export SQLModel for Alembic env.py
-__all__ = ["SQLModel", "UserRow", "GroupRow", "MembershipRow", "AuditRow", "ExpenseRow"]
+__all__ = [
+    "SQLModel",
+    "UserRow",
+    "GroupRow",
+    "MembershipRow",
+    "AuditRow",
+    "ExpenseRow",
+    "SettlementRow",
+    "SettlementExpenseRow",
+]

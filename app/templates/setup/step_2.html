@@ -46,12 +46,14 @@
 
       <!-- Navigation buttons -->
       <div class="flex gap-3">
-        <a href="/setup/step-1" class="flex-1 btn-secondary py-3 text-center font-semibold">
-          ← Back
-        </a>
-        <button type="submit" class="flex-1 btn-primary py-3 font-semibold">
-          Continue →
-        </button>
+        {% set button_text = "← Back" %}
+        {% set button_variant = "secondary" %}
+        {% set button_href = "/setup/step-1" %}
+        <div class="flex-1">{% include "_button.html" %}</div>
+        {% set button_text = "Continue →" %}
+        {% set button_variant = "primary" %}
+        {% set button_type = "submit" %}
+        <div class="flex-1">{% include "_button.html" %}</div>
       </div>
     </form>
   </div>

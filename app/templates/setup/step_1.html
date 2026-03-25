@@ -66,24 +66,16 @@
 
         <!-- Navigation buttons -->
         <div class="flex gap-3">
-            <a
-                href="/auth/logout"
-                class="flex-1 btn-secondary py-3 text-center font-semibold"
-            >
-                ← Back
-            </a>
+            {% set button_text = "← Back" %}
+            {% set button_variant = "secondary" %}
+            {% set button_href = "/auth/logout" %}
+            <div class="flex-1">{% include "_button.html" %}</div>
             <form method="POST" action="/setup/step-1" class="flex-1">
-                <input
-                    type="hidden"
-                    name="_csrf_token"
-                    value="{{ csrf_token }}"
-                />
-                <button
-                    type="submit"
-                    class="w-full btn-primary py-3 text-lg font-semibold"
-                >
-                    Continue →
-                </button>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+                {% set button_text = "Continue →" %}
+                {% set button_variant = "primary" %}
+                {% set button_type = "submit" %}
+                {% include "_button.html" %}
             </form>
         </div>
     </div>

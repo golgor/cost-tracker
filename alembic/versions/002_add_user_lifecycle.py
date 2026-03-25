@@ -73,3 +73,6 @@ def downgrade() -> None:
     op.drop_column("users", "deactivated_at")
     op.drop_column("users", "is_active")
     op.drop_column("users", "role")
+
+    # Note: roletype ENUM is not dropped here - it's shared with 001_initial_schema.py
+    # and will be dropped there when group_memberships table is dropped
