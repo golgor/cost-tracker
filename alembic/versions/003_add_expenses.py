@@ -41,7 +41,9 @@ def upgrade() -> None:
         ),
         sa.Column(
             "status",
-            postgresql.ENUM("PENDING", "ACCEPTED", "GIFT", name="expensestatus", create_type=True),
+            postgresql.ENUM(
+                "PENDING", "ACCEPTED", "GIFT", "SETTLED", name="expensestatus", create_type=True
+            ),
             nullable=False,
             server_default="PENDING",
         ),
@@ -70,4 +72,5 @@ def downgrade() -> None:
     op.drop_index("ix_expenses_group_id", table_name="expenses")
     op.drop_index("ix_expenses_group_id_date", table_name="expenses")
     op.drop_table("expenses")
-    # Note: Enum types are left as-is (PostgreSQL limitation)
+    # Drop ENUM type (must be after table is dropped)
+    op.execute("DROP TYPE IF EXISTS expensestatus")
