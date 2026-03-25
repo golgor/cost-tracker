@@ -16,9 +16,11 @@ from app.domain.errors import (
     DomainError,
     DuplicateHouseholdError,
     DuplicateMembershipError,
+    EmptySettlementError,
     GroupNotFoundError,
     LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
+    StaleExpenseError,
     UnauthorizedGroupActionError,
     UserAlreadyActive,
     UserAlreadyAdminError,
@@ -50,6 +52,8 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     UserAlreadyDeactivated: 409,
     UserAlreadyActive: 409,
     CannotEditSettledExpenseError: 403,
+    EmptySettlementError: 400,
+    StaleExpenseError: 409,
 }
 
 

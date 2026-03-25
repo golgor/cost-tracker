@@ -88,7 +88,7 @@ async def calculate_settlement_total(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),
+    expense_ids: list[int] = Form(default=[]),  # noqa: B008
 ):
     """HTMX endpoint to recalculate total based on selected expenses."""
     # Get user's group
@@ -132,7 +132,7 @@ async def settlement_confirm_page(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Query(default=[]),
+    expense_ids: list[int] = Query(default=[]),  # noqa: B008
 ):
     """Render settlement confirmation page."""
     from app.domain.models import ExpenseStatus
@@ -206,7 +206,7 @@ async def create_settlement(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),
+    expense_ids: list[int] = Form(default=[]),  # noqa: B008
 ):
     """Create settlement and mark expenses as settled."""
     # Get user's group
