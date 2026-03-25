@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Settlement - Cost Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <!-- Page Header -->
+  <header class="mb-8 text-center">
+    <h1 class="text-2xl font-semibold text-stone-800">Confirm Settlement</h1>
+    <p class="text-stone-600 mt-1">Review the details before confirming</p>
+  </header>
+
+  <!-- Settlement Summary Card -->
+  <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 mb-6">
+    <!-- Transfer Direction (Prominent) -->
+    <div class="text-center mb-6 pb-6 border-b border-stone-100">
+      <div class="text-sm text-stone-500 mb-2">Transfer</div>
+      <div class="text-3xl font-bold text-stone-800 mb-2">
+        {{ transfer_message }}
+      </div>
+      <div class="text-4xl font-bold text-amber-600">
+        {{ currency_symbol }}{{ total_amount }}
+      </div>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <span class="text-stone-500 block mb-1">Number of expenses</span>
+        <span class="font-medium text-stone-800">{{ expense_count }} expense{% if expense_count != 1 %}s{% endif %}</span>
+      </div>
+      <div>
+        <span class="text-stone-500 block mb-1">Date</span>
+        <span class="font-medium text-stone-800">Today</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selected Expenses Preview -->
+  <div class="bg-white rounded-lg shadow-sm border border-stone-200 mb-6">
+    <div class="p-4 border-b border-stone-200">
+      <h3 class="font-medium text-stone-800">Selected Expenses</h3>
+    </div>
+    <div class="divide-y divide-stone-100 max-h-64 overflow-y-auto">
+      {% for expense in expenses %}
+      <div class="p-4 flex items-center gap-3">
+        <span class="w-6 h-6 rounded-full bg-clay-500 text-white text-xs font-medium flex items-center justify-center">
+          {{ display_names.get(expense.payer_id, '?')[0] }}
+        </span>
+        <div class="flex-grow min-w-0">
+          <p class="font-medium text-stone-800 truncate">{{ expense.description }}</p>
+          <p class="text-sm text-stone-500">{{ expense.date.strftime('%b %d, %Y') }}</p>
+        </div>
+        <span class="font-semibold text-stone-800">{{ currency_symbol }}{{ expense.amount }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <form action="/settlements" method="post" class="flex flex-col sm:flex-row gap-4">
+    {% for expense_id in expense_ids %}
+    <input type="hidden" name="expense_ids" value="{{ expense_id }}">
+    {% endfor %}
+
+    <a href="/settlements/review" class="flex-1 px-6 py-3 border border-stone-300 rounded-lg text-stone-700 font-medium hover:bg-stone-50 text-center">
+      Go Back
+    </a>
+
+    <button type="submit" class="flex-1 px-6 py-3 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600">
+      Confirm Settlement
+    </button>
+  </form>
+</div>
+{% endblock %}

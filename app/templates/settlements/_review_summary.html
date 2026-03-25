@@ -1,0 +1,22 @@
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+  <!-- Running Total -->
+  <div class="running-total">
+    <span class="text-sm text-stone-600">Total to settle</span>
+    <div class="text-2xl font-bold text-stone-800">{{ currency_symbol }}{{ total_amount | format_decimal }}</div>
+    <div class="text-sm text-amber-600 font-medium">{{ transfer_message }}</div>
+  </div>
+
+  <!-- Expense Count -->
+  <div class="text-sm text-stone-600">
+    {{ expense_count }} expense{% if expense_count != 1 %}s{% endif %} selected
+  </div>
+
+  <!-- Action Button -->
+  <button
+    type="submit"
+    form="settlement-review-form"
+    class="bg-terracotta-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-terracotta-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    {% if expense_count == 0 %}disabled{% endif %}>
+    Proceed to Confirmation
+  </button>
+</div>
