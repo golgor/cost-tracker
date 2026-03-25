@@ -66,17 +66,12 @@
 
         <!-- Navigation buttons -->
         <div class="flex gap-3">
-            {% set button_text = "← Back" %}
-            {% set button_variant = "secondary" %}
-            {% set button_href = "/auth/logout" %}
-            <div class="flex-1">{% include "_button.html" %}</div>
-            <form method="POST" action="/setup/step-1" class="flex-1">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
-                {% set button_text = "Continue →" %}
-                {% set button_variant = "primary" %}
-                {% set button_type = "submit" %}
-                {% include "_button.html" %}
-            </form>
+            {% with button_text="← Back", button_variant="secondary", button_href="/auth/logout" %}
+                <div class="flex-1">{% include "_button.html" %}</div>
+            {% endwith %}
+            {% with button_text="Continue →", button_variant="primary", button_href="/setup/step-2" %}
+                <div class="flex-1">{% include "_button.html" %}</div>
+            {% endwith %}
         </div>
     </div>
 </div>
