@@ -79,6 +79,10 @@ async def settlement_review_page(
             "total_unsettled": total_unsettled,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "total_amount": Decimal("0.00"),
+            "transfer_message": "Select expenses to see total",
+            "expense_count": 0,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -91,6 +95,11 @@ async def calculate_settlement_total(
     expense_ids: list[int] = Form(default=[]),  # noqa: B008
 ):
     """HTMX endpoint to recalculate total based on selected expenses."""
+    # Use cached form data if available (set by CSRF middleware)
+    cached_form = getattr(request.state, "_cached_form", None)
+    if cached_form and not expense_ids:
+        expense_ids_str = cached_form.getlist("expense_ids")
+        expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
     # Get user's group
     group = uow.groups.get_by_user_id(user_id)
     if not group:
@@ -123,6 +132,7 @@ async def calculate_settlement_total(
             "transfer_message": transfer_message,
             "expense_count": len(expenses),
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -175,6 +185,7 @@ async def settlement_confirm_page(
                 "total_unsettled": sum(len(e) for e in grouped_expenses.values()),
                 "display_names": display_names,
                 "currency_symbol": _get_currency_symbol(group.default_currency),
+                "csrf_token": getattr(request.state, "csrf_token", ""),
             },
         )
 
@@ -197,6 +208,7 @@ async def settlement_confirm_page(
             "expense_ids": expense_ids,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -209,6 +221,12 @@ async def create_settlement(
     expense_ids: list[int] = Form(default=[]),  # noqa: B008
 ):
     """Create settlement and mark expenses as settled."""
+    # Use cached form data if available (set by CSRF middleware)
+    cached_form = getattr(request.state, "_cached_form", None)
+    if cached_form and not expense_ids:
+        expense_ids_str = cached_form.getlist("expense_ids")
+        expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
+
     # Get user's group
     group = uow.groups.get_by_user_id(user_id)
     if not group:
@@ -246,6 +264,7 @@ async def create_settlement(
                 "total_unsettled": sum(len(e) for e in grouped_expenses.values()),
                 "display_names": display_names,
                 "currency_symbol": _get_currency_symbol(group.default_currency),
+                "csrf_token": getattr(request.state, "csrf_token", ""),
             },
         )
 
@@ -285,6 +304,7 @@ async def settlement_success_page(
             "expense_count": len(expense_ids),
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -325,6 +345,7 @@ async def settlement_history_page(
             "settlements": settlement_view_models,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -363,5 +384,6 @@ async def settlement_detail_page(
             "expenses": expenses,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )

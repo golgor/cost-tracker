@@ -63,7 +63,6 @@ def test_group(user1, user2, uow: UnitOfWork):
     # Add members
     uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
     uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-    uow.session.commit()
 
     return group
 
@@ -83,7 +82,7 @@ def test_expense(user1, test_group, uow: UnitOfWork):
         status=ExpenseStatus.PENDING,
     )
     uow.session.add(expense)
-    uow.session.commit()
+    uow.session.flush()
     return expense
 
 
@@ -169,7 +168,7 @@ class TestConfirmPage:
 
     def test_confirm_page_validation_no_expenses(self, authenticated_client, user1, test_group):
         """Test confirm page redirects when no expenses selected."""
-        response = authenticated_client.get("/settlements/confirm")
+        response = authenticated_client.get("/settlements/confirm", follow_redirects=False)
 
         assert response.status_code == 303  # Redirect
 

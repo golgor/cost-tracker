@@ -53,7 +53,7 @@
             <span class="text-sm text-stone-500">({{ expenses[-1].date.strftime('%b %d') }} - {{ expenses[0].date.strftime('%b %d') }})</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-sm text-stone-600" id="counter-{{ week_key }}">{{ expenses|length }} of {{ expenses|length }} selected</span>
+            <span class="text-sm text-stone-600" id="counter-{{ week_key }}">0 of {{ expenses|length }} selected</span>
           </div>
         </div>
 
@@ -71,8 +71,7 @@
                 hx-post="/settlements/calculate-total"
                 hx-target="#settlement-summary"
                 hx-trigger="change"
-                hx-include="#settlement-review-form"
-                checked>
+                hx-include="#settlement-review-form">
             </div>
 
             <!-- Expense Info -->
