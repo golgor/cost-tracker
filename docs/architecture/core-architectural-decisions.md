@@ -281,10 +281,10 @@ through domain ports.
 
 ### ADR-007: API Routes Deferred Past MVP
 
-**Status:** Accepted
+**Status:** Accepted (Amended 2026-03-25)
 **Context:** MVP is browser-first. Ports & adapters makes adding API consumers trivial.
-**Decision:** HTMX/page routes for MVP. `/api/v1/` added as separate phase.
-**Consequences:** Faster MVP delivery. No domain changes needed when API is added.
+**Decision:** HTMX/page routes for MVP. `/api/v1/` added as separate phase (target: Week 3-4 for external dashboard integration).
+**Consequences:** Faster MVP delivery. No domain changes needed when API is added. External dashboard (Glance) satisfies dashboard requirements; cost-tracker focuses on expense management UI.
 
 ### ADR-008: Structured Logging with structlog
 
@@ -445,3 +445,15 @@ CREATE TABLE settlements (
 - Natural scoping: "Show me all settlements for this group"
 - Slightly more verbose queries (always filter by group_id)
 - Group context passed through all settlement operations
+
+### ADR-016: Landing Page Simplification
+
+**Status:** Accepted (2026-03-25)
+**Context:** External dashboard (Glance) handles overview needs. Internal dashboard route (`/`) duplicates expense list functionality at `/expenses`. HTMX target conflicts between pages cause navigation errors.
+**Decision:** Remove dashboard expense list. Route `/` permanently redirects (307) to `/expenses`. Navigation removes "Dashboard" link; "Expenses" becomes primary navigation item.
+**Consequences:**
+- Single canonical path for expense management (`/expenses`)
+- Eliminates HTMX target ID conflicts (`#expense-feed` is now the only target)
+- Reduced template surface area (removed `dashboard/index.html`)
+- Simpler mental model: cost-tracker is the expense management interface
+- External dashboard (Glance) provides overview via planned API integration (Week 3-4)

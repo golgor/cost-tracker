@@ -85,13 +85,12 @@ class TestDashboardAccess:
         assert response.status_code == 302
         assert response.headers.get("location") == "/auth/login"
 
-    def test_authenticated_user_can_access_dashboard(self, authenticated_client):
-        """Authenticated user with group can access dashboard."""
-        response = authenticated_client.get("/")
+    def test_authenticated_user_is_redirected_to_expenses(self, authenticated_client):
+        """Authenticated user with group is redirected from / to /expenses."""
+        response = authenticated_client.get("/", follow_redirects=False)
 
-        assert response.status_code == 200
-        assert "Current Balance" in response.text
-        assert "Recent Expenses" in response.text
+        assert response.status_code == 307
+        assert response.headers.get("location") == "/expenses"
 
 
 class TestDashboardBalanceBar:
