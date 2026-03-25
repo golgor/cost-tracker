@@ -43,6 +43,24 @@
       - [ADR-009: Split CI Workflows by Path](./core-architectural-decisions.md#adr-009-split-ci-workflows-by-path)
       - [ADR-010: pydantic-settings for
         Configuration](./core-architectural-decisions.md#adr-010-pydantic-settings-for-configuration)
+      - [ADR-011: SQLModel for Domain and ORM
+        Models](./core-architectural-decisions.md#adr-011-sqlmodel-for-domain-and-orm-models)
+      - [ADR-012: Human-Readable Settlement
+        References](./core-architectural-decisions.md#adr-012-human-readable-settlement-references)
+      - [ADR-013: Soft Immutability for Settled
+        Expenses](./core-architectural-decisions.md#adr-013-soft-immutability-for-settled-expenses)
+      - [ADR-014: Stateless Settlement Review
+        Flow](./core-architectural-decisions.md#adr-014-stateless-settlement-review-flow)
+      - [ADR-015: Group-Centric Settlement
+        Design](./core-architectural-decisions.md#adr-015-group-centric-settlement-design)
+  - [Settlement Patterns (Epic 3)](./settlement-patterns.md)
+    - [Settlement State Machine](./settlement-patterns.md#settlement-state-machine)
+    - [Soft Immutability Enforcement](./settlement-patterns.md#soft-immutability-enforcement)
+    - [Reference ID Generation](./settlement-patterns.md#reference-id-generation)
+    - [Transfer Direction Calculation](./settlement-patterns.md#transfer-direction-calculation)
+    - [Stateless Review Flow](./settlement-patterns.md#stateless-review-flow)
+    - [Group-Centric Design](./settlement-patterns.md#group-centric-design)
+    - [Concurrency Protection](./settlement-patterns.md#concurrency-protection)
   - [Implementation Patterns & Consistency Rules](./implementation-patterns-consistency-rules.md)
     - [Pattern Categories Defined](./implementation-patterns-consistency-rules.md#pattern-categories-defined)
     - [Naming Patterns](./implementation-patterns-consistency-rules.md#naming-patterns)

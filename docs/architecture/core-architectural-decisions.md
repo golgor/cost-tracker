@@ -325,3 +325,123 @@ while maintaining separation via `table=True` flag.
 - ORM models inherit and add DB-specific fields (id, timestamps, foreign keys)
 - Reduced code duplication. Contract tests simplified (inheritance ensures field consistency)
 - Domain now depends on SQLModel (external library) — acceptable per amended ADR-001
+
+### ADR-012: Human-Readable Settlement References
+
+**Status:** Accepted
+**Context:** Settlements need human-readable references for partner communication. "March 2025"
+is more useful than "settle_abc123".
+**Decision:**
+
+- Settlement reference format: `{Month} {Year}` (e.g., "March 2025")
+- Uniqueness scope: per-group + per-month (one settlement per month per group)
+- Auto-generated from settlement date, not user-editable
+- Stored as `reference: str` in `SettlementRow`
+
+**Consequences:**
+
+- Simple, readable references for 2-person settlement flow
+- Constraint: `UNIQUE(group_id, reference)` enforces one settlement per month
+- Month names use full English names (January-December), capitalized
+- Displayed in settlement history, detail views, and audit logs
+
+### ADR-013: Soft Immutability for Settled Expenses
+
+**Status:** Accepted
+**Context:** Once expenses are included in a settlement, they should not be modified. Hard DB
+constraints prevent admin override for corrections.
+**Decision:**
+
+- No database-level constraints preventing edits to settled expenses
+- Immutability enforced at application layer (use cases + UI)
+- Check `expense.settlement_id` before allowing edits/deletes
+- Raise `ExpenseAlreadySettledError` if modification attempted
+
+**Implementation:**
+
+```python
+# use_cases/expenses.py
+def update_expense(
+    uow: UnitOfWork, expense_id: int, actor_id: int, ...
+):
+    expense = uow.expenses.get_by_id(expense_id)
+    if expense.settlement_id is not None:
+        raise ExpenseAlreadySettledError(expense_id)
+    # ... proceed with update
+```
+
+**Consequences:**
+
+- Simpler schema (no complex constraint)
+- Admin can override if necessary (direct DB access for corrections)
+- UI shows "Settled" badge, disables edit buttons for settled expenses
+- Audit trail maintains history if changes are made
+
+### ADR-014: Stateless Settlement Review Flow
+
+**Status:** Accepted
+**Context:** Settlement review involves selecting which expenses to include, reviewing totals,
+then confirming. Draft persistence adds complexity unnecessary for a 2-person app.
+**Decision:**
+
+- No draft settlement records stored in database
+- Review state held entirely in form state (checkboxes for expense selection)
+- Two-step flow: (1) Review page with selectable expenses, (2) Confirm page with summary
+- POST on confirm creates settlement atomically via UoW
+
+**Flow:**
+
+```text
+GET /settlements/review
+  → Show all unsettled expenses with checkboxes
+  → "Select All" / individual selection
+  → Form POSTs selected expense_ids to /settlements/confirm
+
+GET /settlements/confirm?expense_ids=1,2,3
+  → Calculate totals, transfer direction, net amount
+  → Display summary: "Alice owes Bob $123.45"
+  → Form POSTs to /settlements (create)
+
+POST /settlements
+  → Use case validates expenses still unsettled
+  → Creates settlement, links expenses, creates audit log
+  → Redirect to settlement detail
+```
+
+**Consequences:**
+
+- Simpler implementation (no draft state machine)
+- No orphaned draft records
+- Selection lost on browser refresh (acceptable trade-off)
+- Suitable for 2-person use case where both partners settle together
+
+### ADR-015: Group-Centric Settlement Design
+
+**Status:** Accepted
+**Context:** Current MVP supports single group per user, but future multi-group support requires
+clean scoping.
+**Decision:**
+
+- All settlements belong to a group: `settlements.group_id` FK (not null)
+- All settlement queries filter by `group_id`
+- Settlement use cases receive `group_id` as parameter
+- Reference IDs are unique per group, not globally
+
+**Database Schema:**
+
+```sql
+CREATE TABLE settlements (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES groups(id),
+    reference VARCHAR(255) NOT NULL,  -- e.g., "March 2025"
+    ...
+    UNIQUE(group_id, reference)
+);
+```
+
+**Consequences:**
+
+- Future multi-group support requires no schema changes
+- Natural scoping: "Show me all settlements for this group"
+- Slightly more verbose queries (always filter by group_id)
+- Group context passed through all settlement operations

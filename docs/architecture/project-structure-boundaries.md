@@ -277,6 +277,89 @@ Browser → HTMX GET → web/dashboard.py
   → Jinja2 template (after context close) → HTML fragment
 ```
 
+**Settlement Flow (stateless review + atomic creation):**
+
+```text
+Browser → GET /settlements/review → web/settlements.py
+  → with uow: [
+      queries/settlement_queries.py → list_unsettled_expenses(group_id)
+    ] → Session.close()
+  → templates/settlements/review.html (checkbox form)
+
+Browser → POST /settlements/confirm → web/settlements.py
+  → Parse expense_ids from form
+  → with uow: [
+      uow.expenses.get_for_settlement(expense_ids) → validate all unsettled
+      Calculate totals, splits, transfer direction
+    ] → Session.close()
+  → templates/settlements/confirm.html (summary + confirm form)
+
+Browser → POST /settlements → web/settlements.py
+  → Parse expense_ids + confirm data
+  → with uow: [
+      use_cases/settlements.confirm_settlement(uow, expense_ids, actor_id, group_id)
+        → Validate expenses still available (SELECT FOR UPDATE)
+        → uow.settlements.create(reference=generate_reference(), group_id=group_id, actor_id)
+        → uow.expenses.link_to_settlement(expense_ids, settlement_id, actor_id)
+        → uow.commit()
+    ] → UnitOfWork.__exit__() → Session.commit()
+  → Redirect to /settlements/{id}
+```
+
+**Settlement State Machine:**
+
+```text
+┌─────────────┐     ┌──────────────┐     ┌──────────┐
+│   PENDING   │────▶│   REVIEWING  │────▶│ SETTLED  │
+│ (expenses)  │     │ (form state) │     │ (locked) │
+└─────────────┘     └──────────────┘     └──────────┘
+       │                                            │
+       │ settlement_id assigned                     │ Soft immutability:
+       │ (by adapter on link)                       │ - UI disables edits
+       └────────────────────────────────────────────┘ - Use case raises error
+```
+
+**Transfer Direction Calculation:**
+
+Location: `app/domain/splits.py` (pure function)
+
+```python
+def calculate_settlement_transfer(
+    user1_balance: Decimal,  # Positive = owes money, Negative = owed money
+    user2_balance: Decimal,
+    user1_id: int,
+    user2_id: int,
+) -> TransferDirection:
+    """
+    Returns who pays whom based on net group balance.
+    If user1 has positive balance (owes), user1 pays user2.
+    """
+    net = user1_balance + user2_balance  # Should be ~0 for 2-person
+    if user1_balance > 0:
+        return TransferDirection(from_user=user1_id, to_user=user2_id, amount=user1_balance)
+    elif user2_balance > 0:
+        return TransferDirection(from_user=user2_id, to_user=user1_id, amount=user2_balance)
+    else:
+        return TransferDirection(from_user=None, to_user=None, amount=Decimal("0"))  # No transfer
+```
+
+**Expense Selection Pattern:**
+
+1. **Review page** displays all unsettled expenses for group
+2. Each expense has checkbox with `name="expense_ids" value="{expense.id}"`
+3. JavaScript-less form submission works (standard HTML checkboxes)
+4. HTMX-enhanced: `hx-post="/settlements/confirm" hx-target="#content"`
+5. Confirm page receives `expense_ids` list, validates, shows summary
+6. Confirm form includes hidden inputs re-posting the same `expense_ids`
+7. Final POST creates settlement atomically
+
+**Key Implementation Notes:**
+
+- **Concurrency protection**: `SELECT FOR UPDATE` on expenses during settlement creation
+- **Idempotency**: Unique constraint on `(group_id, reference)` prevents duplicate monthly settlements
+- **Validation**: Confirm page re-validates that all selected expenses are still unsettled (race condition protection)
+- **Audit**: Settlement creation + expense linking both audited with `actor_id`
+
 **Session Lifecycle (UoW Context Manager):**
 
 1. Route handler receives `UnitOfWork` via dependency injection
