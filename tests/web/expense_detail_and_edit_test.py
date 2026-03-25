@@ -136,7 +136,7 @@ class TestExpenseDetailView:
         response = authenticated_client.get(f"/expenses/{test_expense.id}/detail")
 
         assert response.status_code == 200
-        assert "Settled (Cannot Edit)" in response.text
+        assert "Settled (Immutable)" in response.text
         assert "Edit Expense" not in response.text
 
 

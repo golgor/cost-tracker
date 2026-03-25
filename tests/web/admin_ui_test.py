@@ -101,7 +101,6 @@ def regular_client(regular_user, uow):
 class TestProfileDropdownAdminMenuItem:
     """Test profile dropdown shows/hides admin menu item based on role."""
 
-    @pytest.mark.skip(reason="TODO: Admin menu UI not yet implemented in base template (Story 1-8)")
     def test_admin_user_sees_admin_menu_item_desktop(self, authenticated_client: TestClient):
         """Admin users see 'Admin' menu item in desktop profile dropdown."""
         response = authenticated_client.get("/")
@@ -113,7 +112,6 @@ class TestProfileDropdownAdminMenuItem:
         # Check the text "Admin" appears in the navigation area
         assert ">Admin<" in html or "Admin" in html
 
-    @pytest.mark.skip(reason="TODO: Admin menu UI not yet implemented in base template (Story 1-8)")
     def test_regular_user_does_not_see_admin_menu_item_desktop(self, regular_client: TestClient):
         """Regular users do not see 'Admin' menu item."""
         response = regular_client.get("/")
@@ -123,7 +121,6 @@ class TestProfileDropdownAdminMenuItem:
         # Admin link should not be present
         assert 'href="/admin/users"' not in html
 
-    @pytest.mark.skip(reason="TODO: Admin menu UI not yet implemented in base template (Story 1-8)")
     def test_profile_dropdown_structure_for_admin(
         self, authenticated_client: TestClient, admin_user
     ):
