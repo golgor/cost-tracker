@@ -285,12 +285,21 @@ async def expenses_list(
 
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
-        expenses = get_filtered_expenses(
+        unsettled_expenses = get_filtered_expenses(
             uow.session,
             group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
+            status="PENDING",
+        )
+        settled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="SETTLED",
         )
 
         # Get balance data
@@ -311,7 +320,8 @@ async def expenses_list(
                 users_by_id[uid] = user_obj
 
     # Result count message
-    count_message = _build_expense_count_message(len(expenses))
+    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    count_message = _build_expense_count_message(total_expenses)
 
     # Check if any filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -322,7 +332,8 @@ async def expenses_list(
         {
             "user": user,
             "group": group,
-            "expenses": expenses,
+            "unsettled_expenses": unsettled_expenses,
+            "settled_expenses": settled_expenses,
             "balance": balance_data,
             "this_month_total": this_month_total,
             "group_members": members,
@@ -362,12 +373,21 @@ async def expenses_filtered(
 
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
-        expenses = get_filtered_expenses(
+        unsettled_expenses = get_filtered_expenses(
             uow.session,
             group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
+            status="PENDING",
+        )
+        settled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="SETTLED",
         )
 
         # Get user details
@@ -379,7 +399,8 @@ async def expenses_filtered(
                 users_by_id[member.user_id] = user_obj
 
     # Result count message
-    count_message = _build_expense_count_message(len(expenses))
+    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    count_message = _build_expense_count_message(total_expenses)
 
     # Check if filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -388,11 +409,13 @@ async def expenses_filtered(
         request,
         "expenses/_expense_feed.html",
         {
-            "expenses": expenses,
+            "unsettled_expenses": unsettled_expenses,
+            "settled_expenses": settled_expenses,
             "users": users_by_id,
             "current_user_id": user_id,
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 

@@ -1,6 +1,6 @@
 <!-- Expense card with expand/collapse behavior (UX-DR25) -->
 <div
-    class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150 cursor-pointer {% if is_new %}animate-highlight{% endif %}"
+    class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150 cursor-pointer {% if is_new %}animate-highlight{% endif %} {% if is_settled %}opacity-60{% endif %}"
     id="expense-{{ expense.id }}"
     hx-get="/expenses/{{ expense.id }}/detail"
     hx-target="#expense-{{ expense.id }}"
@@ -21,18 +21,26 @@
                 ?
             </div>
         {% endif %}
-        
+
         <!-- Expense Details -->
         <div class="flex-1 min-w-0">
-            <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
+            <p class="font-medium {% if is_settled %}text-stone-500{% else %}text-stone-900{% endif %} truncate">{{ expense.description or "Expense" }}</p>
             {% set payer = users.get(expense.payer_id) if users else None %}
             <p class="text-xs text-stone-500">
                 Paid by {{ payer.display_name if payer else 'Unknown User' }}
             </p>
         </div>
-        
-        <!-- Amount -->
-        <p class="text-lg font-semibold text-stone-900 flex-shrink-0">€{{ expense.amount|format_decimal }}</p>
+
+        <!-- Amount and Status -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <p class="text-lg font-semibold {% if is_settled %}text-stone-500{% else %}text-stone-900{% endif %}">{{ expense.currency|currency_symbol }}{{ expense.amount|format_decimal }}</p>
+            {% if is_settled %}
+                <!-- Green checkmark for settled expenses -->
+                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            {% endif %}
+        </div>
     </div>
 </div>
 

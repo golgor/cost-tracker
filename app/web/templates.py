@@ -2,7 +2,11 @@
 
 from fastapi.templating import Jinja2Templates
 
-from app.web.filters import format_decimal, strftime_filter
+from app.web.filters import (
+    currency_symbol_filter,
+    format_decimal,
+    strftime_filter,
+)
 
 
 def setup_templates(directory: str) -> Jinja2Templates:
@@ -14,4 +18,5 @@ def setup_templates(directory: str) -> Jinja2Templates:
     templates = Jinja2Templates(directory=directory)
     templates.env.filters["format_decimal"] = format_decimal
     templates.env.filters["strftime"] = strftime_filter
+    templates.env.filters["currency_symbol"] = currency_symbol_filter
     return templates

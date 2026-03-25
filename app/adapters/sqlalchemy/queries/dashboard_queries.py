@@ -55,6 +55,7 @@ def get_filtered_expenses(
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
+    status: str | None = None,
     limit: int = 100,
 ) -> list[ExpensePublic]:
     """Fetch expenses with optional filters, sorted newest first.
@@ -65,6 +66,7 @@ def get_filtered_expenses(
         date_from: Optional start date (inclusive)
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
+        status: Optional expense status filter (e.g., 'PENDING', 'SETTLED')
         limit: Maximum number of results (default 100)
 
     Returns:
@@ -81,6 +83,8 @@ def get_filtered_expenses(
         statement = statement.where(ExpenseRow.date <= date_to)
     if payer_id:
         statement = statement.where(ExpenseRow.payer_id == payer_id)
+    if status:
+        statement = statement.where(ExpenseRow.status == status)
 
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
