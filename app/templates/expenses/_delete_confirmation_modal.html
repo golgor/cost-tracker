@@ -34,6 +34,7 @@
 
     <!-- Actions -->
     <form method="post" action="/expenses/{{ expense.id }}/delete" class="px-6 pb-6 flex gap-3">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
       <button
         type="button"
         class="flex-1 px-4 py-2 text-stone-700 text-center bg-white border border-stone-300 rounded-lg hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"

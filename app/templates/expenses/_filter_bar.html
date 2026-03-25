@@ -3,7 +3,7 @@
   <button
     type="button"
     class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-stone-50 transition-colors"
-    onclick="document.getElementById('filter-section').classList.toggle('hidden')"
+    onclick="toggleFilters()"
   >
     <div class="flex items-center gap-2">
       <span class="text-base font-semibold text-stone-900">Filters</span>
@@ -101,3 +101,12 @@
     </form>
   </div>
 </div>
+
+<script>
+function toggleFilters() {
+  const section = document.getElementById('filter-section');
+  const chevron = document.getElementById('filter-chevron');
+  section.classList.toggle('hidden');
+  chevron.classList.toggle('rotate-180');
+}
+</script>

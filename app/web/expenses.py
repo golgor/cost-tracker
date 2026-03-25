@@ -1,6 +1,7 @@
 """Expense creation routes for mobile and desktop."""
 
-from datetime import date, timedelta
+import contextlib
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
@@ -24,6 +25,52 @@ templates = setup_templates("app/templates")
 
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 UowDep = Annotated[UnitOfWork, Depends(get_uow)]
+
+
+def _parse_date_filters(
+    date_from: str | None, date_to: str | None
+) -> tuple[date | None, date | None]:
+    """Parse date filter strings into date objects, ignoring invalid dates."""
+    date_from_parsed = None
+    date_to_parsed = None
+
+    if date_from:
+        with contextlib.suppress(ValueError):
+            date_from_parsed = date.fromisoformat(date_from)
+
+    if date_to:
+        with contextlib.suppress(ValueError):
+            date_to_parsed = date.fromisoformat(date_to)
+
+    return date_from_parsed, date_to_parsed
+
+
+def _build_expense_count_message(expense_count: int) -> str:
+    """Build human-readable expense count message."""
+    if expense_count == 0:
+        return "No expenses"
+    elif expense_count == 1:
+        return "1 expense"
+    else:
+        return f"{expense_count} expenses"
+
+
+def _has_active_expense_filters(
+    date_from: str | None, date_to: str | None, payer_id: int | None
+) -> bool:
+    """Check if any expense filters are active."""
+    return any([date_from, date_to, payer_id])
+
+
+def _get_currency_symbol(default_currency: str) -> str:
+    """Get currency symbol for a given currency code."""
+    currency_symbols = {
+        "EUR": "€",
+        "USD": "$",
+        "GBP": "£",
+        "SEK": "kr",
+    }
+    return currency_symbols.get(default_currency, default_currency)
 
 
 class CreateExpenseForm(BaseModel):
@@ -62,14 +109,6 @@ async def get_mobile_capture_form(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
-    # Currency symbol mapping
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-
     # Pre-select current user as payer (simplify template logic)
     selected_payer_id = user_id
 
@@ -83,7 +122,7 @@ async def get_mobile_capture_form(
             "current_user_id": user_id,
             "selected_payer_id": selected_payer_id,
             "today": date.today().isoformat(),
-            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 
@@ -164,13 +203,6 @@ async def create_expense_endpoint(
             if user_obj:
                 users_dict[member.user_id] = user_obj
 
-        currency_symbols = {
-            "EUR": "€",
-            "USD": "$",
-            "GBP": "£",
-            "SEK": "kr",
-        }
-
         # Preserve payer_id from form data for error case
         selected_payer_id = payer_id if payer_id else user_id
 
@@ -192,16 +224,14 @@ async def create_expense_endpoint(
                 "current_user_id": user_id,
                 "selected_payer_id": selected_payer_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": currency_symbols.get(
-                    group.default_currency, group.default_currency
-                ),
+                "currency_symbol": _get_currency_symbol(group.default_currency),
             },
             status_code=400,
         )
 
     # Create expense via use case
     with uow:
-        expense = create_expense(
+        create_expense(
             uow=uow,
             group_id=group.id,
             amount=form_data.amount,
@@ -223,7 +253,7 @@ async def create_expense_endpoint(
     # Redirect to expenses list page
     response = HTMLResponse(content="", status_code=200)
     response.headers["HX-Redirect"] = "/expenses"
-    
+
     return response
 
 
@@ -237,7 +267,7 @@ async def expenses_list(
     payer_id: int | None = Query(None),
 ):
     """Dedicated expenses list page with filtering.
-    
+
     Shows all expenses for the group with filter controls.
     Distinct from dashboard which shows recent expenses only.
     """
@@ -251,21 +281,8 @@ async def expenses_list(
         if not group:
             raise HTTPException(status_code=404, detail="User has no group")
 
-        # Parse date filters if provided
-        date_from_parsed = None
-        date_to_parsed = None
-        if date_from:
-            try:
-                date_from_parsed = date.fromisoformat(date_from)
-            except ValueError:
-                pass  # Ignore invalid dates
-        if date_to:
-            try:
-                date_to_parsed = date.fromisoformat(date_to)
-            except ValueError:
-                pass  # Ignore invalid dates
-
-        # Get filtered expenses
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
         expenses = get_filtered_expenses(
             uow.session,
             group.id,
@@ -276,7 +293,7 @@ async def expenses_list(
 
         # Get balance data
         balance_data = calculate_balance(uow.session, group.id, user_id)
-        
+
         # Get this month total
         this_month_total = get_this_month_total(uow.session, group.id)
 
@@ -291,25 +308,11 @@ async def expenses_list(
             if user_obj:
                 users_by_id[uid] = user_obj
 
-    # Currency symbol mapping
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-
     # Result count message
-    expense_count = len(expenses)
-    if expense_count == 0:
-        count_message = "No expenses"
-    elif expense_count == 1:
-        count_message = "1 expense"
-    else:
-        count_message = f"{expense_count} expenses"
+    count_message = _build_expense_count_message(len(expenses))
 
     # Check if any filters are active
-    has_active_filters = any([date_from, date_to, payer_id])
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
 
     return templates.TemplateResponse(
         request,
@@ -324,7 +327,7 @@ async def expenses_list(
             "users": users_by_id,
             "current_user_id": user_id,
             "today": date.today().isoformat(),
-            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
@@ -346,7 +349,7 @@ async def expenses_filtered(
     payer_id: int | None = Query(None),
 ):
     """HTMX endpoint for filtered expense feed partial.
-    
+
     Returns only the expense feed section for HTMX partial swap.
     """
     with uow:
@@ -355,21 +358,8 @@ async def expenses_filtered(
         if not group:
             raise HTTPException(status_code=404, detail="User has no group")
 
-        # Parse date filters
-        date_from_parsed = None
-        date_to_parsed = None
-        if date_from:
-            try:
-                date_from_parsed = date.fromisoformat(date_from)
-            except ValueError:
-                pass
-        if date_to:
-            try:
-                date_to_parsed = date.fromisoformat(date_to)
-            except ValueError:
-                pass
-
-        # Get filtered expenses
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
         expenses = get_filtered_expenses(
             uow.session,
             group.id,
@@ -387,16 +377,10 @@ async def expenses_filtered(
                 users_by_id[member.user_id] = user_obj
 
     # Result count message
-    expense_count = len(expenses)
-    if expense_count == 0:
-        count_message = "No expenses"
-    elif expense_count == 1:
-        count_message = "1 expense"
-    else:
-        count_message = f"{expense_count} expenses"
+    count_message = _build_expense_count_message(len(expenses))
 
     # Check if filters are active
-    has_active_filters = any([date_from, date_to, payer_id])
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
 
     return templates.TemplateResponse(
         request,
@@ -545,6 +529,7 @@ async def edit_expense_page(
             "today": date.today().isoformat(),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 
@@ -572,13 +557,13 @@ async def update_expense_endpoint(
         form = request.state._cached_form
     else:
         form = await request.form()
-    
+
     amount = form.get("amount", "")
     description = form.get("description", "")
     date_str = form.get("date", "")
     payer_id_str = form.get("payer_id", "")
     currency = form.get("currency", "")
-    
+
     # Convert payer_id to int
     try:
         payer_id = int(payer_id_str) if payer_id_str else None
@@ -604,7 +589,7 @@ async def update_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except (InvalidOperation, ValueError):
+        except InvalidOperation, ValueError:
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
@@ -664,6 +649,7 @@ async def update_expense_endpoint(
                 "today": date.today().isoformat(),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
+                "currency_symbol": _get_currency_symbol(group.default_currency),
             },
             status_code=400,
         )
@@ -713,6 +699,7 @@ async def get_delete_confirmation(
         "expenses/_delete_confirmation_modal.html",
         {
             "expense": expense,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
 
@@ -725,6 +712,7 @@ async def delete_expense_route(
 ):
     """Delete an expense and redirect to dashboard."""
     from fastapi.responses import RedirectResponse
+
     from app.domain.use_cases.expenses import delete_expense
 
     # Authorization check - get expense and validate group membership
@@ -750,4 +738,3 @@ async def delete_expense_route(
 
     # Redirect to expense list (modal closes automatically, page refreshes)
     return RedirectResponse(url="/expenses", status_code=303)
-

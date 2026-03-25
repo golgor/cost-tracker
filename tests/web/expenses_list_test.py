@@ -79,7 +79,7 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
     today = date.today()
     yesterday = today - timedelta(days=1)
     last_week = today - timedelta(days=7)
-    
+
     # Create expenses using ORM directly
     uow.session.add(
         ExpenseRow(
@@ -94,7 +94,7 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
             status=ExpenseStatus.PENDING,
         )
     )
-    
+
     uow.session.add(
         ExpenseRow(
             group_id=test_group.id,
@@ -108,7 +108,7 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
             status=ExpenseStatus.PENDING,
         )
     )
-    
+
     uow.session.add(
         ExpenseRow(
             group_id=test_group.id,
@@ -123,7 +123,7 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
         )
     )
     uow.session.commit()
-    
+
     return {
         "user1_id": user1.id,
         "user2_id": user2.id,
@@ -141,9 +141,7 @@ class TestExpensesListRoute:
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
 
-    def test_get_expenses_with_no_expense_shows_empty_state(
-        self, authenticated_client, test_group
-    ):
+    def test_get_expenses_with_no_expense_shows_empty_state(self, authenticated_client, test_group):
         """Test that expenses list with zero expenses shows contextual empty state."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
@@ -155,38 +153,47 @@ class TestExpensesListRoute:
         """Test that GET /expenses shows all expenses sorted by date descending."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
-        
+
         # Check all expenses are present
         assert "Groceries" in response.text
         assert "Electricity bill" in response.text
         assert "Restaurant" in response.text
-        
+
         # Check amounts are displayed
         assert "25.50" in response.text
         assert "100.00" in response.text
         assert "45.75" in response.text
 
+        # Verify sorting order: newer expenses should appear before older ones
+        groceries_pos = response.text.find("Groceries")
+        electricity_pos = response.text.find("Electricity bill")
+        restaurant_pos = response.text.find("Restaurant")
+
+        # Newest first: Groceries (today) < Electricity (yesterday) < Restaurant (last week)
+        assert groceries_pos < electricity_pos, (
+            "Groceries (today) should appear before Electricity bill (yesterday)"
+        )
+        assert electricity_pos < restaurant_pos, (
+            "Electricity bill (yesterday) should appear before Restaurant (last week)"
+        )
+
     def test_get_expenses_shows_filter_bar(self, authenticated_client):
         """Test that expenses list displays filter bar UI."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
-        
+
         # Check for filter controls
         assert "filter" in response.text.lower() or "Filter" in response.text
 
-    def test_get_expenses_shows_desktop_sidebar_form(
-        self, authenticated_client
-    ):
+    def test_get_expenses_shows_desktop_sidebar_form(self, authenticated_client):
         """Test that desktop view includes the expense sidebar form."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
-        
+
         # Check for desktop sidebar form presence
         assert "expense-sidebar" in response.text or "Add Expense" in response.text
 
-    def test_expenses_navigation_item_exists(
-        self, authenticated_client
-    ):
+    def test_expenses_navigation_item_exists(self, authenticated_client):
         """Test that 'Expenses' navigation item is accessible."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
@@ -196,9 +203,7 @@ class TestExpensesListRoute:
 class TestExpensesFilterRoute:
     """Tests for expense filtering functionality."""
 
-    def test_filter_by_date_range(
-        self, authenticated_client, expenses_list_setup
-    ):
+    def test_filter_by_date_range(self, authenticated_client, expenses_list_setup):
         """Test that filtering by date range works correctly."""
         # Filter to only show today's expenses
         today_str = expenses_list_setup["today"].isoformat()
@@ -206,44 +211,38 @@ class TestExpensesFilterRoute:
             f"/expenses/filtered?date_from={today_str}&date_to={today_str}"
         )
         assert response.status_code == 200
-        
+
         # Should show today's expense
         assert "Groceries" in response.text
-        
+
         # Should not show older expenses
         assert "Electricity bill" not in response.text
         assert "Restaurant" not in response.text
 
-    def test_filter_by_payer(
-        self, authenticated_client, expenses_list_setup
-    ):
+    def test_filter_by_payer(self, authenticated_client, expenses_list_setup):
         """Test that filtering by payer_id works correctly."""
         user1_id = expenses_list_setup["user1_id"]
-        response = authenticated_client.get(
-            f"/expenses/filtered?payer_id={user1_id}"
-        )
+        response = authenticated_client.get(f"/expenses/filtered?payer_id={user1_id}")
         assert response.status_code == 200
-        
+
         # Should show expenses paid by user1
         assert "Groceries" in response.text
         assert "Restaurant" in response.text
-        
+
         # Should not show expenses paid by user2
         assert "Electricity bill" not in response.text
 
-    def test_filter_combined_date_and_payer(
-        self, authenticated_client, expenses_list_setup
-    ):
+    def test_filter_combined_date_and_payer(self, authenticated_client, expenses_list_setup):
         """Test that combining date and payer filters works correctly."""
         user1_id = expenses_list_setup["user1_id"]
         last_week_str = expenses_list_setup["last_week"].isoformat()
         today_str = expenses_list_setup["today"].isoformat()
-        
+
         response = authenticated_client.get(
             f"/expenses/filtered?date_from={last_week_str}&date_to={today_str}&payer_id={user1_id}"
         )
         assert response.status_code == 200
-        
+
         # Should show user1's expenses
         assert "Groceries" in response.text
         assert "Restaurant" in response.text
@@ -258,7 +257,7 @@ class TestExpensesFilterRoute:
             f"/expenses/filtered?date_from={future_date.isoformat()}&date_to={future_date.isoformat()}"
         )
         assert response.status_code == 200
-        
+
         # Should show empty state message
         assert "No expenses match" in response.text or "no results" in response.text.lower()
 
@@ -266,25 +265,19 @@ class TestExpensesFilterRoute:
 class TestExpenseResultCount:
     """Tests for expense result count display."""
 
-    def test_result_count_displays_total_expenses(
-        self, authenticated_client, expenses_list_setup
-    ):
+    def test_result_count_displays_total_expenses(self, authenticated_client, expenses_list_setup):
         """Test that expense count displays correctly."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
-        
+
         # Should display count (3 expenses created in fixture)
         assert "3 expense" in response.text or "3 Expense" in response.text
 
-    def test_result_count_updates_with_filters(
-        self, authenticated_client, expenses_list_setup
-    ):
+    def test_result_count_updates_with_filters(self, authenticated_client, expenses_list_setup):
         """Test that result count updates based on active filters."""
         user1_id = expenses_list_setup["user1_id"]
-        response = authenticated_client.get(
-            f"/expenses/filtered?payer_id={user1_id}"
-        )
+        response = authenticated_client.get(f"/expenses/filtered?payer_id={user1_id}")
         assert response.status_code == 200
-        
+
         # Should display filtered count (user1 paid for 2 expenses)
         assert "2 expense" in response.text or "2 Expense" in response.text

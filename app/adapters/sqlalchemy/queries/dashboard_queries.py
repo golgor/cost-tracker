@@ -58,7 +58,7 @@ def get_filtered_expenses(
     limit: int = 100,
 ) -> list[ExpensePublic]:
     """Fetch expenses with optional filters, sorted newest first.
-    
+
     Args:
         session: Database session
         group_id: Group ID to fetch expenses for
@@ -66,14 +66,14 @@ def get_filtered_expenses(
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
         limit: Maximum number of results (default 100)
-    
+
     Returns:
         List of expenses matching filters
-    
+
     Used by /expenses route for filtered expense list viewing.
     """
     statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id)
-    
+
     # Apply optional filters
     if date_from:
         statement = statement.where(ExpenseRow.date >= date_from)
@@ -81,11 +81,11 @@ def get_filtered_expenses(
         statement = statement.where(ExpenseRow.date <= date_to)
     if payer_id:
         statement = statement.where(ExpenseRow.payer_id == payer_id)
-    
+
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
     ).limit(limit)
-    
+
     rows = session.exec(statement).all()
     return [_expense_row_to_public(row) for row in rows]
 

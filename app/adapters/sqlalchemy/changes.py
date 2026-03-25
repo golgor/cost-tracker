@@ -110,7 +110,7 @@ def snapshot_deleted(
         row: A mapped SQLModel instance that will be deleted.
         fields: Optional list of field names to include. When ``None``, all
             mapper column attributes are included.
-        exclude: Optional set of field names to skip (e.g. ``{"id"}``).  
+        exclude: Optional set of field names to skip (e.g. ``{"id"}``).
 
     Returns:
         A dict keyed by field name, each value being ``{"old": ..., "new": None}``.

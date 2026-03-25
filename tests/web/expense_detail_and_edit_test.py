@@ -1,6 +1,5 @@
 """Tests for expense detail and edit routes."""
 
-from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -92,9 +91,7 @@ def authenticated_client(user1, test_group, uow):
 class TestExpenseDetailView:
     """Test expense detail expand/collapse functionality."""
 
-    def test_expense_detail_loads_with_full_info(
-        self, authenticated_client, test_expense, user1
-    ):
+    def test_expense_detail_loads_with_full_info(self, authenticated_client, test_expense, user1):
         """Test detail view shows all expense information."""
         response = authenticated_client.get(f"/expenses/{test_expense.id}/detail")
 
@@ -115,9 +112,7 @@ class TestExpenseDetailView:
         assert "Created by" in response.text
         assert "Paid by" in response.text
 
-    def test_expense_collapse_returns_to_card_view(
-        self, authenticated_client, test_expense
-    ):
+    def test_expense_collapse_returns_to_card_view(self, authenticated_client, test_expense):
         """Test collapse returns simple card view."""
         response = authenticated_client.get(f"/expenses/{test_expense.id}/collapse")
 
@@ -126,9 +121,7 @@ class TestExpenseDetailView:
         assert "Created by" not in response.text
         assert "Split (Even)" not in response.text
 
-    def test_settled_expense_shows_no_edit_button(
-        self, authenticated_client, test_expense, uow
-    ):
+    def test_settled_expense_shows_no_edit_button(self, authenticated_client, test_expense, uow):
         """Test settled expenses show read-only indicator."""
         # Mark expense as settled
         from app.adapters.sqlalchemy.orm_models import ExpenseRow
@@ -150,9 +143,7 @@ class TestExpenseDetailView:
 class TestExpenseEditPage:
     """Test expense edit page and update functionality."""
 
-    def test_edit_page_loads_with_expense_data(
-        self, authenticated_client, test_expense
-    ):
+    def test_edit_page_loads_with_expense_data(self, authenticated_client, test_expense):
         """Test edit page pre-populates form with expense data."""
         response = authenticated_client.get(f"/expenses/{test_expense.id}/edit")
 
@@ -161,9 +152,7 @@ class TestExpenseEditPage:
         assert str(test_expense.amount) in response.text
         assert test_expense.description in response.text
 
-    def test_edit_form_submission_updates_expense(
-        self, authenticated_client, test_expense, uow
-    ):
+    def test_edit_form_submission_updates_expense(self, authenticated_client, test_expense, uow):
         """Test form submission updates expense successfully."""
         # Get CSRF token
         get_response = authenticated_client.get(f"/expenses/{test_expense.id}/edit")
@@ -190,9 +179,7 @@ class TestExpenseEditPage:
         assert updated.amount == Decimal("123.45")
         assert updated.description == "Updated via form"
 
-    def test_edit_form_validation_errors_preserve_data(
-        self, authenticated_client, test_expense
-    ):
+    def test_edit_form_validation_errors_preserve_data(self, authenticated_client, test_expense):
         """Test validation errors preserve form data (UX-DR24)."""
         # Get CSRF token
         get_response = authenticated_client.get(f"/expenses/{test_expense.id}/edit")
@@ -211,13 +198,13 @@ class TestExpenseEditPage:
         )
 
         assert response.status_code == 400
-        assert "Amount must be greater than zero" in response.text or "greater than 0" in response.text
+        assert (
+            "Amount must be greater than zero" in response.text or "greater than 0" in response.text
+        )
         # Form should preserve data
         assert "Test" in response.text
 
-    def test_cannot_edit_settled_expense_via_form(
-        self, authenticated_client, test_expense, uow
-    ):
+    def test_cannot_edit_settled_expense_via_form(self, authenticated_client, test_expense, uow):
         """Test settled expense edit returns error (FR7, FR20)."""
         # Mark expense as settled
         from app.adapters.sqlalchemy.orm_models import ExpenseRow
@@ -242,9 +229,7 @@ class TestExpenseEditPage:
 
         assert response.status_code == 403
 
-    def test_settled_expense_edit_page_shows_warning(
-        self, authenticated_client, test_expense, uow
-    ):
+    def test_settled_expense_edit_page_shows_warning(self, authenticated_client, test_expense, uow):
         """Test settled expense edit page shows warning banner."""
         # Mark expense as settled
         from app.adapters.sqlalchemy.orm_models import ExpenseRow

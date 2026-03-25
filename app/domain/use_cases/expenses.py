@@ -164,4 +164,3 @@ def delete_expense(
 
     # Delete (adapter handles audit logging with snapshot)
     uow.expenses.delete(expense_id=expense_id, actor_id=actor_id)
-
