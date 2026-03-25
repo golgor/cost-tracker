@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlmodel import Session, func, select
 
 from app.adapters.sqlalchemy.orm_models import ExpenseRow, MembershipRow
-from app.domain.models import ExpensePublic, MembershipPublic
+from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
 
 
 def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]:
@@ -110,8 +110,10 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
     - Exclude GIFT status expenses (Story 4.3)
     - Handle multiple members (currently assumes 2 partners)
     """
-    # Fetch all unsettled expenses for this group
-    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id)
+    # Fetch all pending expenses for this group (settled expenses don't affect balance)
+    statement = select(ExpenseRow).where(
+        ExpenseRow.group_id == group_id, ExpenseRow.status == ExpenseStatus.PENDING
+    )
     expenses = session.exec(statement).all()
 
     # Get group members to identify partner

@@ -1,15 +1,8 @@
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import (
-    calculate_balance,
-    get_group_expenses,
-    get_group_members,
-    get_this_month_total,
-)
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.web.templates import setup_templates
@@ -22,14 +15,14 @@ UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(
+async def root_redirect(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
 ):
-    """Dashboard page showing balance bar, expense feed, and widgets.
+    """Redirect root to expenses list.
 
-    Performance: Must load in under 1 second (NFR1).
+    The dashboard has been removed; /expenses is the canonical expense management page.
     """
     with uow:
         user_domain = uow.users.get_by_id(user_id)
@@ -49,54 +42,5 @@ async def dashboard(
                 },
             )
 
-        # Fetch dashboard data via read-only queries
-        expenses = get_group_expenses(uow.session, group.id, limit=20)  # Recent 20 for dashboard
-        balance_data = calculate_balance(uow.session, group.id, user_id)
-        this_month_total = get_this_month_total(uow.session, group.id)
-
-        # Get all group members for badge colors/names in expense feed
-        members = get_group_members(uow.session, group.id)
-
-        # Fetch user data for displaying names (bulk fetch to avoid N+1)
-        member_user_ids = [m.user_id for m in members]
-        users_by_id = {}
-        for user_id in member_user_ids:
-            user = uow.users.get_by_id(user_id)
-            if user:
-                users_by_id[user_id] = user
-            else:
-                # Log data integrity issue: group member references non-existent user
-                import structlog
-
-                logger = structlog.get_logger()
-                logger.warning(
-                    "group_member_references_missing_user",
-                    group_id=group.id,
-                    user_id=user_id,
-                )
-
-    # Currency symbol mapping for form display
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-
-    return templates.TemplateResponse(
-        request,
-        "dashboard/index.html",
-        {
-            "user": user_domain,
-            "group": group,
-            "expenses": expenses,
-            "balance": balance_data,
-            "this_month_total": this_month_total,
-            "group_members": members,  # List of MembershipPublic for forms
-            "users": users_by_id,
-            "current_user_id": user_id,  # For form defaults
-            "today": date.today().isoformat(),  # For date field default
-            "currency_symbol": currency_symbols.get(group.default_currency, group.default_currency),
-            "csrf_token": getattr(request.state, "csrf_token", ""),
-        },
-    )
+    # Redirect to expenses list
+    return RedirectResponse(url="/expenses", status_code=307)
