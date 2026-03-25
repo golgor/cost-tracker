@@ -198,6 +198,10 @@ class SettlementPort(Protocol):
         """List settlements for a group, newest first."""
         ...
 
+    def reference_exists(self, group_id: int, reference_id: str) -> bool:
+        """Check if a reference_id already exists for the group (unbounded query)."""
+        ...
+
     def get_expense_ids(self, settlement_id: int) -> list[int]:
         """Get expense IDs linked to a settlement."""
         ...

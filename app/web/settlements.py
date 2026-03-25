@@ -262,6 +262,15 @@ async def settlement_success_page(
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
 
+    # Get user's group for authorization and currency
+    group = uow.groups.get_by_user_id(user_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="You are not a member of any group")
+
+    # Security check: verify user belongs to settlement's group
+    if settlement.group_id != group.id:
+        raise HTTPException(status_code=403, detail="You don't have access to this settlement")
+
     # Get display names
     display_names = _get_user_display_names(uow, settlement.group_id)
 
@@ -275,7 +284,7 @@ async def settlement_success_page(
             "settlement": settlement,
             "expense_count": len(expense_ids),
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol("EUR"),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )
 
@@ -328,11 +337,20 @@ async def settlement_detail_page(
     uow: UowDep,
 ):
     """Render settlement detail with included expenses."""
+    # Get user's group first for authorization
+    group = uow.groups.get_by_user_id(user_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="You are not a member of any group")
+
     result = get_settlement_with_expenses(uow.session, settlement_id)
     if not result:
         raise HTTPException(status_code=404, detail="Settlement not found")
 
     settlement, expenses = result
+
+    # Security check: verify user belongs to settlement's group
+    if settlement.group_id != group.id:
+        raise HTTPException(status_code=403, detail="You don't have access to this settlement")
 
     # Get display names
     display_names = _get_user_display_names(uow, settlement.group_id)
@@ -344,6 +362,6 @@ async def settlement_detail_page(
             "settlement": settlement,
             "expenses": expenses,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol("EUR"),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
         },
     )

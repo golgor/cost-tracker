@@ -3,7 +3,7 @@
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.adapters.sqlalchemy.orm_models import ExpenseRow, SettlementExpenseRow, SettlementRow
 from app.domain.models import ExpensePublic, ExpenseStatus
@@ -46,12 +46,12 @@ def get_unsettled_expenses_grouped(
 def get_unsettled_count(session: Session, group_id: int) -> int:
     """Count unsettled expenses for dashboard widget."""
     statement = (
-        select(ExpenseRow)
+        select(func.count())
+        .select_from(ExpenseRow)
         .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.status != ExpenseStatus.SETTLED)
     )
-    rows = session.exec(statement).all()
-    return len(rows)
+    return session.exec(statement).scalar_one()
 
 
 def get_oldest_unsettled_date(session: Session, group_id: int) -> date | None:

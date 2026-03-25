@@ -97,6 +97,16 @@ class SqlAlchemySettlementAdapter:
         rows = self._session.exec(statement).all()
         return list(rows)
 
+    def reference_exists(self, group_id: int, reference_id: str) -> bool:
+        """Check if a reference_id already exists for the group (unbounded query)."""
+        statement = (
+            select(SettlementRow)
+            .where(SettlementRow.group_id == group_id)
+            .where(SettlementRow.reference_id == reference_id)
+        )
+        result = self._session.exec(statement).first()
+        return result is not None
+
     def _to_public(self, row: SettlementRow) -> SettlementPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
         assert row.id is not None

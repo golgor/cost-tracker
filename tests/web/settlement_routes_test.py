@@ -1,14 +1,90 @@
 """Tests for settlement web routes."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
 from starlette.testclient import TestClient
 
+from app.adapters.sqlalchemy.orm_models import (
+    ExpenseRow,
+    GroupRow,
+    MembershipRow,
+    UserRow,
+)
+from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import ExpenseStatus
+from app.domain.models import ExpenseStatus, MemberRole, SplitType, UserRole
 from app.main import app
+
+
+@pytest.fixture
+def user1(uow: UnitOfWork):
+    """Create first test user using direct SQLAlchemy."""
+    user = UserRow(
+        oidc_sub="user1@test.com",
+        email="user1@test.com",
+        display_name="Alice",
+        role=UserRole.USER,
+    )
+    uow.session.add(user)
+    uow.session.flush()
+    return user
+
+
+@pytest.fixture
+def user2(uow: UnitOfWork):
+    """Create second test user using direct SQLAlchemy."""
+    user = UserRow(
+        oidc_sub="user2@test.com",
+        email="user2@test.com",
+        display_name="Bob",
+        role=UserRole.USER,
+    )
+    uow.session.add(user)
+    uow.session.flush()
+    return user
+
+
+@pytest.fixture
+def test_group(user1, user2, uow: UnitOfWork):
+    """Create a test group with two members using direct SQLAlchemy."""
+    # Create group directly using SQLAlchemy for test data setup
+    group = GroupRow(
+        name="Test Household",
+        singleton_guard=True,
+        default_currency="EUR",
+        default_split_type=SplitType.EVEN,
+    )
+    uow.session.add(group)
+    uow.session.flush()
+
+    # Add members
+    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
+    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
+    uow.session.commit()
+
+    return group
+
+
+@pytest.fixture
+def test_expense(user1, test_group, uow: UnitOfWork):
+    """Create a test expense directly via SQLAlchemy."""
+    expense = ExpenseRow(
+        group_id=test_group.id,
+        amount=Decimal("100.00"),
+        description="Test expense",
+        date=date.today(),
+        creator_id=user1.id,
+        payer_id=user1.id,
+        currency="EUR",
+        split_type=SplitType.EVEN,
+        status=ExpenseStatus.PENDING,
+    )
+    uow.session.add(expense)
+    uow.session.commit()
+    return expense
 
 
 @pytest.fixture
@@ -22,58 +98,6 @@ def authenticated_client(user1, test_group, uow):
 
     yield client
     app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def user1(uow):
-    """Create first test user."""
-    with uow:
-        user = uow.users.save(
-            oidc_sub="user1@test.com",
-            email="user1@test.com",
-            display_name="Alice",
-            actor_id=1,
-        )
-    return user
-
-
-@pytest.fixture
-def user2(uow):
-    """Create second test user."""
-    with uow:
-        user = uow.users.save(
-            oidc_sub="user2@test.com",
-            email="user2@test.com",
-            display_name="Bob",
-            actor_id=2,
-        )
-    return user
-
-
-@pytest.fixture
-def test_group(user1, user2, uow):
-    """Create a test group with two members."""
-    with uow:
-        group = uow.groups.save(name="Test Household", actor_id=user1.id)
-        uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
-    return group
-
-
-@pytest.fixture
-def test_expense(user1, test_group, uow):
-    """Create a test expense."""
-    from app.domain.use_cases.expenses import create_expense
-
-    with uow:
-        expense = create_expense(
-            uow=uow,
-            group_id=test_group.id,
-            amount=Decimal("100.00"),
-            description="Test expense",
-            creator_id=user1.id,
-            payer_id=user1.id,
-        )
-    return expense
 
 
 class TestSettlementReviewPage:
@@ -102,18 +126,29 @@ class TestCalculateTotalEndpoint:
 
     def test_calculate_total_htmx(self, authenticated_client, user1, test_group, test_expense):
         """Test HTMX endpoint returns updated total."""
+        # Get CSRF token from review page
+        get_response = authenticated_client.get("/settlements/review")
+        csrf_token = get_response.cookies.get("csrf_token")
+
         response = authenticated_client.post(
             "/settlements/calculate-total",
-            data={"expense_ids": str(test_expense.id)},
+            data={
+                "expense_ids": str(test_expense.id),
+                "_csrf_token": csrf_token,
+            },
         )
 
         assert response.status_code == 200
 
     def test_calculate_total_no_selection(self, authenticated_client, user1, test_group):
         """Test HTMX endpoint with no selection."""
+        # Get CSRF token from review page
+        get_response = authenticated_client.get("/settlements/review")
+        csrf_token = get_response.cookies.get("csrf_token")
+
         response = authenticated_client.post(
             "/settlements/calculate-total",
-            data={},
+            data={"_csrf_token": csrf_token},
         )
 
         assert response.status_code == 200
@@ -146,9 +181,16 @@ class TestCreateSettlement:
         self, authenticated_client, uow, user1, test_group, test_expense
     ):
         """Test creating a settlement marks expenses as settled."""
+        # Get CSRF token from review page
+        get_response = authenticated_client.get("/settlements/review")
+        csrf_token = get_response.cookies.get("csrf_token")
+
         response = authenticated_client.post(
             "/settlements",
-            data={"expense_ids": str(test_expense.id)},
+            data={
+                "expense_ids": str(test_expense.id),
+                "_csrf_token": csrf_token,
+            },
             follow_redirects=False,
         )
 
@@ -175,6 +217,14 @@ class TestSettlementHistory:
 
 class TestSettlementDetail:
     """Tests for settlement detail page."""
+
+    def test_detail_page_requires_authentication(self):
+        """Unauthenticated users are redirected to login."""
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/settlements/1", follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.headers.get("location") == "/auth/login"
 
     def test_detail_page_not_found(self, authenticated_client, user1, test_group):
         """Test detail page returns 404 for non-existent settlement."""

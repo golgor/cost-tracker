@@ -130,20 +130,18 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
     """Generate unique human-readable reference ID.
 
     Format: "March 2025" or "March 2025 (2)" if duplicate exists.
+    Uses unbounded query to ensure uniqueness across all settlements.
     """
     now = datetime.now(UTC)
     base = now.strftime("%B %Y")  # e.g., "March 2025"
 
-    # Check for existing settlements with same base reference
-    existing = uow.settlements.list_by_group(group_id)
-    existing_refs = {s.reference_id for s in existing}
-
-    if base not in existing_refs:
+    # Check for existing settlements with same base reference using unbounded query
+    if not uow.settlements.reference_exists(group_id, base):
         return base
 
     # Find next available number
     counter = 2
-    while f"{base} ({counter})" in existing_refs:
+    while uow.settlements.reference_exists(group_id, f"{base} ({counter})"):
         counter += 1
 
     return f"{base} ({counter})"
