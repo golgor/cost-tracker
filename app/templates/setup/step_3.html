@@ -51,14 +51,12 @@
       </div>
 
       <div class="flex gap-3">
-        {% set button_text = "← Back" %}
-        {% set button_variant = "secondary" %}
-        {% set button_href = "/setup/step-2" %}
-        <div class="flex-1">{% include "_button.html" %}</div>
-        {% set button_text = "Start Tracking →" %}
-        {% set button_variant = "primary" %}
-        {% set button_type = "submit" %}
-        <div class="flex-1">{% include "_button.html" %}</div>
+        {% with button_text="← Back", button_variant="secondary", button_href="/setup/step-2" %}
+            <div class="flex-1">{% include "_button.html" %}</div>
+        {% endwith %}
+        {% with button_text="Start Tracking →", button_variant="primary", button_type="submit" %}
+            <div class="flex-1">{% include "_button.html" %}</div>
+        {% endwith %}
       </div>
     </form>
   </div>
