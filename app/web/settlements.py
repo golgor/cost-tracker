@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
@@ -88,9 +88,12 @@ async def calculate_settlement_total(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),
+    expense_ids: list[int] | None = None,
 ):
     """HTMX endpoint to recalculate total based on selected expenses."""
+    if expense_ids is None:
+        expense_ids = []
+
     cached_form = getattr(request.state, "_cached_form", None)
     if cached_form and not expense_ids:
         expense_ids_str = cached_form.getlist("expense_ids")
@@ -132,14 +135,19 @@ async def calculate_settlement_total(
     )
 
 
-@router.get("/settlements/confirm", response_class=HTMLResponse)
+@router.post("/settlements/confirm", response_class=HTMLResponse)
 async def settlement_confirm_page(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Query(default=[]),
 ):
     """Render settlement confirmation page."""
+    cached_form = getattr(request.state, "_cached_form", None)
+    expense_ids: list[int] = []
+    if cached_form:
+        expense_ids_str = cached_form.getlist("expense_ids")
+        expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
+
     if not expense_ids:
         return RedirectResponse(url="/settlements/review", status_code=303)
 
@@ -219,9 +227,12 @@ async def create_settlement(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),
+    expense_ids: list[int] | None = None,
 ):
     """Create settlement and mark expenses as settled."""
+    if expense_ids is None:
+        expense_ids = []
+
     cached_form = getattr(request.state, "_cached_form", None)
     if cached_form and not expense_ids:
         expense_ids_str = cached_form.getlist("expense_ids")
