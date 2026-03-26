@@ -6,6 +6,7 @@
         hx-swap="outerHTML"
         class="space-y-2"
     >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <textarea
             name="content"
             rows="3"

@@ -127,6 +127,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
+            ExpenseRow.status != ExpenseStatus.GIFT,
         )
     )
     results = session.exec(statement).all()
@@ -168,6 +169,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
+            ExpenseRow.status != ExpenseStatus.GIFT,
         )
         .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))
     )

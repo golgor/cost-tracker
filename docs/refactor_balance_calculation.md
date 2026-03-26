@@ -515,7 +515,7 @@ def calculate_settlement(expenses, user_display_names):
 
 - **Payer absorbs rounding error**: Arrange input so payer is first in member_ids list
 - **Keep Money operations simple**: Implement only what balance calculation needs
-- **Folder structure**: Use `app/domain/splits/` package as recommended by scappy
+- **Folder structure**: Use `app/domain/splits/` package
 - **Test naming**: Follow convention `tests/domain/balance_test.py`
 - **No persistence changes**: This is pure domain logic refactoring
 - **Backward compatibility**: Phase 3 integration maintains existing API signatures initially

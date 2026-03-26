@@ -2,7 +2,7 @@
 
 import contextlib
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any
 
@@ -19,7 +19,7 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.errors import DomainError, InvalidShareError
-from app.domain.models import ExpensePublic, ExpenseStatus, SplitType
+from app.domain.models import ExpensePublic, ExpenseStatus, SplitType, UserPublic
 from app.domain.splits import (
     EvenSplitStrategy,
     ExactSplitStrategy,
@@ -80,6 +80,53 @@ def _get_currency_symbol(default_currency: str) -> str:
         "SEK": "kr",
     }
     return currency_symbols.get(default_currency, default_currency)
+
+
+def _render_expense_notes_section(
+    request: Request,
+    expense_id: int,
+    user_id: int,
+    uow: UnitOfWork,
+) -> HTMLResponse:
+    """Render expense notes section HTML with context.
+
+    Fetches notes, builds users dict from note authors and group members,
+    and returns TemplateResponse with csrf_token for HTMX forms.
+    """
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    group = uow.groups.get_by_id(expense.group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    notes = uow.expenses.list_notes_by_expense(expense_id)
+    users_dict: dict[int, UserPublic] = {}
+
+    for note in notes:
+        author = uow.users.get_by_id(note.author_id)
+        if author:
+            users_dict[note.author_id] = author
+
+    group_members = get_group_members(uow.session, group.id)
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_notes.html",
+        {
+            "notes": notes,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "expense": expense,
+            "is_settled": expense.status == ExpenseStatus.SETTLED,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
 
 
 class CreateExpenseForm(BaseModel):
@@ -989,46 +1036,15 @@ async def get_expense_notes(
 
     Returns notes section HTML.
     """
-    # Get expense and validate
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-
-    # Authorization
-    user = uow.users.get_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
     group = uow.groups.get_by_user_id(user_id)
     if not group or group.id != expense.group_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get notes
-    notes = uow.expenses.list_notes_by_expense(expense_id)
-    users_dict = {}
-    for note in notes:
-        author = uow.users.get_by_id(note.author_id)
-        if author:
-            users_dict[note.author_id] = author
-
-    # Get all group members for display
-    group_members = get_group_members(uow.session, group.id)
-    for member in group_members:
-        user_obj = uow.users.get_by_id(member.user_id)
-        if user_obj:
-            users_dict[member.user_id] = user_obj
-
-    return templates.TemplateResponse(
-        request,
-        "expenses/_expense_notes.html",
-        {
-            "notes": notes,
-            "users": users_dict,
-            "current_user_id": user_id,
-            "expense": expense,
-            "is_settled": expense.status == ExpenseStatus.SETTLED,
-        },
-    )
+    return _render_expense_notes_section(request, expense_id, user_id, uow)
 
 
 @router.post("/expenses/{expense_id}/notes", response_class=HTMLResponse)
@@ -1077,41 +1093,16 @@ async def add_expense_note(
 
     with uow:
         note = ExpenseNotePublic(
-            id=0,  # Will be set by database
+            id=0,
             expense_id=expense_id,
             author_id=user_id,
             content=content,
-            created_at=date.today(),  # Placeholder, will be set by database
-            updated_at=date.today(),  # Placeholder, will be set by database
+            created_at=datetime.now(),  # Placeholder, will be set by database
+            updated_at=datetime.now(),  # Placeholder, will be set by database
         )
         uow.expenses.save_note(note, actor_id=user_id)
 
-    # Get updated notes list
-    notes = uow.expenses.list_notes_by_expense(expense_id)
-    users_dict = {}
-    for note in notes:
-        author = uow.users.get_by_id(note.author_id)
-        if author:
-            users_dict[note.author_id] = author
-
-    # Get all group members for display
-    group_members = get_group_members(uow.session, group.id)
-    for member in group_members:
-        user_obj = uow.users.get_by_id(member.user_id)
-        if user_obj:
-            users_dict[member.user_id] = user_obj
-
-    return templates.TemplateResponse(
-        request,
-        "expenses/_expense_notes.html",
-        {
-            "notes": notes,
-            "users": users_dict,
-            "current_user_id": user_id,
-            "expense": expense,
-            "is_settled": expense.status == ExpenseStatus.SETTLED,
-        },
-    )
+    return _render_expense_notes_section(request, expense_id, user_id, uow)
 
 
 @router.get("/expenses/notes/{note_id}/edit-form", response_class=HTMLResponse)
@@ -1200,36 +1191,9 @@ async def edit_expense_note(
 
     # Update note
     with uow:
-        updated_note = uow.expenses.update_note(note_id, content, actor_id=user_id)
+        uow.expenses.update_note(note_id, content, actor_id=user_id)
 
-    # Get updated notes list
-    notes = uow.expenses.list_notes_by_expense(updated_note.expense_id)
-    users_dict = {}
-    for n in notes:
-        author = uow.users.get_by_id(n.author_id)
-        if author:
-            users_dict[n.author_id] = author
-
-    # Get all group members for display
-    group = uow.groups.get_by_id(expense.group_id)
-    if group:
-        group_members = get_group_members(uow.session, group.id)
-        for member in group_members:
-            user_obj = uow.users.get_by_id(member.user_id)
-            if user_obj:
-                users_dict[member.user_id] = user_obj
-
-    return templates.TemplateResponse(
-        request,
-        "expenses/_expense_notes.html",
-        {
-            "notes": notes,
-            "users": users_dict,
-            "current_user_id": user_id,
-            "expense": expense,
-            "is_settled": expense.status == ExpenseStatus.SETTLED,
-        },
-    )
+    return _render_expense_notes_section(request, note.expense_id, user_id, uow)
 
 
 @router.delete("/expenses/notes/{note_id}", response_class=HTMLResponse)
@@ -1271,31 +1235,4 @@ async def delete_expense_note(
     with uow:
         uow.expenses.delete_note(note_id, actor_id=user_id)
 
-    # Get updated notes list
-    notes = uow.expenses.list_notes_by_expense(note.expense_id)
-    users_dict = {}
-    for n in notes:
-        author = uow.users.get_by_id(n.author_id)
-        if author:
-            users_dict[n.author_id] = author
-
-    # Get all group members for display
-    group = uow.groups.get_by_id(expense.group_id)
-    if group:
-        group_members = get_group_members(uow.session, group.id)
-        for member in group_members:
-            user_obj = uow.users.get_by_id(member.user_id)
-            if user_obj:
-                users_dict[member.user_id] = user_obj
-
-    return templates.TemplateResponse(
-        request,
-        "expenses/_expense_notes.html",
-        {
-            "notes": notes,
-            "users": users_dict,
-            "current_user_id": user_id,
-            "expense": expense,
-            "is_settled": expense.status == ExpenseStatus.SETTLED,
-        },
-    )
+    return _render_expense_notes_section(request, note.expense_id, user_id, uow)

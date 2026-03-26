@@ -20,7 +20,7 @@ from app.domain.errors import (
     InvalidShareError,
 )
 from app.domain.models import ExpensePublic, ExpenseStatus
-from app.domain.splits import BalanceConfig, EvenSplitStrategy
+from app.domain.splits import VALID_ROUNDING_MODES, BalanceConfig, EvenSplitStrategy
 from app.domain.value_objects import Money
 
 
@@ -96,6 +96,23 @@ class TestMoneyValueObject:
         assert m1 > m2
         assert m2 <= m1
         assert m1 >= m2
+
+    def test_money_comparison_different_currencies_raises(self):
+        """Comparing Money with different currencies raises an error."""
+        m_usd = Money(Decimal("100.00"), "USD")
+        m_eur = Money(Decimal("100.00"), "EUR")
+
+        with pytest.raises(ValueError, match="Currency mismatch"):
+            _ = m_eur < m_usd
+
+        with pytest.raises(ValueError, match="Currency mismatch"):
+            _ = m_eur > m_usd
+
+        with pytest.raises(ValueError, match="Currency mismatch"):
+            _ = m_eur <= m_usd
+
+        with pytest.raises(ValueError, match="Currency mismatch"):
+            _ = m_eur >= m_usd
 
     def test_money_is_zero(self):
         """is_zero property works correctly."""
@@ -185,6 +202,12 @@ class TestBalanceConfig:
         """dimes() class method returns 0.1 precision."""
         config = BalanceConfig.dimes()
         assert config.rounding_precision == Decimal("0.1")
+
+    @pytest.mark.parametrize("rounding_mode", sorted(VALID_ROUNDING_MODES))
+    def test_all_supported_rounding_modes_are_accepted(self, rounding_mode):
+        """All supported rounding modes are accepted by BalanceConfig."""
+        config = BalanceConfig(rounding_mode=rounding_mode)
+        assert config.rounding_mode == rounding_mode
 
 
 class TestCalculateBalancesTwoPeople:
@@ -532,6 +555,10 @@ class TestRoundingEdgeCases:
             if "." in str_amount:
                 decimals = len(str_amount.split(".")[1])
                 assert decimals <= 1
+
+        # Net balances must still sum to exactly zero under 0.1 precision
+        total = sum(b.net_balance.amount for b in result.values())
+        assert total == Decimal("0")
 
 
 class TestMinimizeTransactions:
