@@ -39,9 +39,11 @@ def user2(uow):
 
 @pytest.fixture
 def test_group(user1, user2, uow):
-    """Create a test group."""
+    """Create a test group with both users as members."""
     with uow:
         group = uow.groups.save(name="Test Household", actor_id=user1.id)
+        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
+        uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
     return group
 
 
@@ -58,6 +60,7 @@ def test_update_expense_changes_amount(uow, test_group, user1, user2):
             description="Original expense",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     # Update the amount
@@ -77,7 +80,7 @@ def test_update_expense_changes_amount(uow, test_group, user1, user2):
         assert updated.description == "Original expense"  # Unchanged
 
 
-def test_update_expense_changes_description(uow, test_group, user1):
+def test_update_expense_changes_description(uow, test_group, user1, user2):
     """Test updating expense description."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -89,6 +92,7 @@ def test_update_expense_changes_description(uow, test_group, user1):
             description="Original",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     with uow:
@@ -116,6 +120,7 @@ def test_update_expense_changes_payer(uow, test_group, user1, user2):
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     with uow:
@@ -131,7 +136,7 @@ def test_update_expense_changes_payer(uow, test_group, user1, user2):
         assert updated.payer_id == user2.id
 
 
-def test_update_expense_changes_date(uow, test_group, user1):
+def test_update_expense_changes_date(uow, test_group, user1, user2):
     """Test updating expense date."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -147,6 +152,7 @@ def test_update_expense_changes_date(uow, test_group, user1):
             creator_id=user1.id,
             payer_id=user1.id,
             date=original_date,
+            member_ids=[user1.id, user2.id],
         )
 
     with uow:
@@ -162,7 +168,7 @@ def test_update_expense_changes_date(uow, test_group, user1):
         assert updated.date == new_date
 
 
-def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1):
+def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1, user2):
     """Test immutability: settled expenses cannot be edited (FR7, FR20)."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -174,6 +180,7 @@ def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1):
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     # Manually mark expense as settled (settlement logic not implemented yet)
@@ -198,7 +205,7 @@ def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1):
     assert exc_info.value.expense_id == expense.id
 
 
-def test_update_expense_validates_positive_amount(uow, test_group, user1):
+def test_update_expense_validates_positive_amount(uow, test_group, user1, user2):
     """Test validation: amount must be positive."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -210,6 +217,7 @@ def test_update_expense_validates_positive_amount(uow, test_group, user1):
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     with pytest.raises(DomainError, match="Amount must be greater than zero"), uow:
@@ -221,7 +229,7 @@ def test_update_expense_validates_positive_amount(uow, test_group, user1):
         )
 
 
-def test_update_expense_validates_future_date(uow, test_group, user1):
+def test_update_expense_validates_future_date(uow, test_group, user1, user2):
     """Test validation: date cannot be in the future."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -233,6 +241,7 @@ def test_update_expense_validates_future_date(uow, test_group, user1):
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     future_date = date.today() + timedelta(days=1)
@@ -245,7 +254,7 @@ def test_update_expense_validates_future_date(uow, test_group, user1):
         )
 
 
-def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1):
+def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1, user2):
     """Test audit logging: records changed fields with previous values."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -257,6 +266,7 @@ def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1):
             description="Original",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
 
     # Update multiple fields

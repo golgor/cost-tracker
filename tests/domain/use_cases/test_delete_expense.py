@@ -30,6 +30,7 @@ def test_delete_expense_success(session_factory, uow_factory):
             creator_id=user1.id,
             payer_id=user1.id,
             date=date(2026, 3, 15),
+            member_ids=[user1.id],
         )
         expense_id = expense.id
 
@@ -119,6 +120,7 @@ def test_delete_expense_audit_logging(session_factory, uow_factory):
             creator_id=user1.id,
             payer_id=user1.id,
             date=date(2026, 3, 18),
+            member_ids=[user1.id],
         )
         expense_id = expense.id
 

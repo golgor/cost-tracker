@@ -47,12 +47,13 @@ def test_group(user1, user2, uow):
     """Create a test group with two members."""
     with uow:
         group = uow.groups.save(name="Test Household", actor_id=user1.id)
+        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
         uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
     return group
 
 
 @pytest.fixture
-def test_expense(user1, test_group, uow):
+def test_expense(user1, user2, test_group, uow):
     """Create a test expense."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -64,6 +65,7 @@ def test_expense(user1, test_group, uow):
             description="Test expense",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
     return expense
 
@@ -134,6 +136,7 @@ class TestGenerateReferenceId:
                 description="Another expense",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
 
         with uow:
@@ -235,6 +238,7 @@ class TestConfirmSettlement:
                 description="Expense 1",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
             expense2 = create_expense(
                 uow=uow,
@@ -243,6 +247,7 @@ class TestConfirmSettlement:
                 description="Expense 2",
                 creator_id=user1.id,
                 payer_id=user2.id,
+                member_ids=[user1.id, user2.id],
             )
 
         member_ids = [user1.id, user2.id]

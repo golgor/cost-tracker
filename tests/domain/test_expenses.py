@@ -47,6 +47,7 @@ def test_create_expense_success(mocker):
         description="Spar",
         creator_id=1,
         payer_id=2,
+        member_ids=[1, 2],
     )
 
     # Assert
@@ -92,6 +93,7 @@ def test_create_expense_with_explicit_currency(mocker):
         creator_id=1,
         payer_id=2,
         currency="USD",
+        member_ids=[1, 2],
     )
 
     assert result.currency == "USD"
@@ -110,6 +112,7 @@ def test_create_expense_group_not_found():
             description="Spar",
             creator_id=1,
             payer_id=2,
+            member_ids=[1, 2],
         )
 
 
@@ -145,6 +148,7 @@ def test_create_expense_calls_audit(mocker):
         description="Test",
         creator_id=1,
         payer_id=2,
+        member_ids=[1, 2],
     )
 
     # Verify save was called with creator_id as actor

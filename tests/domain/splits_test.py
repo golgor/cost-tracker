@@ -302,7 +302,7 @@ class TestDistributeRemainder:
         }
         total = Money(Decimal("100.00"), "EUR")
 
-        result = strategy.distribute_remainder(shares, total, payer_id=1)
+        strategy.distribute_remainder(shares, total, payer_id=1)
 
         # Sum is 66.68, total is 100, so we need to handle this case
         # Actually this is an error case - sum should always be <= total
