@@ -176,6 +176,22 @@ class ExpenseSplitPublic(ExpenseSplitBase):
     created_at: datetime
 
 
+class ExpenseNoteBase(SQLModel):
+    """Domain base for ExpenseNote — validation + business data. No table."""
+
+    expense_id: int
+    author_id: int
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ExpenseNotePublic(ExpenseNoteBase):
+    """Output schema for ExpenseNote — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class SettlementTransactionBase(SQLModel):
     """Domain base for individual settlement transactions."""
 

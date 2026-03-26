@@ -5,8 +5,8 @@ from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow
-from app.domain.models import ExpensePublic, ExpenseSplitPublic
+from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow, ExpenseSplitRow
+from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic
 
 
 class SqlAlchemyExpenseAdapter:
@@ -215,4 +215,113 @@ class SqlAlchemyExpenseAdapter:
             amount=row.amount,
             share_value=row.share_value,
             created_at=row.created_at,
+        )
+
+    def save_note(
+        self,
+        note: ExpenseNotePublic,
+        *,
+        actor_id: int,
+    ) -> ExpenseNotePublic:
+        """Create a new note for an expense. Auto-audits."""
+        row = ExpenseNoteRow(
+            expense_id=note.expense_id,
+            author_id=note.author_id,
+            content=note.content,
+        )
+        self._session.add(row)
+        self._session.flush()
+
+        # Audit the creation
+        self._audit.log(
+            action="note_created",
+            actor_id=actor_id,
+            entity_type="expense_note",
+            entity_id=row.id,  # type: ignore[arg-type]
+            changes=snapshot_new(row, ["expense_id", "author_id", "content"]),
+        )
+
+        return self._note_to_public(row)
+
+    def update_note(
+        self,
+        note_id: int,
+        content: str,
+        *,
+        actor_id: int,
+    ) -> ExpenseNotePublic:
+        """Update note content. Only author can edit. Auto-audits."""
+        row = self._session.exec(select(ExpenseNoteRow).where(ExpenseNoteRow.id == note_id)).first()
+
+        if row is None:
+            raise ValueError(f"Note {note_id} not found")
+
+        # Store previous content for audit
+        previous_content = row.content
+
+        # Update the note
+        row.content = content
+        self._session.flush()
+
+        # Audit the change
+        self._audit.log(
+            action="note_updated",
+            actor_id=actor_id,
+            entity_type="expense_note",
+            entity_id=note_id,
+            changes={"previous_content": previous_content, "new_content": content},
+        )
+
+        return self._note_to_public(row)
+
+    def delete_note(self, note_id: int, *, actor_id: int) -> None:
+        """Delete a note. Only author can delete. Auto-audits."""
+        row = self._session.exec(select(ExpenseNoteRow).where(ExpenseNoteRow.id == note_id)).first()
+
+        if row is None:
+            raise ValueError(f"Note {note_id} not found")
+
+        # Store content for audit before deletion
+        previous_content = row.content
+
+        self._session.delete(row)
+        self._session.flush()
+
+        # Audit the deletion
+        self._audit.log(
+            action="note_deleted",
+            actor_id=actor_id,
+            entity_type="expense_note",
+            entity_id=note_id,
+            changes={"previous_content": previous_content},
+        )
+
+    def get_note_by_id(self, note_id: int) -> ExpenseNotePublic | None:
+        """Retrieve note by database ID."""
+        row = self._session.exec(select(ExpenseNoteRow).where(ExpenseNoteRow.id == note_id)).first()
+
+        if row is None:
+            return None
+
+        return self._note_to_public(row)
+
+    def list_notes_by_expense(self, expense_id: int) -> list[ExpenseNotePublic]:
+        """List all notes for an expense, oldest first."""
+        rows = self._session.exec(
+            select(ExpenseNoteRow)
+            .where(ExpenseNoteRow.expense_id == expense_id)
+            .order_by(ExpenseNoteRow.created_at)
+        ).all()
+
+        return [self._note_to_public(row) for row in rows]
+
+    def _note_to_public(self, row: ExpenseNoteRow) -> ExpenseNotePublic:
+        """Convert note ORM row to public domain model."""
+        return ExpenseNotePublic(
+            id=row.id,  # type: ignore[arg-type]
+            expense_id=row.expense_id,
+            author_id=row.author_id,
+            content=row.content,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )

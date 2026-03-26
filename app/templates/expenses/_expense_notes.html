@@ -1,0 +1,71 @@
+<!-- Expense notes section (HTMX partial) -->
+<div id="expense-notes-{{ expense.id }}" class="mt-4 border-t border-stone-200 pt-4">
+    <h4 class="text-sm font-medium text-stone-700 mb-3">Notes</h4>
+    
+    {% if notes %}
+    <div class="space-y-3 mb-4">
+        {% for note in notes %}
+        <div class="bg-stone-50 rounded-lg p-3 text-sm" id="note-{{ note.id }}">
+            <div class="flex justify-between items-start mb-1">
+                <span class="font-medium text-stone-700">
+                    {{ users[note.author_id].display_name if users and note.author_id in users else 'User ' ~ note.author_id }}
+                </span>
+                <span class="text-xs text-stone-500">{{ note.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+            </div>
+            <p class="text-stone-600 whitespace-pre-wrap">{{ note.content }}</p>
+            
+            {% if not is_settled and note.author_id == current_user_id %}
+            <div class="mt-2 flex gap-2">
+                <button
+                    type="button"
+                    class="text-xs text-stone-500 hover:text-primary-600"
+                    hx-get="/expenses/notes/{{ note.id }}/edit-form"
+                    hx-target="#note-{{ note.id }}"
+                    hx-swap="outerHTML"
+                >
+                    Edit
+                </button>
+                <button
+                    type="button"
+                    class="text-xs text-stone-500 hover:text-red-600"
+                    hx-delete="/expenses/notes/{{ note.id }}"
+                    hx-target="#expense-notes-{{ expense.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="Delete this note?"
+                >
+                    Delete
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-stone-500 text-sm italic mb-4">No notes yet.</p>
+    {% endif %}
+    
+    {% if not is_settled %}
+    <form
+        hx-post="/expenses/{{ expense.id }}/notes"
+        hx-target="#expense-notes-{{ expense.id }}"
+        hx-swap="outerHTML"
+        class="space-y-2"
+    >
+        <textarea
+            name="content"
+            rows="2"
+            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-sm"
+            placeholder="Add a note..."
+            required
+        ></textarea>
+        <div class="flex justify-end">
+            <button
+                type="submit"
+                class="px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+            >
+                Add Note
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
