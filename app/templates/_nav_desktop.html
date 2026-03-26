@@ -8,14 +8,14 @@
 
     <!-- Navigation items -->
     <div class="flex items-center gap-1">
-      <a href="/expenses" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
+      <a href="/expenses" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if request.url.path.startswith('/expenses') %} bg-stone-100 text-stone-900 font-medium{% endif %}">
         Expenses
       </a>
       <button disabled class="px-4 py-2 rounded-lg text-stone-400 cursor-not-allowed flex items-center justify-center transition-colors" title="Coming soon">
         Recurring
       </button>
-      <a href="/settlements/review" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors">
-        Settle Up
+      <a href="/settlements" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if '/settlements' in request.url.path %} bg-stone-100 text-stone-900 font-medium{% endif %}">
+        Settlements
       </a>
     </div>
   </div>
