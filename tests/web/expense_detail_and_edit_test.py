@@ -59,7 +59,7 @@ def test_group(user1, user2, uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_expense(user1, test_group, uow: UnitOfWork):
+def test_expense(user1, user2, test_group, uow: UnitOfWork):
     """Create a test expense."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -71,6 +71,7 @@ def test_expense(user1, test_group, uow: UnitOfWork):
             description="Test expense",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
     return expense
 

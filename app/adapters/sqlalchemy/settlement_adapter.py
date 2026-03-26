@@ -6,8 +6,9 @@ from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
     SettlementExpenseRow,
     SettlementRow,
+    SettlementTransactionRow,
 )
-from app.domain.models import ExpenseStatus, SettlementPublic
+from app.domain.models import ExpenseStatus, SettlementPublic, SettlementTransactionPublic
 
 
 class SqlAlchemySettlementAdapter:
@@ -21,18 +22,15 @@ class SqlAlchemySettlementAdapter:
         self,
         settlement: SettlementPublic,
         expense_ids: list[int],
+        transactions: list[SettlementTransactionPublic],
         *,
         actor_id: int,
     ) -> SettlementPublic:
-        """Create a new settlement with linked expenses. Auto-audits."""
-        # Create settlement row
+        """Create a new settlement with linked expenses and transactions. Auto-audits."""
         row = SettlementRow(
             group_id=settlement.group_id,
             reference_id=settlement.reference_id,
             settled_by_id=settlement.settled_by_id,
-            total_amount=settlement.total_amount,
-            transfer_from_user_id=settlement.transfer_from_user_id,
-            transfer_to_user_id=settlement.transfer_to_user_id,
             settled_at=settlement.settled_at,
         )
 
@@ -40,10 +38,18 @@ class SqlAlchemySettlementAdapter:
         self._session.add(row)
         self._session.flush()
 
-        assert row.id is not None  # guaranteed after flush
+        assert row.id is not None
         settlement_id = row.id
 
-        # Link expenses to settlement
+        for tx in transactions:
+            tx_row = SettlementTransactionRow(
+                settlement_id=settlement_id,
+                from_user_id=tx.from_user_id,
+                to_user_id=tx.to_user_id,
+                amount=tx.amount,
+            )
+            self._session.add(tx_row)
+
         for expense_id in expense_ids:
             link = SettlementExpenseRow(
                 settlement_id=settlement_id,
@@ -51,7 +57,6 @@ class SqlAlchemySettlementAdapter:
             )
             self._session.add(link)
 
-        # Update expense statuses to SETTLED
         for expense_id in expense_ids:
             expense_row = self._session.get(ExpenseRow, expense_id)
             assert expense_row is not None
@@ -59,8 +64,18 @@ class SqlAlchemySettlementAdapter:
 
         self._session.flush()
 
-        # Audit log
         changes["expense_ids"] = {"old": None, "new": expense_ids}
+        changes["transactions"] = {
+            "old": None,
+            "new": [
+                {
+                    "from_user_id": tx.from_user_id,
+                    "to_user_id": tx.to_user_id,
+                    "amount": str(tx.amount),
+                }
+                for tx in transactions
+            ],
+        }
         self._audit.log(
             action="settlement_confirmed",
             actor_id=actor_id,
@@ -83,7 +98,7 @@ class SqlAlchemySettlementAdapter:
         statement = (
             select(SettlementRow)
             .where(SettlementRow.group_id == group_id)
-            .order_by(SettlementRow.settled_at.desc())  # type: ignore[attr-defined]
+            .order_by(SettlementRow.settled_at.desc())
             .limit(limit)
         )
         rows = self._session.exec(statement).all()
@@ -96,6 +111,16 @@ class SqlAlchemySettlementAdapter:
         )
         rows = self._session.exec(statement).all()
         return list(rows)
+
+    def get_transactions(self, settlement_id: int) -> list[SettlementTransactionPublic]:
+        """Get all transactions for a settlement."""
+        statement = (
+            select(SettlementTransactionRow)
+            .where(SettlementTransactionRow.settlement_id == settlement_id)
+            .order_by(SettlementTransactionRow.id)
+        )
+        rows = self._session.exec(statement).all()
+        return [self._to_transaction_public(row) for row in rows]
 
     def reference_exists(self, group_id: int, reference_id: str) -> bool:
         """Check if a reference_id already exists for the group (unbounded query)."""
@@ -117,9 +142,18 @@ class SqlAlchemySettlementAdapter:
             group_id=row.group_id,
             reference_id=row.reference_id,
             settled_by_id=row.settled_by_id,
-            total_amount=row.total_amount,
-            transfer_from_user_id=row.transfer_from_user_id,
-            transfer_to_user_id=row.transfer_to_user_id,
             settled_at=row.settled_at,
             created_at=row.created_at,
+        )
+
+    def _to_transaction_public(self, row: SettlementTransactionRow) -> SettlementTransactionPublic:
+        """Convert transaction row to public domain model."""
+        assert row.id is not None
+
+        return SettlementTransactionPublic(
+            id=row.id,
+            settlement_id=row.settlement_id,
+            from_user_id=row.from_user_id,
+            to_user_id=row.to_user_id,
+            amount=row.amount,
         )

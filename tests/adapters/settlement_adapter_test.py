@@ -10,6 +10,7 @@ from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
     SettlementExpenseRow,
     SettlementRow,
+    SettlementTransactionRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.domain.models import ExpenseStatus
@@ -47,12 +48,13 @@ def test_group(user1, user2, uow):
     """Create a test group with two members."""
     with uow:
         group = uow.groups.save(name="Test Household", actor_id=user1.id)
+        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
         uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
     return group
 
 
 @pytest.fixture
-def test_expense(user1, test_group, uow):
+def test_expense(user1, user2, test_group, uow):
     """Create a test expense."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -64,6 +66,7 @@ def test_expense(user1, test_group, uow):
             description="Test expense",
             creator_id=user1.id,
             payer_id=user1.id,
+            member_ids=[user1.id, user2.id],
         )
     return expense
 
@@ -75,7 +78,7 @@ class TestSettlementAdapter:
         self, uow: UnitOfWork, test_group, user1, user2, test_expense
     ):
         """Test that saving settlement creates database record."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
@@ -83,21 +86,45 @@ class TestSettlementAdapter:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Verify settlement row exists
         row = uow.session.get(SettlementRow, settlement.id)
         assert row is not None
         assert row.group_id == test_group.id
         assert row.settled_by_id == user1.id
-        assert row.total_amount == Decimal("50.00")
+
+    def test_save_settlement_creates_transactions(
+        self, uow: UnitOfWork, test_group, user1, user2, test_expense
+    ):
+        """Test that saving settlement creates transaction records."""
+        member_ids = [user1.id, user2.id]
+
+        with uow:
+            settlement = confirm_settlement(
+                uow,
+                group_id=test_group.id,
+                expense_ids=[test_expense.id],
+                settled_by_id=user1.id,
+                member_ids=member_ids,
+            )
+
+        transactions = uow.session.exec(
+            select(SettlementTransactionRow).where(
+                SettlementTransactionRow.settlement_id == settlement.id
+            )
+        ).all()
+
+        assert len(transactions) == 1
+        assert transactions[0].from_user_id == user2.id
+        assert transactions[0].to_user_id == user1.id
+        assert transactions[0].amount == Decimal("50.00")
 
     def test_save_settlement_links_expenses(
         self, uow: UnitOfWork, test_group, user1, user2, test_expense
     ):
         """Test that settlement is linked to expenses via join table."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
@@ -105,10 +132,9 @@ class TestSettlementAdapter:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Verify join table entry
         links = uow.session.exec(
             select(SettlementExpenseRow).where(SettlementExpenseRow.settlement_id == settlement.id)
         ).all()
@@ -120,7 +146,7 @@ class TestSettlementAdapter:
         self, uow: UnitOfWork, test_group, user1, user2, test_expense
     ):
         """Test that saving settlement marks expenses as SETTLED."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             confirm_settlement(
@@ -128,10 +154,9 @@ class TestSettlementAdapter:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Verify expense status
         expense_row = uow.session.get(ExpenseRow, test_expense.id)
         assert expense_row is not None
         assert expense_row.status == ExpenseStatus.SETTLED
@@ -140,7 +165,7 @@ class TestSettlementAdapter:
         self, uow: UnitOfWork, test_group, user1, user2, test_expense
     ):
         """Test that settlement creation logs audit entry."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
@@ -148,10 +173,9 @@ class TestSettlementAdapter:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Verify audit log
         audit_entries = uow.session.exec(
             select(AuditRow).where(
                 AuditRow.entity_type == "settlement",
@@ -165,10 +189,11 @@ class TestSettlementAdapter:
         assert entry.actor_id == user1.id
         assert entry.changes is not None
         assert "expense_ids" in entry.changes
+        assert "transactions" in entry.changes
 
     def test_get_by_id_existing(self, uow: UnitOfWork, test_group, user1, user2, test_expense):
         """Test retrieving settlement by ID."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
@@ -176,10 +201,9 @@ class TestSettlementAdapter:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Fetch via adapter
         fetched = uow.settlements.get_by_id(settlement.id)
         assert fetched is not None
         assert fetched.id == settlement.id
@@ -194,9 +218,8 @@ class TestSettlementAdapter:
         """Test settlements are listed newest first."""
         from app.domain.use_cases.expenses import create_expense
 
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
-        # Create two expenses and settle them separately
         with uow:
             expense1 = create_expense(
                 uow=uow,
@@ -205,17 +228,17 @@ class TestSettlementAdapter:
                 description="Expense 1",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
             confirm_settlement(
                 uow,
                 group_id=test_group.id,
                 expense_ids=[expense1.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
                 reference_id="January 2025",
             )
 
-        # Need to commit and create new expense for second settlement
         with uow:
             expense2 = create_expense(
                 uow=uow,
@@ -224,20 +247,19 @@ class TestSettlementAdapter:
                 description="Expense 2",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
             confirm_settlement(
                 uow,
                 group_id=test_group.id,
                 expense_ids=[expense2.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
                 reference_id="February 2025",
             )
 
-        # List settlements
         settlements = uow.settlements.list_by_group(test_group.id)
         assert len(settlements) == 2
-        # Newest first
         assert settlements[0].reference_id == "February 2025"
         assert settlements[1].reference_id == "January 2025"
 
@@ -245,7 +267,7 @@ class TestSettlementAdapter:
         """Test retrieving linked expense IDs."""
         from app.domain.use_cases.expenses import create_expense
 
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             expense1 = create_expense(
@@ -255,6 +277,7 @@ class TestSettlementAdapter:
                 description="Expense 1",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
             expense2 = create_expense(
                 uow=uow,
@@ -263,20 +286,39 @@ class TestSettlementAdapter:
                 description="Expense 2",
                 creator_id=user1.id,
                 payer_id=user1.id,
+                member_ids=[user1.id, user2.id],
             )
             settlement = confirm_settlement(
                 uow,
                 group_id=test_group.id,
                 expense_ids=[expense1.id, expense2.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Get linked expense IDs
         expense_ids = uow.settlements.get_expense_ids(settlement.id)
         assert len(expense_ids) == 2
         assert expense1.id in expense_ids
         assert expense2.id in expense_ids
+
+    def test_get_transactions(self, uow: UnitOfWork, test_group, user1, user2, test_expense):
+        """Test retrieving settlement transactions."""
+        member_ids = [user1.id, user2.id]
+
+        with uow:
+            settlement = confirm_settlement(
+                uow,
+                group_id=test_group.id,
+                expense_ids=[test_expense.id],
+                settled_by_id=user1.id,
+                member_ids=member_ids,
+            )
+
+        transactions = uow.settlements.get_transactions(settlement.id)
+        assert len(transactions) == 1
+        assert transactions[0].from_user_id == user2.id
+        assert transactions[0].to_user_id == user1.id
+        assert transactions[0].amount == Decimal("50.00")
 
 
 class TestSettlementRoundTrip:
@@ -284,7 +326,7 @@ class TestSettlementRoundTrip:
 
     def test_settlement_round_trip(self, uow: UnitOfWork, test_group, user1, user2, test_expense):
         """Test domain model -> ORM row -> domain model preserves data."""
-        display_names = {user1.id: "Alice", user2.id: "Bob"}
+        member_ids = [user1.id, user2.id]
 
         with uow:
             original = confirm_settlement(
@@ -292,18 +334,13 @@ class TestSettlementRoundTrip:
                 group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Fetch via adapter (goes through _to_public)
         fetched = uow.settlements.get_by_id(original.id)
         assert fetched is not None
 
-        # Verify all fields preserved
         assert fetched.id == original.id
         assert fetched.group_id == original.group_id
         assert fetched.reference_id == original.reference_id
         assert fetched.settled_by_id == original.settled_by_id
-        assert fetched.total_amount == original.total_amount
-        assert fetched.transfer_from_user_id == original.transfer_from_user_id
-        assert fetched.transfer_to_user_id == original.transfer_to_user_id

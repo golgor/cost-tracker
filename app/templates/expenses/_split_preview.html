@@ -1,0 +1,12 @@
+{% if error_message %}
+<div class="text-red-600 text-xs font-medium">
+    ✗ {{ error_message }}
+</div>
+{% else %}
+{% for user_id, amount, share_value in splits %}
+<div class="flex justify-between">
+    <span class="text-stone-600">{{ users[user_id].display_name if users and user_id in users else "User " ~ user_id }}</span>
+    <span class="font-medium">{{ currency_symbol }}{{ amount|round(2) }}</span>
+</div>
+{% endfor %}
+{% endif %}

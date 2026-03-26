@@ -1,9 +1,10 @@
 """Expense creation routes for mobile and desktop."""
 
 import contextlib
+import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -17,6 +18,14 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
+from app.domain.errors import DomainError, InvalidShareError
+from app.domain.models import ExpensePublic, SplitType
+from app.domain.splits import (
+    EvenSplitStrategy,
+    ExactSplitStrategy,
+    PercentageSplitStrategy,
+    SharesSplitStrategy,
+)
 from app.domain.use_cases.expenses import create_expense
 from app.web.templates import setup_templates
 
@@ -127,6 +136,149 @@ async def get_mobile_capture_form(
     )
 
 
+@router.post("/expenses/split-preview", response_class=HTMLResponse)
+async def get_split_preview(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Calculate and return split preview HTML (HTMX endpoint).
+
+    Receives form data via POST and returns calculated split amounts.
+    Uses the same split strategies as the expense creation use case.
+    """
+    # Parse form data (use cached form from CSRF middleware if available)
+    if hasattr(request.state, "_cached_form"):
+        form = request.state._cached_form
+    else:
+        form = await request.form()
+
+    amount_str = form.get("amount", "0")
+    split_type = form.get("split_type", "even")
+    split_config_json = form.get("split_config", "{}")
+    payer_id_str = form.get("payer_id", "")
+
+    # Type narrowing: form values are strings, not UploadFile
+    assert isinstance(split_type, str), "split_type should be a string"
+
+    # Parse amount
+    try:
+        amount = Decimal(amount_str.replace(",", "."))
+    except InvalidOperation, ValueError:
+        amount = Decimal("0")
+
+    # Parse split config
+    try:
+        config_data = json.loads(split_config_json) if split_config_json else {}
+        split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
+    except json.JSONDecodeError, ValueError:
+        split_config = {}
+
+    # Parse payer ID
+    try:
+        payer_id = int(payer_id_str) if payer_id_str else user_id
+    except ValueError:
+        payer_id = user_id
+
+    # Get group members
+    group = uow.groups.get_by_user_id(user_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="User has no group")
+
+    members = get_group_members(uow.session, group.id)
+    member_ids = [m.user_id for m in members]
+
+    # Get user details for display names
+    users_dict = {}
+    for member in members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    # Create a mock expense for split calculation
+    expense = ExpensePublic.model_construct(
+        id=0,
+        group_id=group.id,
+        amount=amount or Decimal("0"),
+        description="",
+        date=date.today(),
+        creator_id=user_id,
+        payer_id=payer_id,
+        currency=group.default_currency,
+        split_type=SplitType.EVEN,
+        status="PENDING",
+        created_at=date.today(),
+        updated_at=date.today(),
+    )
+
+    # Calculate splits using the appropriate strategy
+    try:
+        splits = _calculate_splits_backend(
+            expense=expense,
+            member_ids=member_ids,
+            split_type=SplitType(split_type.upper()),
+            split_config=split_config if split_type.upper() != "EVEN" else None,
+        )
+        error_message = None
+    except InvalidShareError as e:
+        splits = []
+        error_message = str(e)
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_split_preview.html",
+        {
+            "splits": splits,
+            "users": users_dict,
+            "error_message": error_message,
+            "currency_symbol": _get_currency_symbol(group.default_currency),
+        },
+    )
+
+
+def _calculate_splits_backend(
+    expense: ExpensePublic,
+    member_ids: list[int],
+    split_type: SplitType,
+    split_config: dict[int, Decimal] | None,
+) -> list[tuple[int, Decimal, Decimal | None]]:
+    """Calculate split amounts using backend strategies.
+
+    Returns list of (user_id, amount, share_value) tuples.
+    """
+    if split_type == SplitType.EVEN:
+        strategy = EvenSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids)
+        return [(user_id, share.amount, None) for user_id, share in shares.items()]
+
+    if split_type == SplitType.SHARES:
+        if not split_config:
+            raise InvalidShareError("Shares split requires share counts")
+        strategy = SharesSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [
+            (user_id, share.amount, split_config.get(user_id)) for user_id, share in shares.items()
+        ]
+
+    if split_type == SplitType.PERCENTAGE:
+        if not split_config:
+            raise InvalidShareError("Percentage split requires percentages")
+        strategy = PercentageSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [
+            (user_id, share.amount, split_config.get(user_id)) for user_id, share in shares.items()
+        ]
+
+    if split_type == SplitType.EXACT:
+        if not split_config:
+            raise InvalidShareError("Exact split requires exact amounts")
+        strategy = ExactSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [(user_id, share.amount, None) for user_id, share in shares.items()]
+
+    raise DomainError(f"Unknown split type: {split_type}")
+
+
 @router.post("/expenses/create", response_class=HTMLResponse)
 async def create_expense_endpoint(
     request: Request,
@@ -138,6 +290,7 @@ async def create_expense_endpoint(
     payer_id: int = Form(...),
     currency: str = Form("EUR"),
     split_type: str = Form("even"),
+    split_config_json: str = Form(""),
 ):
     """Create new expense (HTMX endpoint for mobile/desktop)."""
 
@@ -151,7 +304,7 @@ async def create_expense_endpoint(
         raise HTTPException(status_code=404, detail="User has no group")
 
     # Validate form
-    errors = {}
+    errors: dict[str, str] = {}
     try:
         # Parse amount
         try:
@@ -190,16 +343,25 @@ async def create_expense_endpoint(
             )
     except ValidationError as e:
         for error in e.errors():
-            field = error["loc"][0]
+            field = str(error["loc"][0])
             errors[field] = error["msg"]
         form_data = None
+
+    # Parse split_config from JSON
+    split_config: dict[int, Decimal] | None = None
+    if split_type.upper() != "EVEN" and split_config_json:
+        try:
+            config_data = json.loads(split_config_json) if split_config_json else {}
+            split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
+        except json.JSONDecodeError, ValueError:
+            errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors (UX-DR24)
     if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
         # Get user details
-        users_dict = {}
+        users_dict: dict[int, Any] = {}
         for member in group_members:
             user_obj = uow.users.get_by_id(member.user_id)
             if user_obj:
@@ -231,17 +393,56 @@ async def create_expense_endpoint(
             status_code=400,
         )
 
+    # Get group members for split calculation
+    group_members = get_group_members(uow.session, group.id)
+    member_ids = [member.user_id for member in group_members]
+
     # Create expense via use case
-    with uow:
-        create_expense(
-            uow=uow,
-            group_id=group.id,
-            amount=form_data.amount,
-            description=form_data.description,
-            date=form_data.date,
-            creator_id=user_id,
-            payer_id=form_data.payer_id,
-            currency=form_data.currency,
+    try:
+        with uow:
+            create_expense(
+                uow=uow,
+                group_id=group.id,
+                amount=form_data.amount,
+                description=form_data.description,
+                date=form_data.date,
+                creator_id=user_id,
+                payer_id=form_data.payer_id,
+                member_ids=member_ids,
+                currency=form_data.currency,
+                split_type=form_data.split_type,
+                split_config=split_config,
+            )
+    except InvalidShareError as e:
+        # Handle split validation errors
+        group_members = get_group_members(uow.session, group.id)
+        users_dict = {}
+        for member in group_members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_dict[member.user_id] = user_obj
+
+        return templates.TemplateResponse(
+            request,
+            "expenses/_capture_form_mobile.html",
+            {
+                "errors": {"split_type": str(e)},
+                "form_data": {
+                    "amount": amount,
+                    "description": description,
+                    "date": date_str,
+                    "payer_id": payer_id,
+                    "currency": currency,
+                },
+                "group": group,
+                "group_members": group_members,
+                "users": users_dict,
+                "current_user_id": user_id,
+                "selected_payer_id": payer_id if payer_id else user_id,
+                "today": date.today().isoformat(),
+                "currency_symbol": _get_currency_symbol(group.default_currency),
+            },
+            status_code=400,
         )
 
     # Get user details for display
@@ -659,7 +860,7 @@ async def update_expense_endpoint(
             )
     except ValidationError as e:
         for error in e.errors():
-            field = error["loc"][0]
+            field = str(error["loc"][0])
             errors[field] = error["msg"]
         form_data = None
 

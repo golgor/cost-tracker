@@ -20,7 +20,7 @@
   <div class="text-center py-16">
     <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-stone-100 flex items-center justify-center">
       <svg class="w-10 h-10 text-stone-400" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
       </svg>
     </div>
     <h2 class="text-2xl font-semibold text-stone-800 mb-2">No settlements yet</h2>
@@ -35,7 +35,7 @@
     {% for item in settlements %}
     <a href="/settlements/{{ item.settlement.id }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 p-4 hover:shadow-md hover:border-terracotta-200 transition-all">
       <div class="flex items-center justify-between">
-        <div class="flex-grow">
+        <div class="grow">
           <!-- Date & Reference -->
           <div class="flex items-center gap-2 mb-2">
             <span class="text-sm text-stone-500">{{ item.settlement.settled_at.strftime('%b %d, %Y') }}</span>
@@ -46,18 +46,26 @@
           </div>
 
           <!-- Transfer Direction -->
+          {% if item.transactions|length == 0 %}
+          <div class="text-stone-600">No payment needed</div>
+          {% elif item.transactions|length == 1 %}
           <div class="flex items-center gap-2 text-stone-800">
-            <span class="font-medium">{{ item.from_name }}</span>
+            <span class="font-medium">{{ item.transactions[0].from_name }}</span>
             <svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
-            <span class="font-medium">{{ item.to_name }}</span>
+            <span class="font-medium">{{ item.transactions[0].to_name }}</span>
           </div>
+          {% else %}
+          <div class="text-stone-600">{{ item.transaction_count }} transfers</div>
+          {% endif %}
         </div>
 
         <!-- Amount -->
         <div class="text-right">
-          <div class="text-xl font-bold text-stone-800">{{ currency_symbol }}{{ item.settlement.total_amount }}</div>
+          {% if item.has_amount %}
+          <div class="text-xl font-bold text-stone-800">{{ currency_symbol }}{{ item.total_amount }}</div>
+          {% endif %}
           <div class="text-sm text-stone-500">{{ item.expense_count }} expense{% if item.expense_count != 1 %}s{% endif %}</div>
         </div>
 

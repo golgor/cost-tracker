@@ -3,9 +3,20 @@
 from datetime import date as date_type
 from decimal import Decimal
 
-from app.domain.errors import CannotEditSettledExpenseError, DomainError, GroupNotFoundError
-from app.domain.models import ExpensePublic, ExpenseStatus, SplitType
+from app.domain.errors import (
+    CannotEditSettledExpenseError,
+    DomainError,
+    GroupNotFoundError,
+    InvalidShareError,
+)
+from app.domain.models import ExpensePublic, ExpenseSplitPublic, ExpenseStatus, SplitType
 from app.domain.ports import UnitOfWorkPort
+from app.domain.splits import (
+    EvenSplitStrategy,
+    ExactSplitStrategy,
+    PercentageSplitStrategy,
+    SharesSplitStrategy,
+)
 
 
 def create_expense(
@@ -15,8 +26,11 @@ def create_expense(
     description: str,
     creator_id: int,
     payer_id: int,
+    member_ids: list[int],
     currency: str | None = None,
     date=None,
+    split_type: str = "EVEN",
+    split_config: dict[int, Decimal] | None = None,
 ) -> ExpensePublic:
     """Create a shared expense.
 
@@ -27,14 +41,21 @@ def create_expense(
         description: Description of the expense (e.g., "Spar", "Netflix")
         creator_id: User ID who entered the expense
         payer_id: User ID who actually paid the bill
+        member_ids: List of user IDs who are members of the group (for split calculation)
         currency: Currency code (defaults to group's configured currency)
         date: Expense date (defaults to today)
+        split_type: How to split the expense (EVEN, SHARES, PERCENTAGE, EXACT)
+        split_config: Configuration for non-even splits:
+            - SHARES: dict[user_id, share_count]
+            - PERCENTAGE: dict[user_id, percentage] (e.g., Decimal("60") for 60%)
+            - EXACT: dict[user_id, exact_amount]
 
     Returns:
         The persisted ExpensePublic with generated ID.
 
     Raises:
         GroupNotFoundError: If the group doesn't exist
+        InvalidShareError: If split configuration is invalid
         ValidationError: If amount or other fields fail validation
 
     Transaction must be committed by caller using `with uow:`.
@@ -50,8 +71,32 @@ def create_expense(
     # Default date to today
     effective_date = date or date_type.today()
 
-    # Create expense with even split (Epic 2 only)
-    # Use model_construct to bypass validation since id/created_at/updated_at are DB-generated
+    # Normalize split_type to enum
+    split_type_enum = SplitType(split_type.upper())
+
+    # Calculate expense splits
+    expense_model = ExpensePublic.model_construct(
+        id=0,  # Placeholder ID
+        group_id=group_id,
+        amount=amount,
+        description=description,
+        date=effective_date,
+        creator_id=creator_id,
+        payer_id=payer_id,
+        currency=effective_currency,
+        split_type=split_type_enum,
+        status=ExpenseStatus.PENDING,
+    )
+
+    # Calculate splits based on type
+    splits = _calculate_splits(
+        expense=expense_model,
+        member_ids=member_ids,
+        split_type=split_type_enum,
+        split_config=split_config,
+    )
+
+    # Create expense with computed split_type
     expense = ExpensePublic.model_construct(
         group_id=group_id,
         amount=amount,
@@ -60,14 +105,71 @@ def create_expense(
         creator_id=creator_id,
         payer_id=payer_id,
         currency=effective_currency,
-        split_type=SplitType.EVEN,
+        split_type=split_type_enum,
         status=ExpenseStatus.PENDING,
     )
 
-    # Persist with audit logging
+    # Persist expense
     saved_expense = uow.expenses.save(expense, actor_id=creator_id)
 
+    # Persist splits
+    split_publics = [
+        ExpenseSplitPublic.model_construct(
+            id=0,  # Placeholder ID
+            expense_id=saved_expense.id,
+            user_id=user_id,
+            amount=split_amount,
+            share_value=share_value,
+        )
+        for user_id, split_amount, share_value in splits
+    ]
+    uow.expenses.save_splits(saved_expense.id, split_publics, actor_id=creator_id)
+
     return saved_expense
+
+
+def _calculate_splits(
+    expense: ExpensePublic,
+    member_ids: list[int],
+    split_type: SplitType,
+    split_config: dict[int, Decimal] | None,
+) -> list[tuple[int, Decimal, Decimal | None]]:
+    """Calculate split amounts for each member.
+
+    Returns list of (user_id, amount, share_value) tuples.
+    share_value is None for EVEN/EXACT, populated for SHARES/PERCENTAGE.
+    """
+    if split_type == SplitType.EVEN:
+        strategy = EvenSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids)
+        return [(user_id, share.amount, None) for user_id, share in shares.items()]
+
+    if split_type == SplitType.SHARES:
+        if not split_config:
+            raise InvalidShareError("Shares split requires split_config with share counts")
+        strategy = SharesSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [
+            (user_id, share.amount, split_config.get(user_id)) for user_id, share in shares.items()
+        ]
+
+    if split_type == SplitType.PERCENTAGE:
+        if not split_config:
+            raise InvalidShareError("Percentage split requires split_config with percentages")
+        strategy = PercentageSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [
+            (user_id, share.amount, split_config.get(user_id)) for user_id, share in shares.items()
+        ]
+
+    if split_type == SplitType.EXACT:
+        if not split_config:
+            raise InvalidShareError("Exact split requires split_config with exact amounts")
+        strategy = ExactSplitStrategy()
+        shares = strategy.calculate_shares(expense, member_ids, split_config)
+        return [(user_id, share.amount, None) for user_id, share in shares.items()]
+
+    raise DomainError(f"Unknown split type: {split_type}")
 
 
 def update_expense(

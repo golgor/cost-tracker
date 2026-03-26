@@ -2,7 +2,7 @@
 <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-stone-200 safe-area-inset-bottom z-40" aria-label="Main navigation">
   <div class="flex items-center justify-around h-16 px-2">
     <!-- Expenses -->
-    <a href="/expenses" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+    <a href="/expenses" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors{% if request.url.path.startswith('/expenses') %} text-primary-500 font-medium{% endif %}">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
@@ -29,11 +29,11 @@
     </button>
 
     <!-- Settlements -->
-    <a href="/settlements/review" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors">
+    <a href="/settlements" class="flex flex-col items-center justify-center gap-1 px-3 py-2 text-stone-600 hover:text-primary-500 focus-ring touch-target rounded-lg transition-colors{% if '/settlements' in request.url.path %} text-primary-500 font-medium{% endif %}">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-      <span class="text-xs">Settle</span>
+      <span class="text-xs">Settlements</span>
     </a>
   </div>
 </nav>

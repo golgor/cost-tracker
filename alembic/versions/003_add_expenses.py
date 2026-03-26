@@ -10,7 +10,6 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -19,6 +18,9 @@ revision: str = "003"
 down_revision: str = "002"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+# ENUM values defined here for consistency
+EXPENSESTATUS_VALUES = ("PENDING", "GIFT", "SETTLED")
 
 
 def upgrade() -> None:
@@ -35,15 +37,13 @@ def upgrade() -> None:
         sa.Column("currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
         sa.Column(
             "split_type",
-            postgresql.ENUM("EVEN", name="splittype", create_type=False),
+            sa.Enum("EVEN", "SHARES", "PERCENTAGE", "EXACT", name="splittype", create_type=False),
             nullable=False,
             server_default="EVEN",
         ),
         sa.Column(
             "status",
-            postgresql.ENUM(
-                "PENDING", "ACCEPTED", "GIFT", "SETTLED", name="expensestatus", create_type=True
-            ),
+            sa.Enum(*EXPENSESTATUS_VALUES, name="expensestatus", create_type=True),
             nullable=False,
             server_default="PENDING",
         ),

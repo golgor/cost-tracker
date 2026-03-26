@@ -122,3 +122,75 @@ def db_session(db_engine) -> Session:
 def uow(db_session) -> UnitOfWork:
     """Provide a UnitOfWork backed by the test session."""
     return UnitOfWork(session=db_session)
+
+
+# Helper functions for tests
+def create_test_user(session, oidc_sub: str, email: str, display_name: str | None = None):
+    """Create a test user directly in the database."""
+    from app.adapters.sqlalchemy.orm_models import UserRow
+
+    user = UserRow(
+        oidc_sub=oidc_sub,
+        email=email,
+        display_name=display_name or email.split("@")[0],
+        role="USER",
+        is_active=True,
+    )
+    session.add(user)
+    session.flush()
+    return user
+
+
+def create_test_group(session, user_id: int, name: str = "Test Group"):
+    """Create a test group with the user as admin member."""
+    from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow
+
+    group = GroupRow(
+        name=name,
+        default_currency="EUR",
+        default_split_type="EVEN",
+        tracking_threshold=30,
+    )
+    session.add(group)
+    session.flush()
+
+    membership = MembershipRow(
+        group_id=group.id,
+        user_id=user_id,
+        role="ADMIN",
+    )
+    session.add(membership)
+    session.flush()
+    return group
+
+
+def create_test_expense(
+    session,
+    group_id: int,
+    amount: str,
+    creator_id: int,
+    payer_id: int,
+    description: str = "Test expense",
+    status: str = "PENDING",
+):
+    """Create a test expense directly in the database."""
+    from datetime import date, datetime
+
+    from app.adapters.sqlalchemy.orm_models import ExpenseRow
+
+    expense = ExpenseRow(
+        group_id=group_id,
+        amount=amount,
+        description=description,
+        date=date.today(),
+        creator_id=creator_id,
+        payer_id=payer_id,
+        currency="EUR",
+        split_type="EVEN",
+        status=status,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    session.add(expense)
+    session.flush()
+    return expense

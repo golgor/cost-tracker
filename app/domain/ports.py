@@ -5,10 +5,12 @@ from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
     ExpensePublic,
+    ExpenseSplitPublic,
     GroupPublic,
     MemberRole,
     MembershipPublic,
     SettlementPublic,
+    SettlementTransactionPublic,
     SplitType,
     UserPublic,
 )
@@ -172,6 +174,20 @@ class ExpensePort(Protocol):
         """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
         ...
 
+    def save_splits(
+        self,
+        expense_id: int,
+        splits: list[ExpenseSplitPublic],
+        *,
+        actor_id: int,
+    ) -> list[ExpenseSplitPublic]:
+        """Save split rows for an expense. Replaces existing splits. Auto-audits."""
+        ...
+
+    def get_splits(self, expense_id: int) -> list[ExpenseSplitPublic]:
+        """Get all split rows for an expense."""
+        ...
+
 
 class SettlementPort(Protocol):
     """Port for settlement persistence operations."""
@@ -180,10 +196,11 @@ class SettlementPort(Protocol):
         self,
         settlement: SettlementPublic,
         expense_ids: list[int],
+        transactions: list[SettlementTransactionPublic],
         *,
         actor_id: int,
     ) -> SettlementPublic:
-        """Create a new settlement with linked expenses. Auto-audits."""
+        """Create a new settlement with linked expenses and transactions. Auto-audits."""
         ...
 
     def get_by_id(self, settlement_id: int) -> SettlementPublic | None:
@@ -204,6 +221,10 @@ class SettlementPort(Protocol):
 
     def get_expense_ids(self, settlement_id: int) -> list[int]:
         """Get expense IDs linked to a settlement."""
+        ...
+
+    def get_transactions(self, settlement_id: int) -> list[SettlementTransactionPublic]:
+        """Get all transactions for a settlement."""
         ...
 
 

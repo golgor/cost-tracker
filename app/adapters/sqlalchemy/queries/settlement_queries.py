@@ -5,8 +5,13 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, SettlementExpenseRow, SettlementRow
-from app.domain.models import ExpensePublic, ExpenseStatus
+from app.adapters.sqlalchemy.orm_models import (
+    ExpenseRow,
+    SettlementExpenseRow,
+    SettlementRow,
+    SettlementTransactionRow,
+)
+from app.domain.models import ExpensePublic, ExpenseStatus, SettlementTransactionPublic
 
 if TYPE_CHECKING:
     from app.domain.models import SettlementPublic
@@ -65,6 +70,43 @@ def get_oldest_unsettled_date(session: Session, group_id: int) -> date | None:
     )
     row = session.exec(statement).first()
     return row.date if row else None
+
+
+def get_settlement_transactions(
+    session: Session,
+    settlement_id: int,
+) -> list[SettlementTransactionPublic]:
+    """Get all transactions for a settlement.
+
+    Args:
+        session: Database session
+        settlement_id: Settlement ID
+
+    Returns:
+        List of transaction models ordered by ID
+    """
+    statement = (
+        select(SettlementTransactionRow)
+        .where(SettlementTransactionRow.settlement_id == settlement_id)
+        .order_by(SettlementTransactionRow.id)
+    )
+    rows = session.exec(statement).all()
+    return [_transaction_row_to_public(row) for row in rows]
+
+
+def _transaction_row_to_public(
+    row: SettlementTransactionRow,
+) -> SettlementTransactionPublic:
+    """Convert transaction row to domain model."""
+    assert row.id is not None
+
+    return SettlementTransactionPublic(
+        id=row.id,
+        settlement_id=row.settlement_id,
+        from_user_id=row.from_user_id,
+        to_user_id=row.to_user_id,
+        amount=row.amount,
+    )
 
 
 def get_settlement_with_expenses(
