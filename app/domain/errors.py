@@ -79,3 +79,50 @@ class StaleExpenseError(SettlementError):
     def __init__(self, expense_id: int) -> None:
         super().__init__(f"Expense {expense_id} has already been settled")
         self.expense_id = expense_id
+
+
+class BalanceCalculationError(DomainError):
+    """Base error for balance calculation failures."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
+class InvalidShareError(BalanceCalculationError):
+    """Raised when share calculation fails.
+
+    Examples:
+        - Empty member list
+        - Invalid share percentages (don't sum to 100)
+        - Negative shares
+    """
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class RoundingPrecisionError(BalanceCalculationError):
+    """Raised when rounding configuration is invalid.
+
+    Examples:
+        - Precision is not a power of 10 (e.g., 0.05 instead of 0.01)
+        - Precision is negative or zero
+        - Invalid rounding mode
+    """
+
+    def __init__(self, precision: str):
+        super().__init__(f"Invalid rounding precision: {precision}")
+        self.precision = precision
+
+
+class CurrencyMismatchError(BalanceCalculationError):
+    """Raised when expenses have different currencies.
+
+    Balance calculation currently requires all expenses to be in the same currency.
+    """
+
+    def __init__(self, currencies: set[str]):
+        currency_list = ", ".join(sorted(currencies))
+        super().__init__(f"Cannot calculate balances with mixed currencies: {currency_list}")
+        self.currencies = currencies

@@ -306,6 +306,70 @@ class TestCalculateBalance:
         assert balance["is_zero"] is False
         assert balance["is_positive"] is False
 
+    def test_settled_expenses_excluded_from_balance(self, db_session: Session):
+        """Settled expenses should not affect balance calculation."""
+        # Create users
+        user1 = UserRow(
+            oidc_sub="user1",
+            email="user1@example.com",
+            display_name="User One",
+            role="USER",
+        )
+        user2 = UserRow(
+            oidc_sub="user2",
+            email="user2@example.com",
+            display_name="User Two",
+            role="USER",
+        )
+        db_session.add(user1)
+        db_session.add(user2)
+        db_session.flush()
+
+        # Create group
+        group = GroupRow(
+            name="Settled Test Group",
+            singleton_guard=True,
+            default_currency="EUR",
+            default_split_type=SplitType.EVEN,
+        )
+        db_session.add(group)
+        db_session.flush()
+
+        # Add members
+        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
+        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
+        db_session.flush()
+
+        # Create pending expense (user1 paid 20€)
+        expense = ExpenseRow(
+            group_id=group.id,
+            amount=Decimal("20.00"),
+            description="Test expense",
+            date=date.today(),
+            creator_id=user1.id,
+            payer_id=user1.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        db_session.add(expense)
+        db_session.commit()
+
+        # Balance should show partner owes user1 10€
+        balance = calculate_balance(db_session, group.id, user1.id)
+        assert balance["current_user_is_owed"] == Decimal("10.00")
+        assert "owes you" in balance["formatted_message"]
+
+        # Settle the expense
+        expense.status = ExpenseStatus.SETTLED
+        db_session.commit()
+
+        # Balance should now be zero (settled expenses excluded)
+        balance = calculate_balance(db_session, group.id, user1.id)
+        assert balance["current_user_is_owed"] == Decimal("0.00")
+        assert balance["formatted_message"] == "All square!"
+        assert balance["is_zero"] is True
+
 
 class TestGetThisMonthTotal:
     """Verify monthly total calculation."""
