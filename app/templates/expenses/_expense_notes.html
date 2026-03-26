@@ -32,6 +32,7 @@
                     hx-target="#expense-notes-{{ expense.id }}"
                     hx-swap="outerHTML"
                     hx-confirm="Delete this note?"
+                    hx-vals='{"_csrf_token": "{{ csrf_token }}"}'
                 >
                     Delete
                 </button>
@@ -51,6 +52,7 @@
         hx-swap="outerHTML"
         class="space-y-2"
     >
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <textarea
             name="content"
             rows="2"

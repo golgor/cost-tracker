@@ -7,7 +7,7 @@ All functions are pure (no side effects, no I/O) making them easy to test.
 """
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.domain.value_objects import Money
@@ -144,9 +144,7 @@ def calculate_balances(
     # Validate all expenses have same currency
     currencies = {e.currency for e in expenses}
     if len(currencies) > 1:
-        raise CurrencyMismatchError(
-            f"Cannot calculate balances with mixed currencies: {currencies}"
-        )
+        raise CurrencyMismatchError(currencies)
 
     currency = next(iter(currencies))
 
@@ -295,13 +293,7 @@ def _round_money(money: Money, config: BalanceConfig) -> Money:
     Returns:
         Rounded Money
     """
-    rounding_modes = {
-        "ROUND_HALF_EVEN": ROUND_HALF_EVEN,
-        # Add other modes as needed
-    }
-
-    rounding = rounding_modes.get(config.rounding_mode, ROUND_HALF_EVEN)
-    rounded = money.amount.quantize(config.rounding_precision, rounding=rounding)
+    rounded = money.amount.quantize(config.rounding_precision, rounding=config.rounding_mode)
     return Money(rounded, money.currency)
 
 
@@ -323,16 +315,10 @@ def _adjust_rounding_errors(
         member_ids: List of member IDs in input order
         config: BalanceConfig
     """
-    from app.domain.value_objects import Money
+    currency = next(iter(balances.values())).net_balance.currency
 
-    # Calculate total of all net balances
-    total = Money(
-        sum(b.net_balance.amount for b in balances.values()),
-        next(iter(balances.values())).net_balance.currency,
-    )
-
-    # If already zero, nothing to do
-    if total.amount == 0:
+    total_amount = sum(b.net_balance.amount for b in balances.values())
+    if total_amount == 0:
         return
 
     # Find member with largest absolute net balance to absorb error
@@ -342,26 +328,9 @@ def _adjust_rounding_errors(
         key=lambda uid: (abs(balances[uid].net_balance.amount), -member_ids.index(uid)),
     )
 
-    # Adjust that member's fair share to fix the rounding error
-    # If total is 0.01, we need to adjust by -0.01 to make sum zero
-    # Example: 33.33 + 33.33 + 33.34 = 100.00, net balances sum to 0.01
-    # If user 1 is payer with net +66.68, we adjust their fair share from 33.32 to 33.33
-    # New net: 100.00 - 33.33 = 66.67, and sum = 66.67 - 33.33 - 33.33 = 0.01... wait
-
-    # Actually, let's adjust the net balance directly and recalculate fair share
     old_balance = balances[max_user_id]
-    adjustment = total  # The amount we need to compensate for
-
-    # Adjust net balance: if total is positive, subtract from the largest positive net
-    # if total is negative, add to the largest negative net
-    new_net_balance = Money(
-        old_balance.net_balance.amount - adjustment.amount, old_balance.net_balance.currency
-    )
-
-    # Recalculate fair share: fair_share = amount_paid - net_balance
-    new_fair_share = Money(
-        old_balance.amount_paid.amount - new_net_balance.amount, old_balance.amount_paid.currency
-    )
+    new_net_balance = Money(old_balance.net_balance.amount - total_amount, currency)
+    new_fair_share = Money(old_balance.amount_paid.amount - new_net_balance.amount, currency)
 
     balances[max_user_id] = MemberBalance(
         user_id=max_user_id,
