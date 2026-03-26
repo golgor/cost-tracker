@@ -163,6 +163,7 @@
 </aside>
 
 <script>
+(function() {
 // Group members data for split fields
 const groupMembers = [
     {% for member in group_members %}
@@ -436,4 +437,5 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('desktop-amount')?.focus();
     }
 });
+})();
 </script>

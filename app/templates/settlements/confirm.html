@@ -74,6 +74,7 @@
 
   <!-- Action Buttons -->
   <form action="/settlements" method="post" class="flex flex-col sm:flex-row gap-4">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     {% for expense_id in expense_ids %}
     <input type="hidden" name="expense_ids" value="{{ expense_id }}">
     {% endfor %}
