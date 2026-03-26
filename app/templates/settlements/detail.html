@@ -19,8 +19,17 @@
         <div class="text-stone-500 mt-2">{{ settlement.settled_at.strftime('%B %d, %Y') }}</div>
       </div>
       <div class="text-right">
-        <div class="text-3xl font-bold text-amber-600">{{ currency_symbol }}{{ settlement.total_amount }}</div>
-        <div class="text-stone-600">{{ display_names.get(settlement.transfer_from_user_id, 'Unknown') }} &rarr; {{ display_names.get(settlement.transfer_to_user_id, 'Unknown') }}</div>
+        {% if transactions|length == 0 %}
+        <div class="text-2xl font-bold text-stone-600">No payment needed</div>
+        {% elif transactions|length == 1 %}
+        <div class="text-3xl font-bold text-amber-600">{{ currency_symbol }}{{ transactions[0].amount }}</div>
+        <div class="text-stone-600">{{ transactions[0].from_name }} &rarr; {{ transactions[0].to_name }}</div>
+        {% else %}
+        <div class="text-stone-600 mb-2">{{ transactions|length }} transfers</div>
+        {% for tx in transactions %}
+        <div class="text-stone-800">{{ tx.from_name }} &rarr; {{ tx.to_name }}: <span class="font-bold text-amber-600">{{ currency_symbol }}{{ tx.amount }}</span></div>
+        {% endfor %}
+        {% endif %}
       </div>
     </div>
 

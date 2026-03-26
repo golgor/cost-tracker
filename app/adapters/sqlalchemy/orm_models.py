@@ -14,6 +14,7 @@ from app.domain.models import (
     GroupBase,
     MemberRole,
     SettlementBase,
+    SettlementTransactionBase,
     SplitType,
     UserBase,
     UserRole,
@@ -157,20 +158,38 @@ class SettlementRow(SettlementBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-    )
-    total_amount: Decimal = Field(
-        sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
+        sa_type=_TZ_DATETIME,
     )
 
-    # Foreign key constraints
     __table_args__ = (
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["settled_by_id"], ["users.id"]),
-        sa.ForeignKeyConstraint(["transfer_from_user_id"], ["users.id"]),
-        sa.ForeignKeyConstraint(["transfer_to_user_id"], ["users.id"]),
         sa.Index("ix_settlements_group_id_settled_at", "group_id", "settled_at"),
         sa.UniqueConstraint("group_id", "reference_id", name="uq_group_reference"),
+    )
+
+
+class SettlementTransactionRow(SettlementTransactionBase, table=True):
+    """ORM model for individual settlement transactions."""
+
+    __tablename__ = "settlement_transactions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    settlement_id: int = Field(foreign_key="settlements.id", index=True)
+    amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["from_user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["to_user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(
+            ["settlement_id"],
+            ["settlements.id"],
+            ondelete="CASCADE",
+        ),
     )
 
 
@@ -192,5 +211,6 @@ __all__ = [
     "AuditRow",
     "ExpenseRow",
     "SettlementRow",
+    "SettlementTransactionRow",
     "SettlementExpenseRow",
 ]

@@ -9,6 +9,7 @@ from app.domain.models import (
     MemberRole,
     MembershipPublic,
     SettlementPublic,
+    SettlementTransactionPublic,
     SplitType,
     UserPublic,
 )
@@ -180,10 +181,11 @@ class SettlementPort(Protocol):
         self,
         settlement: SettlementPublic,
         expense_ids: list[int],
+        transactions: list[SettlementTransactionPublic],
         *,
         actor_id: int,
     ) -> SettlementPublic:
-        """Create a new settlement with linked expenses. Auto-audits."""
+        """Create a new settlement with linked expenses and transactions. Auto-audits."""
         ...
 
     def get_by_id(self, settlement_id: int) -> SettlementPublic | None:
@@ -204,6 +206,10 @@ class SettlementPort(Protocol):
 
     def get_expense_ids(self, settlement_id: int) -> list[int]:
         """Get expense IDs linked to a settlement."""
+        ...
+
+    def get_transactions(self, settlement_id: int) -> list[SettlementTransactionPublic]:
+        """Get all transactions for a settlement."""
         ...
 
 

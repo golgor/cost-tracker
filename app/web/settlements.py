@@ -13,9 +13,11 @@ from app.adapters.sqlalchemy.queries.settlement_queries import (
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
+from app.domain.balance import calculate_balances, minimize_transactions
 from app.domain.errors import EmptySettlementError, StaleExpenseError
-from app.domain.models import ExpensePublic
-from app.domain.use_cases.settlements import calculate_settlement, confirm_settlement
+from app.domain.models import ExpensePublic, ExpenseStatus
+from app.domain.splits import BalanceConfig
+from app.domain.use_cases.settlements import confirm_settlement, format_transfer_message
 from app.web.templates import setup_templates
 
 router = APIRouter(tags=["settlements"])
@@ -56,18 +58,12 @@ async def settlement_review_page(
     uow: UowDep,
 ):
     """Render settlement review page with unsettled expenses."""
-    # Get user's group
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         raise HTTPException(status_code=404, detail="You are not a member of any group")
 
-    # Get unsettled expenses grouped by week
     grouped_expenses = get_unsettled_expenses_grouped(uow.session, group.id)
-
-    # Check for empty state
     total_unsettled = sum(len(expenses) for expenses in grouped_expenses.values())
-
-    # Get display names
     display_names = _get_user_display_names(uow, group.id)
 
     return templates.TemplateResponse(
@@ -92,34 +88,33 @@ async def calculate_settlement_total(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),  # noqa: B008
+    expense_ids: list[int] = Form(default=[]),
 ):
     """HTMX endpoint to recalculate total based on selected expenses."""
-    # Use cached form data if available (set by CSRF middleware)
     cached_form = getattr(request.state, "_cached_form", None)
     if cached_form and not expense_ids:
         expense_ids_str = cached_form.getlist("expense_ids")
         expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
-    # Get user's group
+
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         return ""
 
-    # Fetch selected expenses
     expenses: list[ExpensePublic] = []
     for expense_id in expense_ids:
         expense = uow.expenses.get_by_id(expense_id)
         if expense:
             expenses.append(expense)
 
-    # Get display names
     display_names = _get_user_display_names(uow, group.id)
 
-    # Calculate settlement
     if expenses:
-        calculation = calculate_settlement(expenses, display_names)
-        total_amount = calculation.total_amount
-        transfer_message = calculation.transfer_message
+        member_ids = list(display_names.keys())
+        config = BalanceConfig()
+        balances = calculate_balances(expenses, member_ids, config)
+        domain_transactions = minimize_transactions(balances)
+        total_amount = sum(tx.amount.amount for tx in domain_transactions)
+        transfer_message = format_transfer_message(domain_transactions, display_names)
     else:
         total_amount = Decimal("0.00")
         transfer_message = "Select expenses to see total"
@@ -142,21 +137,16 @@ async def settlement_confirm_page(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Query(default=[]),  # noqa: B008
+    expense_ids: list[int] = Query(default=[]),
 ):
     """Render settlement confirmation page."""
-    from app.domain.models import ExpenseStatus
-
-    # Validate at least one expense selected
     if not expense_ids:
         return RedirectResponse(url="/settlements/review", status_code=303)
 
-    # Get user's group
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         raise HTTPException(status_code=404, detail="You are not a member of any group")
 
-    # Fetch and validate expenses
     expenses: list[ExpensePublic] = []
     error_message = None
 
@@ -170,10 +160,10 @@ async def settlement_confirm_page(
             break
         expenses.append(expense)
 
+    display_names = _get_user_display_names(uow, group.id)
+
     if error_message:
-        # Return to review page with error
         grouped_expenses = get_unsettled_expenses_grouped(uow.session, group.id)
-        display_names = _get_user_display_names(uow, group.id)
 
         return templates.TemplateResponse(
             request,
@@ -189,11 +179,23 @@ async def settlement_confirm_page(
             },
         )
 
-    # Get display names
-    display_names = _get_user_display_names(uow, group.id)
+    member_ids = list(display_names.keys())
+    config = BalanceConfig()
+    balances = calculate_balances(expenses, member_ids, config)
+    domain_transactions = minimize_transactions(balances)
+    total_amount = sum(tx.amount.amount for tx in domain_transactions)
+    transfer_message = format_transfer_message(domain_transactions, display_names)
 
-    # Calculate settlement
-    calculation = calculate_settlement(expenses, display_names)
+    transactions = [
+        {
+            "from_user_id": tx.from_user_id,
+            "to_user_id": tx.to_user_id,
+            "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
+            "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
+            "amount": tx.amount.amount,
+        }
+        for tx in domain_transactions
+    ]
 
     return templates.TemplateResponse(
         request,
@@ -201,10 +203,9 @@ async def settlement_confirm_page(
         {
             "expenses": expenses,
             "expense_count": len(expenses),
-            "total_amount": calculation.total_amount,
-            "transfer_message": calculation.transfer_message,
-            "transfer_from_user_id": calculation.transfer_from_user_id,
-            "transfer_to_user_id": calculation.transfer_to_user_id,
+            "total_amount": total_amount,
+            "transfer_message": transfer_message,
+            "transactions": transactions,
             "expense_ids": expense_ids,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
@@ -218,22 +219,20 @@ async def create_settlement(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] = Form(default=[]),  # noqa: B008
+    expense_ids: list[int] = Form(default=[]),
 ):
     """Create settlement and mark expenses as settled."""
-    # Use cached form data if available (set by CSRF middleware)
     cached_form = getattr(request.state, "_cached_form", None)
     if cached_form and not expense_ids:
         expense_ids_str = cached_form.getlist("expense_ids")
         expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
 
-    # Get user's group
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         raise HTTPException(status_code=404, detail="You are not a member of any group")
 
-    # Get display names
     display_names = _get_user_display_names(uow, group.id)
+    member_ids = list(display_names.keys())
 
     try:
         with uow:
@@ -242,17 +241,15 @@ async def create_settlement(
                 group_id=group.id,
                 expense_ids=expense_ids,
                 settled_by_id=user_id,
-                user_display_names=display_names,
+                member_ids=member_ids,
             )
 
-        # Redirect to success page
         return RedirectResponse(
             url=f"/settlements/success?settlement_id={settlement.id}",
             status_code=303,
         )
 
     except (EmptySettlementError, StaleExpenseError) as e:
-        # Return to review page with error
         grouped_expenses = get_unsettled_expenses_grouped(uow.session, group.id)
         return templates.TemplateResponse(
             request,
@@ -281,20 +278,25 @@ async def settlement_success_page(
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
 
-    # Get user's group for authorization and currency
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         raise HTTPException(status_code=404, detail="You are not a member of any group")
 
-    # Security check: verify user belongs to settlement's group
     if settlement.group_id != group.id:
         raise HTTPException(status_code=403, detail="You don't have access to this settlement")
 
-    # Get display names
     display_names = _get_user_display_names(uow, settlement.group_id)
-
-    # Get expense count
     expense_ids = uow.settlements.get_expense_ids(settlement_id)
+    transactions = uow.settlements.get_transactions(settlement_id)
+
+    transaction_views = [
+        {
+            "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
+            "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
+            "amount": tx.amount,
+        }
+        for tx in transactions
+    ]
 
     return templates.TemplateResponse(
         request,
@@ -302,6 +304,7 @@ async def settlement_success_page(
         {
             "settlement": settlement,
             "expense_count": len(expense_ids),
+            "transactions": transaction_views,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -321,20 +324,32 @@ async def settlement_history_page(
         raise HTTPException(status_code=404, detail="You are not a member of any group")
 
     settlements = uow.settlements.list_by_group(group.id)
-
-    # Get display names
     display_names = _get_user_display_names(uow, group.id)
 
-    # Build view models with expense counts
     settlement_view_models = []
     for settlement in settlements:
         expense_ids = uow.settlements.get_expense_ids(settlement.id)
+        transactions = uow.settlements.get_transactions(settlement.id)
+
+        total_amount = sum(tx.amount for tx in transactions)
+
+        transaction_summaries = []
+        for tx in transactions:
+            transaction_summaries.append(
+                {
+                    "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
+                    "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
+                }
+            )
+
         settlement_view_models.append(
             {
                 "settlement": settlement,
                 "expense_count": len(expense_ids),
-                "from_name": display_names.get(settlement.transfer_from_user_id, "Unknown"),
-                "to_name": display_names.get(settlement.transfer_to_user_id, "Unknown"),
+                "total_amount": total_amount,
+                "transactions": transaction_summaries,
+                "transaction_count": len(transactions),
+                "has_amount": total_amount > 0,
             }
         )
 
@@ -358,7 +373,6 @@ async def settlement_detail_page(
     uow: UowDep,
 ):
     """Render settlement detail with included expenses."""
-    # Get user's group first for authorization
     group = uow.groups.get_by_user_id(user_id)
     if not group:
         raise HTTPException(status_code=404, detail="You are not a member of any group")
@@ -369,12 +383,20 @@ async def settlement_detail_page(
 
     settlement, expenses = result
 
-    # Security check: verify user belongs to settlement's group
     if settlement.group_id != group.id:
         raise HTTPException(status_code=403, detail="You don't have access to this settlement")
 
-    # Get display names
     display_names = _get_user_display_names(uow, settlement.group_id)
+    transactions = uow.settlements.get_transactions(settlement_id)
+
+    transaction_views = [
+        {
+            "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
+            "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
+            "amount": tx.amount,
+        }
+        for tx in transactions
+    ]
 
     return templates.TemplateResponse(
         request,
@@ -382,6 +404,7 @@ async def settlement_detail_page(
         {
             "settlement": settlement,
             "expenses": expenses,
+            "transactions": transaction_views,
             "display_names": display_names,
             "currency_symbol": _get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
