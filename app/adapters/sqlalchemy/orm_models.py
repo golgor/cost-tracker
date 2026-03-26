@@ -10,6 +10,7 @@ from sqlmodel import Field, SQLModel
 
 from app.domain.models import (
     ExpenseBase,
+    ExpenseSplitBase,
     ExpenseStatus,
     GroupBase,
     MemberRole,
@@ -150,6 +151,37 @@ class ExpenseRow(ExpenseBase, table=True):
     )
 
 
+class ExpenseSplitRow(ExpenseSplitBase, table=True):
+    """ORM model for ExpenseSplit — stores calculated split amounts per user."""
+
+    __tablename__ = "expense_splits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    expense_id: int = Field(foreign_key="expenses.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    amount: Decimal = Field(
+        sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
+    )
+    share_value: Decimal | None = Field(
+        default=None,
+        sa_type=sa.Numeric(precision=19, scale=4),  # type: ignore[arg-type]
+    )
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("expense_id", "user_id", name="uq_expense_user"),
+        sa.ForeignKeyConstraint(
+            ["expense_id"],
+            ["expenses.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+    )
+
+
 class SettlementRow(SettlementBase, table=True):
     """ORM model for Settlement — inherits from domain base, adds DB fields."""
 
@@ -210,6 +242,7 @@ __all__ = [
     "MembershipRow",
     "AuditRow",
     "ExpenseRow",
+    "ExpenseSplitRow",
     "SettlementRow",
     "SettlementTransactionRow",
     "SettlementExpenseRow",

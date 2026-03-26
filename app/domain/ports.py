@@ -5,6 +5,7 @@ from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
     ExpensePublic,
+    ExpenseSplitPublic,
     GroupPublic,
     MemberRole,
     MembershipPublic,
@@ -171,6 +172,20 @@ class ExpensePort(Protocol):
 
     def delete(self, expense_id: int, *, actor_id: int) -> None:
         """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
+        ...
+
+    def save_splits(
+        self,
+        expense_id: int,
+        splits: list[ExpenseSplitPublic],
+        *,
+        actor_id: int,
+    ) -> list[ExpenseSplitPublic]:
+        """Save split rows for an expense. Replaces existing splits. Auto-audits."""
+        ...
+
+    def get_splits(self, expense_id: int) -> list[ExpenseSplitPublic]:
+        """Get all split rows for an expense."""
         ...
 
 

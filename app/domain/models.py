@@ -31,7 +31,9 @@ class SplitType(StrEnum):
     """Supported expense split types."""
 
     EVEN = "EVEN"
-    # Future: SHARES, PERCENTAGE, EXACT
+    SHARES = "SHARES"  # Weighted split: each person gets N shares
+    PERCENTAGE = "PERCENTAGE"  # Percentage split: must sum to 100%
+    EXACT = "EXACT"  # Exact amounts: must sum to expense total
 
 
 class MemberRole(StrEnum):
@@ -131,10 +133,9 @@ class AuditEntry(SQLModel):
 class ExpenseStatus(StrEnum):
     """Expense lifecycle status."""
 
-    PENDING = "PENDING"
-    ACCEPTED = "ACCEPTED"
-    GIFT = "GIFT"
-    SETTLED = "SETTLED"  # Added for Epic 2.4 - expenses locked after settlement
+    PENDING = "PENDING"  # Default, included in balance and settlement
+    GIFT = "GIFT"  # Excluded from balance and settlement
+    SETTLED = "SETTLED"  # Immutable after settlement confirmation
 
 
 class ExpenseBase(SQLModel):
@@ -157,6 +158,22 @@ class ExpensePublic(ExpenseBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class ExpenseSplitBase(SQLModel):
+    """Domain base for ExpenseSplit — validation + business data. No table."""
+
+    expense_id: int
+    user_id: int
+    amount: Decimal = Field(decimal_places=2, ge=0)
+    share_value: Decimal | None = Field(default=None, decimal_places=4)
+
+
+class ExpenseSplitPublic(ExpenseSplitBase):
+    """Output schema for ExpenseSplit — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
 
 
 class SettlementTransactionBase(SQLModel):

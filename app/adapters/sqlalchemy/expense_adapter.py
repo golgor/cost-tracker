@@ -5,8 +5,8 @@ from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
-from app.adapters.sqlalchemy.orm_models import ExpenseRow
-from app.domain.models import ExpensePublic
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow
+from app.domain.models import ExpensePublic, ExpenseSplitPublic
 
 
 class SqlAlchemyExpenseAdapter:
@@ -132,6 +132,63 @@ class SqlAlchemyExpenseAdapter:
             changes=changes,
         )
 
+    def save_splits(
+        self,
+        expense_id: int,
+        splits: list[ExpenseSplitPublic],
+        *,
+        actor_id: int,
+    ) -> list[ExpenseSplitPublic]:
+        """Save split rows for an expense. Replaces existing splits. Auto-audits."""
+        # Delete existing splits
+        self._session.exec(select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense_id))
+        existing = self._session.exec(
+            select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense_id)
+        ).all()
+        for split_row in existing:
+            self._session.delete(split_row)
+
+        # Create new splits
+        new_rows: list[ExpenseSplitRow] = []
+        for split in splits:
+            row = ExpenseSplitRow(
+                expense_id=expense_id,
+                user_id=split.user_id,
+                amount=split.amount,
+                share_value=split.share_value,
+            )
+            self._session.add(row)
+            new_rows.append(row)
+
+        self._session.flush()
+
+        # Audit the change
+        self._audit.log(
+            action="splits_saved",
+            actor_id=actor_id,
+            entity_type="expense",
+            entity_id=expense_id,
+            changes={
+                "splits": [
+                    {
+                        "user_id": s.user_id,
+                        "amount": str(s.amount),
+                        "share_value": str(s.share_value) if s.share_value else None,
+                    }
+                    for s in splits
+                ]
+            },
+        )
+
+        return [self._split_to_public(row) for row in new_rows]
+
+    def get_splits(self, expense_id: int) -> list[ExpenseSplitPublic]:
+        """Get all split rows for an expense."""
+        rows = self._session.exec(
+            select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense_id)
+        ).all()
+        return [self._split_to_public(row) for row in rows]
+
     def _to_public(self, row: ExpenseRow) -> ExpensePublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
         return ExpensePublic(
@@ -147,4 +204,15 @@ class SqlAlchemyExpenseAdapter:
             status=row.status,
             created_at=row.created_at,
             updated_at=row.updated_at,
+        )
+
+    def _split_to_public(self, row: ExpenseSplitRow) -> ExpenseSplitPublic:
+        """Convert split ORM row to public domain model."""
+        return ExpenseSplitPublic(
+            id=row.id,  # type: ignore[arg-type]
+            expense_id=row.expense_id,
+            user_id=row.user_id,
+            amount=row.amount,
+            share_value=row.share_value,
+            created_at=row.created_at,
         )

@@ -20,6 +20,11 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+# ENUM types created here and reused in later migrations
+SPLITTYPE_VALUES = ("EVEN", "SHARES", "PERCENTAGE", "EXACT")
+ROLETYPE_VALUES = ("ADMIN", "USER")
+
+
 def upgrade() -> None:
     # Users table
     op.create_table(
@@ -50,7 +55,12 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False),
         sa.Column("default_currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
-        sa.Column("default_split_type", sa.Enum("EVEN", name="splittype"), nullable=False),
+        sa.Column(
+            "default_split_type",
+            sa.Enum(*SPLITTYPE_VALUES, name="splittype"),
+            nullable=False,
+            server_default="EVEN",
+        ),
         sa.Column("singleton_guard", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("tracking_threshold", sa.Integer(), nullable=False, server_default=sa.text("30")),
         sa.Column(
@@ -75,7 +85,10 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("group_id", sa.Integer(), nullable=False),
         sa.Column(
-            "role", sa.Enum("ADMIN", "USER", name="roletype"), nullable=False, server_default="USER"
+            "role",
+            sa.Enum(*ROLETYPE_VALUES, name="roletype"),
+            nullable=False,
+            server_default="USER",
         ),
         sa.Column(
             "joined_at",
