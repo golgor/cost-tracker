@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow, MembershipRow
 from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
 
 
@@ -95,7 +95,7 @@ def get_filtered_expenses(
 
 
 def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
-    """Calculate current balance for a group using even splits.
+    """Calculate current balance for a group using actual split amounts from expense_splits.
 
     Returns: {
         "current_user_is_owed": Decimal,  # positive = current user is owed, negative = owes
@@ -103,19 +103,9 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         "formatted_message": str,  # "All square!" if zero, else formatted balance
     }
 
-    This query assumes even (50/50) split for all expenses.
-
-    In Epic 4 (Story 4.2), this will be refactored to:
-    - Sum from expense_splits table for split-mode support
-    - Exclude GIFT status expenses (Story 4.3)
-    - Handle multiple members (currently assumes 2 partners)
+    This query sums from expense_splits table to support all split modes (even, shares,
+    percentage, exact). Excludes GIFT status expenses from balance calculation.
     """
-    # Fetch all pending expenses for this group (settled expenses don't affect balance)
-    statement = select(ExpenseRow).where(
-        ExpenseRow.group_id == group_id, ExpenseRow.status == ExpenseStatus.PENDING
-    )
-    expenses = session.exec(statement).all()
-
     # Get group members to identify partner
     members = get_group_members(session, group_id)
     if not members:
@@ -129,9 +119,61 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
     other_members = [m.user_id for m in members if m.user_id != user_id]
     partner_id = other_members[0] if other_members else None
 
-    # Calculate balance: sum (amount / 2) if current_user paid, subtract if other user paid
+    # Query all splits for pending expenses in this group
+    # Join with expenses to filter by status and get payer info
+    statement = (
+        select(ExpenseSplitRow, ExpenseRow.payer_id)
+        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)
+        .where(
+            ExpenseRow.group_id == group_id,
+            ExpenseRow.status == ExpenseStatus.PENDING,
+        )
+    )
+    results = session.exec(statement).all()
+
+    # Calculate balance from splits
+    # Logic: For each expense:
+    #   - If current user paid: they are owed the sum of all other members' splits
+    #   - If someone else paid: current user owes their split amount
     balance = Decimal("0.00")
-    for expense in expenses:
+
+    # Group splits by expense_id
+    expense_splits: dict[int, list[tuple[int, Decimal, int]]] = {}
+    for split_row, payer_id in results:
+        eid = split_row.expense_id
+        if eid not in expense_splits:
+            expense_splits[eid] = []
+        expense_splits[eid].append((split_row.user_id, split_row.amount, payer_id))
+
+    # Calculate balance for each expense that has splits
+    for _eid, splits in expense_splits.items():
+        # Find payer for this expense
+        payer_id = splits[0][2] if splits else None
+
+        if payer_id == user_id:
+            # Current user paid → add amounts owed by others
+            for member_id, amount, _ in splits:
+                if member_id != user_id:
+                    balance += amount
+        else:
+            # Someone else paid → subtract current user's share
+            for member_id, amount, _ in splits:
+                if member_id == user_id:
+                    balance -= amount
+
+    # Backward compatibility: Handle expenses without split rows (legacy data)
+    # Calculate even split (50/50) for these expenses
+    expenses_without_splits = (
+        select(ExpenseRow)
+        .where(
+            ExpenseRow.group_id == group_id,
+            ExpenseRow.status == ExpenseStatus.PENDING,
+        )
+        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))
+    )
+    legacy_expenses = session.exec(expenses_without_splits).all()
+
+    for expense in legacy_expenses:
         half = expense.amount / 2
         if expense.payer_id == user_id:
             # Current user paid → partner owes current user

@@ -158,9 +158,12 @@ class TestConfirmPage:
 
     def test_confirm_page_loads(self, authenticated_client, user1, test_group, test_expense):
         """Test confirm page with selected expenses."""
-        response = authenticated_client.get(
+        review_response = authenticated_client.get("/settlements/review")
+        csrf_token = review_response.cookies.get("csrf_token")
+        response = authenticated_client.post(
             "/settlements/confirm",
-            params={"expense_ids": [test_expense.id]},
+            data=f"expense_ids={test_expense.id}&_csrf_token={csrf_token}",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
         assert response.status_code == 200
@@ -168,7 +171,12 @@ class TestConfirmPage:
 
     def test_confirm_page_validation_no_expenses(self, authenticated_client, user1, test_group):
         """Test confirm page redirects when no expenses selected."""
-        response = authenticated_client.get("/settlements/confirm", follow_redirects=False)
+        csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
+        response = authenticated_client.post(
+            "/settlements/confirm",
+            data={"_csrf_token": csrf_token},
+            follow_redirects=False,
+        )
 
         assert response.status_code == 303  # Redirect
 

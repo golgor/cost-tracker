@@ -101,6 +101,11 @@
             </span>
         </div>
         
+        <!-- Notes Section -->
+        <div hx-get="/expenses/{{ expense.id }}/notes" hx-trigger="load" hx-swap="outerHTML">
+            <!-- Notes will be loaded here -->
+        </div>
+        
         <!-- Action buttons -->
         <div class="flex gap-3 pt-4">
             {% if not is_settled %}

@@ -10,6 +10,7 @@ from sqlmodel import Field, SQLModel
 
 from app.domain.models import (
     ExpenseBase,
+    ExpenseNoteBase,
     ExpenseSplitBase,
     ExpenseStatus,
     GroupBase,
@@ -179,6 +180,35 @@ class ExpenseSplitRow(ExpenseSplitBase, table=True):
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+    )
+
+
+class ExpenseNoteRow(ExpenseNoteBase, table=True):
+    """ORM model for ExpenseNote — stores notes/comments on expenses."""
+
+    __tablename__ = "expense_notes"
+
+    id: int | None = Field(default=None, primary_key=True)
+    expense_id: int = Field(foreign_key="expenses.id", index=True)
+    author_id: int = Field(foreign_key="users.id", index=True)
+    content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["expense_id"],
+            ["expenses.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(["author_id"], ["users.id"]),
+        sa.Index("ix_expense_notes_expense_id_created_at", "expense_id", "created_at"),
     )
 
 

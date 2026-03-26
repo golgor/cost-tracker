@@ -19,7 +19,7 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.errors import DomainError, InvalidShareError
-from app.domain.models import ExpensePublic, SplitType
+from app.domain.models import ExpensePublic, ExpenseStatus, SplitType
 from app.domain.splits import (
     EvenSplitStrategy,
     ExactSplitStrategy,
@@ -976,3 +976,326 @@ async def delete_expense_route(
 
     # Redirect to expense list (modal closes automatically, page refreshes)
     return RedirectResponse(url="/expenses", status_code=303)
+
+
+@router.get("/expenses/{expense_id}/notes", response_class=HTMLResponse)
+async def get_expense_notes(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Get expense notes section (HTMX endpoint).
+
+    Returns notes section HTML.
+    """
+    # Get expense and validate
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Authorization
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get notes
+    notes = uow.expenses.list_notes_by_expense(expense_id)
+    users_dict = {}
+    for note in notes:
+        author = uow.users.get_by_id(note.author_id)
+        if author:
+            users_dict[note.author_id] = author
+
+    # Get all group members for display
+    group_members = get_group_members(uow.session, group.id)
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_notes.html",
+        {
+            "notes": notes,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "expense": expense,
+            "is_settled": expense.status == ExpenseStatus.SETTLED,
+        },
+    )
+
+
+@router.post("/expenses/{expense_id}/notes", response_class=HTMLResponse)
+async def add_expense_note(
+    request: Request,
+    expense_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Add a note to an expense (HTMX endpoint).
+
+    Returns updated notes section HTML.
+    """
+    # Get form data
+    form_data = await request.form()
+    content = str(form_data.get("content", "")).strip()
+
+    if not content:
+        return HTMLResponse(
+            content="<div class='text-red-600 text-sm'>Note cannot be empty</div>", status_code=400
+        )
+
+    # Get expense and validate
+    expense = uow.expenses.get_by_id(expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Authorization
+    user = uow.users.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    group = uow.groups.get_by_user_id(user_id)
+    if not group or group.id != expense.group_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Cannot add notes to settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        return HTMLResponse(
+            content="<div class='text-red-600 text-sm'>Cannot add notes to settled expenses</div>",
+            status_code=400,
+        )
+
+    # Create note
+    from app.domain.models import ExpenseNotePublic
+
+    with uow:
+        note = ExpenseNotePublic(
+            id=0,  # Will be set by database
+            expense_id=expense_id,
+            author_id=user_id,
+            content=content,
+            created_at=date.today(),  # Placeholder, will be set by database
+            updated_at=date.today(),  # Placeholder, will be set by database
+        )
+        uow.expenses.save_note(note, actor_id=user_id)
+
+    # Get updated notes list
+    notes = uow.expenses.list_notes_by_expense(expense_id)
+    users_dict = {}
+    for note in notes:
+        author = uow.users.get_by_id(note.author_id)
+        if author:
+            users_dict[note.author_id] = author
+
+    # Get all group members for display
+    group_members = get_group_members(uow.session, group.id)
+    for member in group_members:
+        user_obj = uow.users.get_by_id(member.user_id)
+        if user_obj:
+            users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_notes.html",
+        {
+            "notes": notes,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "expense": expense,
+            "is_settled": expense.status == ExpenseStatus.SETTLED,
+        },
+    )
+
+
+@router.get("/expenses/notes/{note_id}/edit-form", response_class=HTMLResponse)
+async def edit_expense_note_form(
+    request: Request,
+    note_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Get edit form for a note (HTMX endpoint).
+
+    Returns edit form HTML.
+    """
+    # Get note and validate
+    note = uow.expenses.get_note_by_id(note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Only author can edit
+    if note.author_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the author can edit this note")
+
+    # Get expense to check status
+    expense = uow.expenses.get_by_id(note.expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Cannot edit notes on settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        return HTMLResponse(
+            content="<div class='text-red-600 text-sm'>Cannot edit notes on settled expenses</div>",
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_note_edit_form.html",
+        {
+            "note": note,
+            "expense": expense,
+        },
+    )
+
+
+@router.post("/expenses/notes/{note_id}/edit", response_class=HTMLResponse)
+async def edit_expense_note(
+    request: Request,
+    note_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Edit an expense note (HTMX endpoint).
+
+    Only the author can edit their own notes.
+    Returns updated notes section HTML.
+    """
+    # Get form data
+    form_data = await request.form()
+    content = str(form_data.get("content", "")).strip()
+
+    if not content:
+        return HTMLResponse(
+            content="<div class='text-red-600 text-sm'>Note cannot be empty</div>", status_code=400
+        )
+
+    # Get note and validate
+    note = uow.expenses.get_note_by_id(note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Only author can edit
+    if note.author_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the author can edit this note")
+
+    # Get expense to check status
+    expense = uow.expenses.get_by_id(note.expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Cannot edit notes on settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        return HTMLResponse(
+            content="<div class='text-red-600 text-sm'>Cannot edit notes on settled expenses</div>",
+            status_code=400,
+        )
+
+    # Update note
+    with uow:
+        updated_note = uow.expenses.update_note(note_id, content, actor_id=user_id)
+
+    # Get updated notes list
+    notes = uow.expenses.list_notes_by_expense(updated_note.expense_id)
+    users_dict = {}
+    for n in notes:
+        author = uow.users.get_by_id(n.author_id)
+        if author:
+            users_dict[n.author_id] = author
+
+    # Get all group members for display
+    group = uow.groups.get_by_id(expense.group_id)
+    if group:
+        group_members = get_group_members(uow.session, group.id)
+        for member in group_members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_notes.html",
+        {
+            "notes": notes,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "expense": expense,
+            "is_settled": expense.status == ExpenseStatus.SETTLED,
+        },
+    )
+
+
+@router.delete("/expenses/notes/{note_id}", response_class=HTMLResponse)
+async def delete_expense_note(
+    request: Request,
+    note_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """Delete an expense note (HTMX endpoint).
+
+    Only the author can delete their own notes.
+    Returns updated notes section HTML.
+    """
+    # Get note and validate
+    note = uow.expenses.get_note_by_id(note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Only author can delete
+    if note.author_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the author can delete this note")
+
+    # Get expense to check status
+    expense = uow.expenses.get_by_id(note.expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    # Cannot delete notes on settled expenses
+    if expense.status == ExpenseStatus.SETTLED:
+        return HTMLResponse(
+            content=(
+                "<div class='text-red-600 text-sm'>Cannot delete notes on settled expenses</div>"
+            ),
+            status_code=400,
+        )
+
+    # Delete note
+    with uow:
+        uow.expenses.delete_note(note_id, actor_id=user_id)
+
+    # Get updated notes list
+    notes = uow.expenses.list_notes_by_expense(note.expense_id)
+    users_dict = {}
+    for n in notes:
+        author = uow.users.get_by_id(n.author_id)
+        if author:
+            users_dict[n.author_id] = author
+
+    # Get all group members for display
+    group = uow.groups.get_by_id(expense.group_id)
+    if group:
+        group_members = get_group_members(uow.session, group.id)
+        for member in group_members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_dict[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_notes.html",
+        {
+            "notes": notes,
+            "users": users_dict,
+            "current_user_id": user_id,
+            "expense": expense,
+            "is_settled": expense.status == ExpenseStatus.SETTLED,
+        },
+    )

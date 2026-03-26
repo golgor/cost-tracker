@@ -4,6 +4,7 @@
 from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
+    ExpenseNotePublic,
     ExpensePublic,
     ExpenseSplitPublic,
     GroupPublic,
@@ -225,6 +226,41 @@ class SettlementPort(Protocol):
 
     def get_transactions(self, settlement_id: int) -> list[SettlementTransactionPublic]:
         """Get all transactions for a settlement."""
+        ...
+
+
+class ExpenseNotePort(Protocol):
+    """Port for expense note persistence operations."""
+
+    def save(
+        self,
+        note: ExpenseNotePublic,
+        *,
+        actor_id: int,
+    ) -> ExpenseNotePublic:
+        """Create a new note for an expense. Auto-audits."""
+        ...
+
+    def update(
+        self,
+        note_id: int,
+        content: str,
+        *,
+        actor_id: int,
+    ) -> ExpenseNotePublic:
+        """Update note content. Only author can edit. Auto-audits."""
+        ...
+
+    def delete(self, note_id: int, *, actor_id: int) -> None:
+        """Delete a note. Only author can delete. Auto-audits."""
+        ...
+
+    def get_by_id(self, note_id: int) -> ExpenseNotePublic | None:
+        """Retrieve note by database ID."""
+        ...
+
+    def list_by_expense(self, expense_id: int) -> list[ExpenseNotePublic]:
+        """List all notes for an expense, oldest first."""
         ...
 
 

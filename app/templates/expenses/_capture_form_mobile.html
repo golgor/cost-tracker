@@ -183,6 +183,7 @@
     </form>
 
     <script>
+    (function() {
     // Mobile form elements
     const mobileForm = document.getElementById('mobile-expense-form');
     const mobileAmountInput = document.getElementById('amount');
@@ -394,5 +395,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         renderMobileSplitFields('even');
     });
+    })();
     </script>
 </div>
