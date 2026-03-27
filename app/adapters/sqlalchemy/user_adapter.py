@@ -229,7 +229,8 @@ class SqlAlchemyUserAdapter:
 
     def _to_public(self, row: UserRow) -> UserPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
-        assert row.id is not None  # guaranteed for persisted rows
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
         return UserPublic(
             id=row.id,
             oidc_sub=row.oidc_sub,

@@ -10,6 +10,11 @@ from app.adapters.sqlalchemy.orm_models import (
     SettlementRow,
     SettlementTransactionRow,
 )
+from app.adapters.sqlalchemy.queries.mappings import (
+    expense_row_to_public,
+    settlement_row_to_public,
+    transaction_row_to_public,
+)
 from app.domain.models import (
     ExpensePublic,
     ExpenseStatus,
@@ -44,7 +49,7 @@ def get_unsettled_expenses_grouped(
         week_key = row.date.strftime("%Y-W%W")
         if week_key not in grouped:
             grouped[week_key] = []
-        grouped[week_key].append(_expense_row_to_public(row))
+        grouped[week_key].append(expense_row_to_public(row))
 
     return grouped
 
@@ -92,22 +97,7 @@ def get_settlement_transactions(
         .order_by(SettlementTransactionRow.id)  # ty: ignore[invalid-argument-type]
     )
     rows = session.exec(statement).all()
-    return [_transaction_row_to_public(row) for row in rows]
-
-
-def _transaction_row_to_public(
-    row: SettlementTransactionRow,
-) -> SettlementTransactionPublic:
-    """Convert transaction row to domain model."""
-    assert row.id is not None
-
-    return SettlementTransactionPublic(
-        id=row.id,
-        settlement_id=row.settlement_id,
-        from_user_id=row.from_user_id,
-        to_user_id=row.to_user_id,
-        amount=row.amount,
-    )
+    return [transaction_row_to_public(row) for row in rows]
 
 
 def get_settlement_with_expenses(
@@ -130,44 +120,7 @@ def get_settlement_with_expenses(
     expense_rows = session.exec(statement).all()
 
     # Convert to public models
-    settlement = _settlement_row_to_public(settlement_row)
-    expenses = [_expense_row_to_public(row) for row in expense_rows]
+    settlement = settlement_row_to_public(settlement_row)
+    expenses = [expense_row_to_public(row) for row in expense_rows]
 
     return settlement, expenses
-
-
-def _settlement_row_to_public(row: SettlementRow) -> SettlementPublic:
-    """Convert settlement ORM row to domain model."""
-    assert row.id is not None
-    assert row.created_at is not None
-
-    return SettlementPublic(
-        id=row.id,
-        group_id=row.group_id,
-        reference_id=row.reference_id,
-        settled_by_id=row.settled_by_id,
-        settled_at=row.settled_at,
-        created_at=row.created_at,
-    )
-
-
-def _expense_row_to_public(row: ExpenseRow) -> ExpensePublic:
-    """Convert ORM row to domain model. Mirrors ExpenseAdapter._to_public()."""
-    assert row.id is not None
-    assert row.created_at is not None
-    assert row.updated_at is not None
-
-    return ExpensePublic(
-        id=row.id,
-        group_id=row.group_id,
-        amount=row.amount,
-        description=row.description,
-        date=row.date,
-        creator_id=row.creator_id,
-        payer_id=row.payer_id,
-        currency=row.currency,
-        split_type=row.split_type,
-        status=row.status,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-    )

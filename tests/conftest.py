@@ -5,7 +5,7 @@ See: docs/testing-strategy.md
 """
 
 import os
-from collections.abc import Generator
+from collections.abc import Iterator
 from urllib.parse import urlparse
 
 # Set test environment variables BEFORE any app imports (pydantic-settings reads at import time)
@@ -107,7 +107,7 @@ def db_engine():
 
 
 @pytest.fixture
-def db_session(db_engine) -> Generator[Session]:
+def db_session(db_engine) -> Iterator[Session]:
     """Provide a transactional PostgreSQL session, rolled back after each test."""
     connection = db_engine.connect()
     transaction = connection.begin()

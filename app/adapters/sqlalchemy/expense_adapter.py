@@ -191,7 +191,8 @@ class SqlAlchemyExpenseAdapter:
 
     def _to_public(self, row: ExpenseRow) -> ExpensePublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
-        assert row.id is not None  # guaranteed for persisted rows
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
         return ExpensePublic(
             id=row.id,
             group_id=row.group_id,
@@ -209,7 +210,8 @@ class SqlAlchemyExpenseAdapter:
 
     def _split_to_public(self, row: ExpenseSplitRow) -> ExpenseSplitPublic:
         """Convert split ORM row to public domain model."""
-        assert row.id is not None  # guaranteed for persisted rows
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
         return ExpenseSplitPublic(
             id=row.id,
             expense_id=row.expense_id,
@@ -320,7 +322,8 @@ class SqlAlchemyExpenseAdapter:
 
     def _note_to_public(self, row: ExpenseNoteRow) -> ExpenseNotePublic:
         """Convert note ORM row to public domain model."""
-        assert row.id is not None  # guaranteed for persisted rows
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
         return ExpenseNotePublic(
             id=row.id,
             expense_id=row.expense_id,
