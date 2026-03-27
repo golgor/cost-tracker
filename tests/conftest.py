@@ -5,6 +5,7 @@ See: docs/testing-strategy.md
 """
 
 import os
+from collections.abc import Generator
 from urllib.parse import urlparse
 
 # Set test environment variables BEFORE any app imports (pydantic-settings reads at import time)
@@ -106,7 +107,7 @@ def db_engine():
 
 
 @pytest.fixture
-def db_session(db_engine) -> Session:
+def db_session(db_engine) -> Generator[Session]:
     """Provide a transactional PostgreSQL session, rolled back after each test."""
     connection = db_engine.connect()
     transaction = connection.begin()
@@ -128,12 +129,13 @@ def uow(db_session) -> UnitOfWork:
 def create_test_user(session, oidc_sub: str, email: str, display_name: str | None = None):
     """Create a test user directly in the database."""
     from app.adapters.sqlalchemy.orm_models import UserRow
+    from app.domain.models import UserRole
 
     user = UserRow(
         oidc_sub=oidc_sub,
         email=email,
         display_name=display_name or email.split("@")[0],
-        role="USER",
+        role=UserRole.USER,
         is_active=True,
     )
     session.add(user)
@@ -144,20 +146,22 @@ def create_test_user(session, oidc_sub: str, email: str, display_name: str | Non
 def create_test_group(session, user_id: int, name: str = "Test Group"):
     """Create a test group with the user as admin member."""
     from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow
+    from app.domain.models import MemberRole, SplitType
 
     group = GroupRow(
         name=name,
         default_currency="EUR",
-        default_split_type="EVEN",
+        default_split_type=SplitType.EVEN,
         tracking_threshold=30,
     )
     session.add(group)
     session.flush()
 
+    assert group.id is not None  # guaranteed after flush
     membership = MembershipRow(
         group_id=group.id,
         user_id=user_id,
-        role="ADMIN",
+        role=MemberRole.ADMIN,
     )
     session.add(membership)
     session.flush()
@@ -174,9 +178,10 @@ def create_test_expense(
     status: str = "PENDING",
 ):
     """Create a test expense directly in the database."""
-    from datetime import date, datetime
+    from datetime import date
 
     from app.adapters.sqlalchemy.orm_models import ExpenseRow
+    from app.domain.models import ExpenseStatus, SplitType
 
     expense = ExpenseRow(
         group_id=group_id,
@@ -186,10 +191,8 @@ def create_test_expense(
         creator_id=creator_id,
         payer_id=payer_id,
         currency="EUR",
-        split_type="EVEN",
-        status=status,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        split_type=SplitType.EVEN,
+        status=ExpenseStatus(status),
     )
     session.add(expense)
     session.flush()

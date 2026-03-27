@@ -184,8 +184,9 @@ class SqlAlchemyGroupAdapter:
 
     def _to_public(self, row: GroupRow) -> GroupPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
+        assert row.id is not None  # guaranteed for persisted rows
         return GroupPublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             name=row.name,
             default_currency=row.default_currency,
             default_split_type=row.default_split_type,

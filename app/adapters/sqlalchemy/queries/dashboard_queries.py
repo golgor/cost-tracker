@@ -123,7 +123,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
     # Join with expenses to filter by status and get payer info
     statement = (
         select(ExpenseSplitRow, ExpenseRow.payer_id)
-        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)
+        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
@@ -171,7 +171,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
             ExpenseRow.status == ExpenseStatus.PENDING,
             ExpenseRow.status != ExpenseStatus.GIFT,
         )
-        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))
+        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))  # ty: ignore[unresolved-attribute]
     )
     legacy_expenses = session.exec(expenses_without_splits).all()
 

@@ -120,6 +120,7 @@ class TestUnitOfWorkAuditAtomicity:
             select(AuditRow).where(AuditRow.action == "user_created")
         ).all()
         assert len(audit_rows) == 1
+        assert audit_rows[0].changes is not None
         assert audit_rows[0].changes["oidc_sub"] == {"old": None, "new": "auth0|atomic_commit"}
 
     def test_audit_log_rolled_back_with_business_change(self, uow: UnitOfWork):

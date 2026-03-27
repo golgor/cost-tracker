@@ -101,7 +101,7 @@ def test_delete_expense_audit_logging(session_factory, uow_factory):
     """Test that expense deletion creates audit log entry with snapshot."""
     from sqlalchemy import select
 
-    from app.adapters.sqlalchemy.orm_models import AuditLogRow
+    from app.adapters.sqlalchemy.orm_models import AuditRow
 
     # Setup
     session = session_factory()
@@ -133,10 +133,10 @@ def test_delete_expense_audit_logging(session_factory, uow_factory):
         )
 
     # Verify audit log entry exists
-    stmt = select(AuditLogRow).where(
-        AuditLogRow.entity_type == "expense",
-        AuditLogRow.entity_id == expense_id,
-        AuditLogRow.action == "expense_deleted",
+    stmt = select(AuditRow).where(
+        AuditRow.entity_type == "expense",
+        AuditRow.entity_id == expense_id,
+        AuditRow.action == "expense_deleted",
     )
     audit_logs = session.exec(stmt).all()
 

@@ -206,7 +206,10 @@ async def get_split_preview(
     payer_id_str = form.get("payer_id", "")
 
     # Type narrowing: form values are strings, not UploadFile
+    assert isinstance(amount_str, str), "amount should be a string"
     assert isinstance(split_type, str), "split_type should be a string"
+    assert isinstance(split_config_json, str), "split_config should be a string"
+    assert isinstance(payer_id_str, str), "payer_id should be a string"
 
     # Parse amount
     try:

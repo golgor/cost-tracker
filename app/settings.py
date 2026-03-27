@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 def _load_settings() -> Settings:
     """Load settings with user-friendly error on missing configuration."""
     try:
-        return Settings()  # type: ignore[call-arg]  # pydantic-settings reads from env vars
+        return Settings()  # type: ignore[call-arg]  # ty: ignore[missing-argument]  # pydantic-settings reads from env vars
     except ValidationError as e:
         missing = [err["loc"][0] for err in e.errors() if err["type"] == "missing"]
         if missing:

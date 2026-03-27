@@ -1,7 +1,6 @@
 """Read-only queries for settlement operations."""
 
 from datetime import date
-from typing import TYPE_CHECKING
 
 from sqlmodel import Session, func, select
 
@@ -11,10 +10,12 @@ from app.adapters.sqlalchemy.orm_models import (
     SettlementRow,
     SettlementTransactionRow,
 )
-from app.domain.models import ExpensePublic, ExpenseStatus, SettlementTransactionPublic
-
-if TYPE_CHECKING:
-    from app.domain.models import SettlementPublic
+from app.domain.models import (
+    ExpensePublic,
+    ExpenseStatus,
+    SettlementPublic,
+    SettlementTransactionPublic,
+)
 
 
 def get_unsettled_expenses_grouped(
@@ -88,7 +89,7 @@ def get_settlement_transactions(
     statement = (
         select(SettlementTransactionRow)
         .where(SettlementTransactionRow.settlement_id == settlement_id)
-        .order_by(SettlementTransactionRow.id)
+        .order_by(SettlementTransactionRow.id)  # ty: ignore[invalid-argument-type]
     )
     rows = session.exec(statement).all()
     return [_transaction_row_to_public(row) for row in rows]
@@ -114,8 +115,6 @@ def get_settlement_with_expenses(
     settlement_id: int,
 ) -> tuple[SettlementPublic, list[ExpensePublic]] | None:
     """Fetch settlement with its linked expenses."""
-    from app.adapters.sqlalchemy.settlement_adapter import SqlAlchemySettlementAdapter
-
     # Get settlement
     settlement_row = session.get(SettlementRow, settlement_id)
     if settlement_row is None:
@@ -131,11 +130,25 @@ def get_settlement_with_expenses(
     expense_rows = session.exec(statement).all()
 
     # Convert to public models
-    adapter = SqlAlchemySettlementAdapter(session, None)  # type: ignore[arg-type]
-    settlement = adapter._to_public(settlement_row)
+    settlement = _settlement_row_to_public(settlement_row)
     expenses = [_expense_row_to_public(row) for row in expense_rows]
 
     return settlement, expenses
+
+
+def _settlement_row_to_public(row: SettlementRow) -> SettlementPublic:
+    """Convert settlement ORM row to domain model."""
+    assert row.id is not None
+    assert row.created_at is not None
+
+    return SettlementPublic(
+        id=row.id,
+        group_id=row.group_id,
+        reference_id=row.reference_id,
+        settled_by_id=row.settled_by_id,
+        settled_at=row.settled_at,
+        created_at=row.created_at,
+    )
 
 
 def _expense_row_to_public(row: ExpenseRow) -> ExpensePublic:

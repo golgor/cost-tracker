@@ -191,8 +191,9 @@ class SqlAlchemyExpenseAdapter:
 
     def _to_public(self, row: ExpenseRow) -> ExpensePublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
+        assert row.id is not None  # guaranteed for persisted rows
         return ExpensePublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             group_id=row.group_id,
             amount=row.amount,
             description=row.description,
@@ -208,8 +209,9 @@ class SqlAlchemyExpenseAdapter:
 
     def _split_to_public(self, row: ExpenseSplitRow) -> ExpenseSplitPublic:
         """Convert split ORM row to public domain model."""
+        assert row.id is not None  # guaranteed for persisted rows
         return ExpenseSplitPublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             expense_id=row.expense_id,
             user_id=row.user_id,
             amount=row.amount,
@@ -232,12 +234,13 @@ class SqlAlchemyExpenseAdapter:
         self._session.add(row)
         self._session.flush()
 
+        assert row.id is not None  # guaranteed after flush
         # Audit the creation
         self._audit.log(
             action="note_created",
             actor_id=actor_id,
             entity_type="expense_note",
-            entity_id=row.id,  # type: ignore[arg-type]
+            entity_id=row.id,
             changes=snapshot_new(row, ["expense_id", "author_id", "content"]),
         )
 
@@ -310,15 +313,16 @@ class SqlAlchemyExpenseAdapter:
         rows = self._session.exec(
             select(ExpenseNoteRow)
             .where(ExpenseNoteRow.expense_id == expense_id)
-            .order_by(ExpenseNoteRow.created_at)
+            .order_by(ExpenseNoteRow.created_at)  # ty: ignore[invalid-argument-type]
         ).all()
 
         return [self._note_to_public(row) for row in rows]
 
     def _note_to_public(self, row: ExpenseNoteRow) -> ExpenseNotePublic:
         """Convert note ORM row to public domain model."""
+        assert row.id is not None  # guaranteed for persisted rows
         return ExpenseNotePublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             expense_id=row.expense_id,
             author_id=row.author_id,
             content=row.content,

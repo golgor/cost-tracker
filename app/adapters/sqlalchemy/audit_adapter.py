@@ -34,8 +34,9 @@ class SqlAlchemyAuditAdapter:
 
     def _to_public(self, row: AuditRow) -> AuditEntry:
         """Convert ORM row to public domain model. Row never leaves adapter."""
+        assert row.id is not None  # guaranteed for persisted rows
         return AuditEntry(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             actor_id=row.actor_id,
             action=row.action,
             entity_type=row.entity_type,

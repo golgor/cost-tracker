@@ -117,7 +117,7 @@ class SqlAlchemySettlementAdapter:
         statement = (
             select(SettlementTransactionRow)
             .where(SettlementTransactionRow.settlement_id == settlement_id)
-            .order_by(SettlementTransactionRow.id)
+            .order_by(SettlementTransactionRow.id)  # ty: ignore[invalid-argument-type]
         )
         rows = self._session.exec(statement).all()
         return [self._to_transaction_public(row) for row in rows]

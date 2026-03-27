@@ -13,7 +13,7 @@ def get_all_users(session: Session) -> list[UserPublic]:
 
     return [
         UserPublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,  # ty: ignore[invalid-argument-type]  # guaranteed non-None for persisted rows
             oidc_sub=row.oidc_sub,
             email=row.email,
             display_name=row.display_name,
@@ -36,7 +36,7 @@ def get_recent_audit_entries(session: Session, limit: int = 50) -> list:
 
     statement = (
         select(AuditRow, UserRow)
-        .join(UserRow, onclause=(AuditRow.actor_id == UserRow.id), isouter=True)  # type: ignore[arg-type]
+        .join(UserRow, onclause=(AuditRow.actor_id == UserRow.id), isouter=True)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
         .order_by(AuditRow.occurred_at.desc())  # type: ignore[attr-defined]
         .limit(limit)
     )
