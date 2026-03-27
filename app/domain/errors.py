@@ -126,3 +126,7 @@ class CurrencyMismatchError(BalanceCalculationError):
         currency_list = ", ".join(sorted(currencies))
         super().__init__(f"Cannot calculate balances with mixed currencies: {currency_list}")
         self.currencies = currencies
+
+
+class RecurringDefinitionNotFoundError(DomainError):
+    """Raised when a recurring definition cannot be found or is soft-deleted."""

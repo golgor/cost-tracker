@@ -20,6 +20,7 @@ from app.domain.errors import (
     GroupNotFoundError,
     LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
+    RecurringDefinitionNotFoundError,
     StaleExpenseError,
     UnauthorizedGroupActionError,
     UserAlreadyActive,
@@ -54,6 +55,7 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     CannotEditSettledExpenseError: 403,
     EmptySettlementError: 400,
     StaleExpenseError: 409,
+    RecurringDefinitionNotFoundError: 404,
 }
 
 

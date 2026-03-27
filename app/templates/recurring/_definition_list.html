@@ -1,0 +1,11 @@
+<!-- Definition list partial — swapped by HTMX tab switching -->
+{% if definitions %}
+  {% include "recurring/_summary_bar.html" %}
+  <div class="space-y-3">
+    {% for defn in definitions %}
+      {% include "recurring/_definition_card.html" %}
+    {% endfor %}
+  </div>
+{% else %}
+  {% include "recurring/_empty_state.html" %}
+{% endif %}

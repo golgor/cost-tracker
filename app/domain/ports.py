@@ -1,6 +1,8 @@
 # Domain ports (Protocol classes)
 # Allowed imports: stdlib + external validation libs (sqlmodel, pydantic) per ADR-011
 # Forbidden imports: app.adapters, app.web, app.auth, app.api (internal modules)
+from datetime import date
+from decimal import Decimal
 from typing import Any, Protocol  # noqa: F401
 
 from app.domain.models import (
@@ -9,6 +11,8 @@ from app.domain.models import (
     GroupPublic,
     MemberRole,
     MembershipPublic,
+    RecurringDefinitionPublic,
+    RecurringFrequency,
     SettlementPublic,
     SettlementTransactionPublic,
     SplitType,
@@ -228,6 +232,58 @@ class SettlementPort(Protocol):
         ...
 
 
+class RecurringDefinitionPort(Protocol):
+    """Port for RecurringDefinition persistence operations."""
+
+    def save(
+        self, definition: RecurringDefinitionPublic, *, actor_id: int
+    ) -> RecurringDefinitionPublic:
+        """Create a new recurring definition. Returns the persisted definition. Auto-audits."""
+        ...
+
+    def get_by_id(self, definition_id: int) -> RecurringDefinitionPublic | None:
+        """Retrieve recurring definition by database ID."""
+        ...
+
+    def list_by_group(
+        self,
+        group_id: int,
+        *,
+        active_only: bool = False,
+        include_deleted: bool = False,
+    ) -> list[RecurringDefinitionPublic]:
+        """List recurring definitions for a group.
+
+        Excludes soft-deleted rows by default (include_deleted=False).
+        """
+        ...
+
+    def update(
+        self,
+        definition_id: int,
+        *,
+        actor_id: int,
+        name: str | None = None,
+        amount: Decimal | None = None,
+        frequency: RecurringFrequency | None = None,
+        interval_months: int | None = None,
+        next_due_date: date | None = None,
+        payer_id: int | None = None,
+        split_type: SplitType | None = None,
+        split_config: dict | None = None,
+        category: str | None = None,
+        auto_generate: bool | None = None,
+        is_active: bool | None = None,
+        currency: str | None = None,
+    ) -> RecurringDefinitionPublic:
+        """Update recurring definition fields. Only provided fields are updated. Auto-audits."""
+        ...
+
+    def soft_delete(self, definition_id: int, *, actor_id: int) -> None:
+        """Soft-delete a recurring definition by setting deleted_at. Auto-audits."""
+        ...
+
+
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.
 
@@ -244,6 +300,7 @@ class UnitOfWorkPort(Protocol):
     expenses: ExpensePort
     audit: AuditPort
     settlements: SettlementPort
+    recurring: RecurringDefinitionPort
 
     def __enter__(self) -> UnitOfWorkPort:
         """Enter context manager - prepares transaction."""
