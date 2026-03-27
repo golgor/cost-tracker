@@ -82,7 +82,7 @@ class TestExpenseSearchBar:
     def test_search_bar_is_present_on_expenses_page(self, client, search_expenses):
         response = client.get("/expenses")
         assert response.status_code == 200
-        assert 'id="expense-search"' in response.text
+        assert 'id="search-input"' in response.text
         assert "Search expenses..." in response.text
 
     def test_search_query_preserved_in_input(self, client, search_expenses):
