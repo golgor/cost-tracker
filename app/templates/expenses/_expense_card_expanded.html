@@ -74,21 +74,17 @@
             </div>
         </div>
         
-        <!-- Split breakdown (even split for MVP) -->
+        <!-- Split breakdown -->
         <div>
-            <p class="text-sm font-medium text-stone-700 mb-2">Split (Even)</p>
+            <p class="text-sm font-medium text-stone-700 mb-2">Split ({{ split_type_label }})</p>
             <div class="space-y-1">
-                {% for member in group_members %}
-                    {% set member_user = users.get(member.user_id) %}
-                    {% if member_user %}
-                    <div class="flex justify-between text-sm">
-                        <span class="text-stone-600">{{ member_user.display_name }}</span>
-                        <span class="text-stone-900">€{{ "%.2f"|format(expense.amount / 2) }}</span>
-                    </div>
-                    {% endif %}
+                {% for split in splits_display %}
+                <div class="flex justify-between text-sm">
+                    <span class="text-stone-600">{{ split.display_name }}</span>
+                    <span class="text-stone-900">{{ expense.currency | currency_symbol }}{{ split.amount | format_decimal }}</span>
+                </div>
                 {% endfor %}
             </div>
-            <p class="text-xs text-stone-500 mt-2">Note: Advanced split modes coming in Epic 4</p>
         </div>
         
         <!-- Status -->

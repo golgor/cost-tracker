@@ -14,6 +14,7 @@ from app.domain.errors import (
     CannotEditSettledExpenseError,
     DeactivatedUserAccessDenied,
     DomainError,
+    DuplicateBillingPeriodError,
     DuplicateHouseholdError,
     DuplicateMembershipError,
     EmptySettlementError,
@@ -21,6 +22,7 @@ from app.domain.errors import (
     LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
     RecurringDefinitionNotFoundError,
+    RecurringExpenseDescriptionError,
     StaleExpenseError,
     UnauthorizedGroupActionError,
     UserAlreadyActive,
@@ -56,6 +58,8 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     EmptySettlementError: 400,
     StaleExpenseError: 409,
     RecurringDefinitionNotFoundError: 404,
+    DuplicateBillingPeriodError: 409,
+    RecurringExpenseDescriptionError: 400,
 }
 
 

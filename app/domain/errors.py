@@ -130,3 +130,18 @@ class CurrencyMismatchError(BalanceCalculationError):
 
 class RecurringDefinitionNotFoundError(DomainError):
     """Raised when a recurring definition cannot be found or is soft-deleted."""
+
+
+class DuplicateBillingPeriodError(DomainError):
+    """Raised when an expense for this billing period already exists."""
+
+    def __init__(self, definition_id: int, billing_period: str):
+        super().__init__(
+            f"An expense for definition {definition_id} in period {billing_period} already exists"
+        )
+        self.definition_id = definition_id
+        self.billing_period = billing_period
+
+
+class RecurringExpenseDescriptionError(DomainError):
+    """Raised when attempting to change the description of a recurring expense."""

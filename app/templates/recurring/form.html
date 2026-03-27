@@ -163,6 +163,16 @@
     </div>
     <input type="hidden" id="split-config" name="split_config" value="{{ form_data.split_config }}">
 
+    <!-- Split preview (reuses the same endpoint as the expense form) -->
+    <div id="split-preview-container" class="{% if is_even_split %}hidden{% endif %}">
+      <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
+        <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
+        <div id="split-preview-content" class="space-y-1 text-sm">
+          <!-- Populated by JavaScript fetch -->
+        </div>
+      </div>
+    </div>
+
     <!-- Schedule separator -->
     <div class="relative flex items-center">
       <div class="flex-grow border-t border-stone-200"></div>
@@ -259,11 +269,52 @@ const groupMembers = [
 
 const splitFieldsDiv = document.getElementById('split-fields');
 const splitConfigInput = document.getElementById('split-config');
+const splitPreviewContainer = document.getElementById('split-preview-container');
+const splitPreviewContent = document.getElementById('split-preview-content');
 
 const initialSplitConfig = (() => {
   try { return splitConfigInput.value ? JSON.parse(splitConfigInput.value) : {}; }
   catch(e) { return {}; }
 })();
+
+function debounce(fn, delay) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
+
+async function fetchSplitPreview() {
+  const splitType = document.getElementById('split_type').value;
+  if (splitType === 'EVEN') {
+    splitPreviewContainer.classList.add('hidden');
+    return;
+  }
+  updateSplitConfig();
+  const formData = new FormData();
+  formData.append('amount', document.getElementById('amount').value || '0');
+  formData.append('split_type', splitType.toLowerCase());
+  formData.append('split_config', splitConfigInput.value || '{}');
+  formData.append('payer_id', document.getElementById('payer_id').value || '');
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const response = await fetch('/expenses/split-preview', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+    });
+    if (response.ok) {
+      splitPreviewContent.innerHTML = await response.text();
+      splitPreviewContainer.classList.remove('hidden');
+    }
+  } catch (_) {
+    // Silently ignore network errors in the preview
+  }
+}
+
+const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
 
 function updateSplitConfig() {
   const mode = document.getElementById('split_type').value.toLowerCase();
@@ -315,6 +366,7 @@ function renderSplitFields(mode, existing) {
 
 function handleSplitTypeChange(value) {
   renderSplitFields(value.toLowerCase(), {});
+  debouncedFetchPreview();
 }
 
 function handleFrequencyChange(value) {
@@ -359,7 +411,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const currentSplit = document.getElementById('split_type').value.toLowerCase();
   if (currentSplit !== 'even') {
     renderSplitFields(currentSplit, initialSplitConfig);
+    fetchSplitPreview();
   }
+});
+
+document.getElementById('amount').addEventListener('input', debouncedFetchPreview);
+document.getElementById('payer_id').addEventListener('change', debouncedFetchPreview);
+splitFieldsDiv.addEventListener('input', () => {
+  updateSplitConfig();
+  debouncedFetchPreview();
 });
 </script>
 {% endblock %}

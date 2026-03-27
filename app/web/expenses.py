@@ -709,6 +709,19 @@ async def get_expense_detail(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
+    # Fetch actual split rows and build view-model list
+    raw_splits = uow.expenses.get_splits(expense.id)
+    splits_display = [
+        {
+            "display_name": users_dict[s.user_id].display_name
+            if s.user_id in users_dict
+            else f"User {s.user_id}",
+            "amount": s.amount,
+        }
+        for s in raw_splits
+    ]
+    split_type_label = expense.split_type.value.title()
+
     return templates.TemplateResponse(
         request,
         "expenses/_expense_card_expanded.html",
@@ -721,6 +734,8 @@ async def get_expense_detail(
             "current_user_id": user_id,
             "group": group,
             "is_settled": expense.status == "SETTLED",
+            "splits_display": splits_display,
+            "split_type_label": split_type_label,
         },
     )
 

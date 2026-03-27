@@ -150,7 +150,14 @@ class ExpenseRow(ExpenseBase, table=True):
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["creator_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(
+            ["recurring_definition_id"],
+            ["recurring_definitions.id"],
+            ondelete="SET NULL",
+            name="fk_expenses_recurring_definition_id",
+        ),
         sa.Index("ix_expenses_group_id_date", "group_id", "date"),
+        # Partial unique index enforced at migration level; declared here for documentation
     )
 
 

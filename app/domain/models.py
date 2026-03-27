@@ -160,6 +160,9 @@ class ExpenseBase(SQLModel):
     currency: str = Field(max_length=3)
     split_type: SplitType = Field(default=SplitType.EVEN)
     status: ExpenseStatus = Field(default=ExpenseStatus.PENDING)
+    recurring_definition_id: int | None = Field(default=None)
+    billing_period: str | None = Field(default=None, max_length=10)
+    is_auto_generated: bool = Field(default=False)
 
 
 class ExpensePublic(ExpenseBase):

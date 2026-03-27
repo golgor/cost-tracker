@@ -1,0 +1,61 @@
+<!-- Delete confirmation modal for recurring definitions -->
+<div id="delete-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="delete-modal-title">
+  <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+    <h2 id="delete-modal-title" class="text-lg font-semibold text-stone-800 mb-2">
+      Delete recurring definition?
+    </h2>
+    <p class="text-sm text-stone-600 mb-4">
+      "<span id="delete-modal-name" class="font-medium"></span>" will be permanently removed.
+      Existing expenses linked to it are kept.
+    </p>
+
+    <div class="flex justify-end gap-3">
+      <button
+        type="button"
+        onclick="closeDeleteModal()"
+        class="px-4 py-2 text-sm rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50 transition-colors"
+      >
+        Cancel
+      </button>
+      <button
+        id="delete-modal-confirm"
+        type="button"
+        class="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+      >
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openDeleteModal(definitionId, definitionName) {
+    document.getElementById('delete-modal-name').textContent = definitionName;
+    document.getElementById('delete-modal-confirm').onclick = function () {
+      htmx.ajax('DELETE', '/recurring/' + definitionId, {
+        headers: { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '' },
+        target: '#definition-card-' + definitionId,
+        swap: 'outerHTML',
+      });
+      closeDeleteModal();
+    };
+    const modal = document.getElementById('delete-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeDeleteModal() {
+    const modal = document.getElementById('delete-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  // Close on backdrop click
+  document.getElementById('delete-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeDeleteModal();
+  });
+</script>

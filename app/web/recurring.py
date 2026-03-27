@@ -17,10 +17,26 @@ from app.adapters.sqlalchemy.queries.recurring_queries import (
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
-from app.domain.errors import DomainError
-from app.domain.models import RecurringFrequency, SplitType, UserPublic
+from app.domain.errors import DomainError, InvalidShareError
+from app.domain.models import (
+    ExpensePublic,
+    ExpenseStatus,
+    RecurringFrequency,
+    SplitType,
+    UserPublic,
+)
+from app.domain.splits import (
+    EvenSplitStrategy,
+    ExactSplitStrategy,
+    PercentageSplitStrategy,
+    SharesSplitStrategy,
+)
 from app.domain.use_cases.recurring import (
+    create_expense_from_definition,
     create_recurring_definition,
+    delete_definition,
+    pause_definition,
+    reactivate_definition,
     update_recurring_definition,
 )
 from app.web.templates import setup_templates
@@ -241,6 +257,19 @@ async def create_recurring(
 
         errors, parsed = _parse_form(form_data)
 
+        if not errors and parsed["split_enum"] != SplitType.EVEN:
+            member_ids = [m.user_id for m in members]
+            try:
+                _validate_split_with_strategies(
+                    split_type=parsed["split_enum"],
+                    split_config=parsed["split_config"],
+                    amount=parsed["amount"],
+                    payer_id=payer_id,
+                    member_ids=member_ids,
+                )
+            except (InvalidShareError, ValueError) as exc:
+                errors["split_type"] = str(exc)
+
         if not errors:
             try:
                 create_recurring_definition(
@@ -436,6 +465,19 @@ async def update_recurring(
 
         errors, parsed = _parse_form(form_data)
 
+        if not errors and parsed["split_enum"] != SplitType.EVEN:
+            member_ids = [m.user_id for m in members]
+            try:
+                _validate_split_with_strategies(
+                    split_type=parsed["split_enum"],
+                    split_config=parsed["split_config"],
+                    amount=parsed["amount"],
+                    payer_id=payer_id,
+                    member_ids=member_ids,
+                )
+            except (InvalidShareError, ValueError) as exc:
+                errors["split_type"] = str(exc)
+
         if not errors:
             try:
                 update_recurring_definition(
@@ -476,6 +518,158 @@ async def update_recurring(
             )
 
     return RedirectResponse(url="/recurring", status_code=303)
+
+
+@router.patch("/recurring/{definition_id}/toggle-active", response_class=HTMLResponse)
+async def toggle_active(
+    request: Request,
+    definition_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """HTMX: toggle pause/resume on a recurring definition. Returns updated card."""
+    with uow:
+        group = uow.groups.get_by_user_id(user_id)
+        if group is None:
+            raise HTTPException(status_code=404, detail="No household group found")
+
+        definition = uow.recurring.get_by_id(definition_id)
+        if definition is None:
+            raise HTTPException(status_code=404, detail="Recurring definition not found")
+
+        if definition.is_active:
+            pause_definition(uow, definition_id, actor_id=user_id)
+        else:
+            reactivate_definition(uow, definition_id, actor_id=user_id)
+
+        # Re-fetch updated definition for card render
+        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
+        from app.adapters.sqlalchemy.queries.recurring_queries import (
+            _build_definition_view,
+            _get_payer_map,
+        )
+
+        row = uow.session.get(RecurringDefinitionRow, definition_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Recurring definition not found")
+        payer_map = _get_payer_map(uow.session, {row.payer_id})
+        defn = _build_definition_view(row, payer_map)
+
+    return templates.TemplateResponse(
+        request,
+        "recurring/_definition_card.html",
+        {
+            "defn": defn,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.delete("/recurring/{definition_id}", response_class=HTMLResponse)
+async def delete_recurring(
+    request: Request,
+    definition_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """HTMX: soft-delete a recurring definition. Returns empty 200 (removes card from DOM)."""
+    with uow:
+        group = uow.groups.get_by_user_id(user_id)
+        if group is None:
+            raise HTTPException(status_code=404, detail="No household group found")
+
+        delete_definition(uow, definition_id, actor_id=user_id)
+
+    return HTMLResponse(content="", status_code=200)
+
+
+@router.post("/recurring/{definition_id}/create-expense", response_class=HTMLResponse)
+async def create_expense_for_definition(
+    request: Request,
+    definition_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+):
+    """HTMX: create an expense for the current billing period and advance due date.
+
+    Returns the updated card so HTMX can swap it in place.
+    """
+    with uow:
+        group = uow.groups.get_by_user_id(user_id)
+        if group is None:
+            raise HTTPException(status_code=404, detail="No household group found")
+
+        create_expense_from_definition(uow, definition_id, actor_id=user_id)
+
+        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
+        from app.adapters.sqlalchemy.queries.recurring_queries import (
+            _build_definition_view,
+            _get_payer_map,
+        )
+
+        row = uow.session.get(RecurringDefinitionRow, definition_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Recurring definition not found")
+        payer_map = _get_payer_map(uow.session, {row.payer_id})
+        defn = _build_definition_view(row, payer_map)
+
+    return templates.TemplateResponse(
+        request,
+        "recurring/_definition_card.html",
+        {
+            "defn": defn,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+def _validate_split_with_strategies(
+    split_type: SplitType,
+    split_config: dict[int, str] | None,
+    amount: Decimal,
+    payer_id: int,
+    member_ids: list[int],
+) -> None:
+    """Validate split_config using the real domain strategies.
+
+    Raises InvalidShareError or ValueError with a user-friendly message on failure.
+    This is the single source of truth for split validation — no ad-hoc duplication.
+    """
+    if split_type == SplitType.EVEN:
+        EvenSplitStrategy().calculate_shares(_mock_expense(amount, payer_id), member_ids)
+        return
+
+    if not split_config:
+        raise InvalidShareError("Split configuration is required for non-even splits")
+
+    # Convert stored strings back to Decimal for strategy validation
+    config_decimal: dict[int, Decimal] = {k: Decimal(v) for k, v in split_config.items()}
+    mock = _mock_expense(amount, payer_id)
+
+    if split_type == SplitType.SHARES:
+        SharesSplitStrategy().calculate_shares(mock, member_ids, config_decimal)
+    elif split_type == SplitType.PERCENTAGE:
+        PercentageSplitStrategy().calculate_shares(mock, member_ids, config_decimal)
+    elif split_type == SplitType.EXACT:
+        ExactSplitStrategy().calculate_shares(mock, member_ids, config_decimal)
+
+
+def _mock_expense(amount: Decimal, payer_id: int) -> ExpensePublic:
+    """Create a minimal mock expense for strategy validation."""
+    return ExpensePublic.model_construct(
+        id=0,
+        group_id=0,
+        amount=amount,
+        description="",
+        date=date.today(),
+        creator_id=payer_id,
+        payer_id=payer_id,
+        currency="EUR",
+        split_type=SplitType.EVEN,
+        status=ExpenseStatus.PENDING,
+        created_at=None,  # type: ignore[arg-type]
+        updated_at=None,  # type: ignore[arg-type]
+    )
 
 
 def _parse_form(
@@ -536,13 +730,15 @@ def _parse_form(
         errors["split_type"] = "Invalid split type"
         parsed["split_enum"] = SplitType.EVEN
 
-    # Parse split_config
+    # Parse split_config — store as {int: str} (Decimal is not JSON-serializable)
+    # Business rule validation (sum, positive values) happens in the route handler
+    # via _validate_split_with_strategies, which uses the domain strategies directly.
     parsed["split_config"] = None
     split_config_json = form_data.get("split_config", "")
     if parsed["split_enum"] != SplitType.EVEN and split_config_json:
         try:
             raw = json.loads(str(split_config_json))
-            parsed["split_config"] = {int(k): Decimal(str(v)) for k, v in raw.items()}
+            parsed["split_config"] = {int(k): str(Decimal(str(v))) for k, v in raw.items()}
         except json.JSONDecodeError, ValueError, KeyError:
             errors["split_type"] = "Invalid split configuration"
 

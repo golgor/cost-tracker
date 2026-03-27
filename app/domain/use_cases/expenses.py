@@ -8,6 +8,7 @@ from app.domain.errors import (
     DomainError,
     GroupNotFoundError,
     InvalidShareError,
+    RecurringExpenseDescriptionError,
 )
 from app.domain.models import ExpensePublic, ExpenseSplitPublic, ExpenseStatus, SplitType
 from app.domain.ports import UnitOfWorkPort
@@ -213,6 +214,12 @@ def update_expense(
     # Immutability check: cannot edit settled expenses
     if expense.status == ExpenseStatus.SETTLED:
         raise CannotEditSettledExpenseError(expense_id)
+
+    # Description is locked for recurring expenses
+    if description is not None and expense.recurring_definition_id is not None:
+        raise RecurringExpenseDescriptionError(
+            "Cannot change the description of a recurring expense"
+        )
 
     # Validation
     if amount is not None and amount <= 0:
