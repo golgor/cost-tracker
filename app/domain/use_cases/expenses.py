@@ -239,6 +239,42 @@ def update_expense(
         actor_id=actor_id,
     )
 
+    # Recalculate splits when amount changes
+    if amount is not None and amount != expense.amount:
+        updated_expense = uow.expenses.get_by_id(expense_id)
+        if updated_expense is None:
+            raise DomainError(f"Expense {expense_id} not found after update")
+
+        current_splits = uow.expenses.get_splits(expense_id)
+        if current_splits:
+            member_ids = [s.user_id for s in current_splits]
+
+            # Rebuild split_config from existing share_values for non-EVEN splits
+            split_config: dict[int, Decimal] | None = None
+            if updated_expense.split_type in (SplitType.SHARES, SplitType.PERCENTAGE, SplitType.EXACT):
+                split_config = {
+                    s.user_id: s.share_value for s in current_splits if s.share_value is not None
+                }
+
+            new_splits = _calculate_splits(
+                expense=updated_expense,
+                member_ids=member_ids,
+                split_type=updated_expense.split_type,
+                split_config=split_config,
+            )
+
+            split_publics = [
+                ExpenseSplitPublic.model_construct(
+                    id=0,
+                    expense_id=expense_id,
+                    user_id=user_id,
+                    amount=split_amount,
+                    share_value=share_value,
+                )
+                for user_id, split_amount, share_value in new_splits
+            ]
+            uow.expenses.save_splits(expense_id, split_publics, actor_id=actor_id)
+
 
 def delete_expense(
     uow: UnitOfWorkPort,

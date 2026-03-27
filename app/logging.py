@@ -63,12 +63,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
-        logger.info(
-            "request",
-            method=request.method,
-            path=request.url.path,
-            status_code=response.status_code,
-            duration_ms=duration_ms,
-        )
+        log_kwargs = {
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        }
+
+        if response.status_code >= 500:
+            logger.error("request", **log_kwargs)
+        elif response.status_code >= 400:
+            logger.warning("request", **log_kwargs)
+        else:
+            logger.info("request", **log_kwargs)
+
         response.headers["X-Request-Id"] = request_id
         return response

@@ -162,6 +162,10 @@ class SqlAlchemyExpenseAdapter:
         for split_row in existing:
             self._session.delete(split_row)
 
+        # Flush deletes before inserting to avoid unique constraint violations
+        if existing:
+            self._session.flush()
+
         # Create new splits
         new_rows: list[ExpenseSplitRow] = []
         for split in splits:

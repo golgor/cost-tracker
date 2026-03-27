@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+import structlog
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -84,6 +86,22 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Routers
 app.include_router(web_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    """Log FastAPI request validation errors with full detail."""
+    logger = structlog.get_logger()
+    logger.warning(
+        "request_validation_error",
+        method=request.method,
+        path=request.url.path,
+        errors=exc.errors(),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 
 @app.exception_handler(DomainError)
