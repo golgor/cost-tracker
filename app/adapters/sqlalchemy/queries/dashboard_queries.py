@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlmodel import Session, func, select
 
 from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow, MembershipRow
+from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
 from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
 
 
@@ -46,7 +47,7 @@ def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> lis
     )
     rows = session.exec(statement).all()
 
-    return [_expense_row_to_public(row) for row in rows]
+    return [expense_row_to_public(row) for row in rows]
 
 
 def get_filtered_expenses(
@@ -91,7 +92,7 @@ def get_filtered_expenses(
     ).limit(limit)
 
     rows = session.exec(statement).all()
-    return [_expense_row_to_public(row) for row in rows]
+    return [expense_row_to_public(row) for row in rows]
 
 
 def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
@@ -123,7 +124,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
     # Join with expenses to filter by status and get payer info
     statement = (
         select(ExpenseSplitRow, ExpenseRow.payer_id)
-        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)
+        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
@@ -171,7 +172,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
             ExpenseRow.status == ExpenseStatus.PENDING,
             ExpenseRow.status != ExpenseStatus.GIFT,
         )
-        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))
+        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))  # ty: ignore[unresolved-attribute]
     )
     legacy_expenses = session.exec(expenses_without_splits).all()
 
@@ -227,26 +228,3 @@ def get_this_month_total(session: Session, group_id: int) -> Decimal:
     result = session.exec(statement).first()
 
     return result or Decimal("0.00")
-
-
-def _expense_row_to_public(row: ExpenseRow) -> ExpensePublic:
-    """Convert ORM row to domain model. Mirrors ExpenseAdapter._to_public()."""
-    # row.id is guaranteed to be set for rows fetched from database
-    assert row.id is not None, "ExpenseRow.id must be set for persisted rows"
-    assert row.created_at is not None
-    assert row.updated_at is not None
-
-    return ExpensePublic(
-        id=row.id,
-        group_id=row.group_id,
-        amount=row.amount,
-        description=row.description,
-        date=row.date,
-        creator_id=row.creator_id,
-        payer_id=row.payer_id,
-        currency=row.currency,
-        split_type=row.split_type,
-        status=row.status,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-    )

@@ -117,7 +117,7 @@ class SqlAlchemySettlementAdapter:
         statement = (
             select(SettlementTransactionRow)
             .where(SettlementTransactionRow.settlement_id == settlement_id)
-            .order_by(SettlementTransactionRow.id)
+            .order_by(SettlementTransactionRow.id)  # ty: ignore[invalid-argument-type]
         )
         rows = self._session.exec(statement).all()
         return [self._to_transaction_public(row) for row in rows]
@@ -134,8 +134,8 @@ class SqlAlchemySettlementAdapter:
 
     def _to_public(self, row: SettlementRow) -> SettlementPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
-        assert row.id is not None
-        assert row.created_at is not None
+        if row.id is None or row.created_at is None:
+            raise RuntimeError("Row ID and created_at must not be None for persisted rows")
 
         return SettlementPublic(
             id=row.id,
@@ -148,7 +148,8 @@ class SqlAlchemySettlementAdapter:
 
     def _to_transaction_public(self, row: SettlementTransactionRow) -> SettlementTransactionPublic:
         """Convert transaction row to public domain model."""
-        assert row.id is not None
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
 
         return SettlementTransactionPublic(
             id=row.id,

@@ -229,8 +229,10 @@ class SqlAlchemyUserAdapter:
 
     def _to_public(self, row: UserRow) -> UserPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
+        if row.id is None:
+            raise RuntimeError("Row ID must not be None for persisted rows")
         return UserPublic(
-            id=row.id,  # type: ignore[arg-type]
+            id=row.id,
             oidc_sub=row.oidc_sub,
             email=row.email,
             display_name=row.display_name,

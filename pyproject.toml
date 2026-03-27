@@ -50,6 +50,31 @@ indent-style = "space"
 [tool.ty.environment]
 python-version = "3.14"
 
+[tool.ty.src]
+exclude = ["alembic/"]
+
+[[tool.ty.overrides]]
+# SQLModel's Session.exec() is monkey-patched at runtime onto SQLAlchemy's Session.
+# ty cannot see it because the type stubs don't include it.
+# SQLAlchemy column descriptors (.desc(), .in_(), .notin_()) are InstrumentedAttribute
+# at runtime but ty sees the Python type annotation instead.
+include = ["app/adapters/sqlalchemy/**"]
+rules = { unresolved-attribute = "warn" }
+
+[[tool.ty.overrides]]
+# Test setup code passes row.id (int | None) everywhere after session.flush().
+# These are all the same SQLModel id lifecycle gap — DB-generated IDs are always
+# populated after flush, but the static type remains int | None.
+# Session.exec and column descriptors also apply here.
+include = ["tests/**"]
+rules = { invalid-argument-type = "warn", unresolved-attribute = "warn" }
+
+[[tool.ty.overrides]]
+# Field(sa_type=...) accepts instances at runtime but stubs declare type[Any].
+# This is a known SQLModel stub gap — all Field() calls in orm_models.py are correct.
+include = ["app/adapters/sqlalchemy/orm_models.py"]
+rules = { invalid-argument-type = "warn" }
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

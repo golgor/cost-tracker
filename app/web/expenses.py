@@ -205,8 +205,15 @@ async def get_split_preview(
     split_config_json = form.get("split_config", "{}")
     payer_id_str = form.get("payer_id", "")
 
-    # Type narrowing: form values are strings, not UploadFile
-    assert isinstance(split_type, str), "split_type should be a string"
+    # Validate form values are strings (not UploadFile)
+    if not isinstance(amount_str, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: amount")
+    if not isinstance(split_type, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: split_type")
+    if not isinstance(split_config_json, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: split_config")
+    if not isinstance(payer_id_str, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
 
     # Parse amount
     try:
@@ -837,12 +844,17 @@ async def update_expense_endpoint(
     payer_id_str = form.get("payer_id", "")
     currency = form.get("currency", "")
 
-    # Assert form fields are strings (not UploadFile)
-    assert isinstance(amount, str), "Form field 'amount' must be a string"
-    assert isinstance(description, str), "Form field 'description' must be a string"
-    assert isinstance(date_str, str), "Form field 'date' must be a string"
-    assert isinstance(payer_id_str, str), "Form field 'payer_id' must be a string"
-    assert isinstance(currency, str), "Form field 'currency' must be a string"
+    # Validate form values are strings (not UploadFile)
+    if not isinstance(amount, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: amount")
+    if not isinstance(description, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: description")
+    if not isinstance(date_str, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: date")
+    if not isinstance(payer_id_str, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
+    if not isinstance(currency, str):
+        raise HTTPException(status_code=400, detail="Invalid form field: currency")
 
     # Convert payer_id to int
     try:
