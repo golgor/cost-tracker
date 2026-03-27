@@ -543,18 +543,24 @@
       target: '#expense-feed',
       swap: 'outerHTML',
     });
+    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
+      target: '#balance-bar',
+      swap: 'outerHTML',
+    });
   };
 
   // ── HTMX beforeSwap: stale response guard + error suppression ────────────
   document.body.addEventListener('htmx:beforeSwap', function (evt) {
-    if (!evt.detail.target || evt.detail.target.id !== 'expense-feed') return;
+    if (!evt.detail.target) return;
+    var tid = evt.detail.target.id;
+    if (tid !== 'expense-feed' && tid !== 'balance-bar') return;
     // Error suppression: preserve existing feed on server/network error
     if (evt.detail.xhr.status >= 400 || evt.detail.xhr.status === 0) {
       evt.detail.shouldSwap = false;
       return;
     }
-    // Stale response guard: suppress if a newer request has been fired
-    if (_lastFiredId < _s._reqId) {
+    // Stale response guard (expense-feed only — balance-bar is lightweight)
+    if (tid === 'expense-feed' && _lastFiredId < _s._reqId) {
       evt.detail.shouldSwap = false;
     }
   });
@@ -693,6 +699,10 @@
     const qs = p.toString();
     htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
       target: '#expense-feed',
+      swap: 'outerHTML',
+    });
+    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
+      target: '#balance-bar',
       swap: 'outerHTML',
     });
   });

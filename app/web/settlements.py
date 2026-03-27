@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
@@ -88,16 +88,9 @@ async def calculate_settlement_total(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    expense_ids: list[int] | None = None,
+    expense_ids: list[int] = Form(default=[]),
 ):
     """HTMX endpoint to recalculate total based on selected expenses."""
-    if expense_ids is None:
-        expense_ids = []
-
-    cached_form = getattr(request.state, "_cached_form", None)
-    if cached_form and not expense_ids:
-        expense_ids_str = cached_form.getlist("expense_ids")
-        expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
 
     group = uow.groups.get_by_user_id(user_id)
     if not group:

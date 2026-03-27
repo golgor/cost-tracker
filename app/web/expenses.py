@@ -352,7 +352,7 @@ async def create_expense_endpoint(
     payer_id: int = Form(...),
     currency: str = Form("EUR"),
     split_type: str = Form("even"),
-    split_config_json: str = Form(""),
+    split_config_json: str = Form("", alias="split_config"),
 ):
     """Create new expense (HTMX endpoint for mobile/desktop)."""
 
@@ -371,7 +371,7 @@ async def create_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except InvalidOperation, ValueError:
+        except (InvalidOperation, ValueError):
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
@@ -415,7 +415,7 @@ async def create_expense_endpoint(
         try:
             config_data = json.loads(split_config_json) if split_config_json else {}
             split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
-        except json.JSONDecodeError, ValueError:
+        except (json.JSONDecodeError, ValueError):
             errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors (UX-DR24)
@@ -568,8 +568,16 @@ async def expenses_list(
             search_query=search_query or None,
         )
 
-        # Get balance data
-        balance_data = calculate_balance(uow.session, group.id, user_id)
+        # Get balance data (filtered when filters are active)
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
 
         # Get this month total
         this_month_total = get_this_month_total(uow.session, group.id)
@@ -707,6 +715,56 @@ async def expenses_filtered(
             "search_query": active_search or "",
             "currency_symbol": _get_currency_symbol(group.default_currency),
             "recurring_names": recurring_names,
+        },
+    )
+
+
+@router.get("/expenses/balance", response_class=HTMLResponse)
+async def expenses_balance(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
+):
+    """HTMX endpoint for filtered balance bar partial."""
+    with uow:
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
+
+        members = get_group_members(uow.session, group.id)
+        users_by_id = {}
+        for member in members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_by_id[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_balance_bar.html",
+        {
+            "balance": balance_data,
+            "user": user,
+            "users": users_by_id,
         },
     )
 
@@ -932,7 +990,7 @@ async def update_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except InvalidOperation, ValueError:
+        except (InvalidOperation, ValueError):
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
