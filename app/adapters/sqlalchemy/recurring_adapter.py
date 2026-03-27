@@ -150,6 +150,19 @@ class SqlAlchemyRecurringDefinitionAdapter:
             )
         return self._to_public(row)
 
+    def list_overdue_auto(self, current_date: date) -> list[RecurringDefinitionPublic]:
+        """Return active auto_generate definitions whose next_due_date <= current_date."""
+        statement = (
+            select(RecurringDefinitionRow)
+            .where(RecurringDefinitionRow.deleted_at.is_(None))  # type: ignore[union-attr]
+            .where(RecurringDefinitionRow.is_active.is_(True))  # type: ignore[union-attr]
+            .where(RecurringDefinitionRow.auto_generate.is_(True))  # type: ignore[union-attr]
+            .where(RecurringDefinitionRow.next_due_date <= current_date)
+            .order_by(RecurringDefinitionRow.next_due_date)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        )
+        rows = self._session.exec(statement).all()
+        return [self._to_public(row) for row in rows]
+
     def soft_delete(self, definition_id: int, *, actor_id: int) -> None:
         """Soft-delete a recurring definition by setting deleted_at. Auto-audits."""
         row = self._session.get(RecurringDefinitionRow, definition_id)

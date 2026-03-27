@@ -24,10 +24,21 @@
 
         <!-- Expense Details -->
         <div class="flex-1 min-w-0">
-            <p class="font-medium {% if is_settled %}text-stone-500{% else %}text-stone-900{% endif %} truncate">{{ expense.description or "Expense" }}</p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <p class="font-medium {% if is_settled %}text-stone-500{% else %}text-stone-900{% endif %} truncate">{{ expense.description or "Expense" }}</p>
+                {% if expense.is_auto_generated %}
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0">Auto</span>
+                {% endif %}
+            </div>
             {% set payer = users.get(expense.payer_id) if users else None %}
             <p class="text-xs text-stone-500">
                 Paid by {{ payer.display_name if payer else 'Unknown User' }}
+                {% if expense.recurring_definition_id %}
+                    &nbsp;·&nbsp;
+                    <a href="/recurring" class="text-primary-600 hover:underline" onclick="event.stopPropagation()">
+                        ↻ {{ (recurring_names or {}).get(expense.recurring_definition_id, 'Recurring') }}
+                    </a>
+                {% endif %}
             </p>
         </div>
 

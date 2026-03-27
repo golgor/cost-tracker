@@ -156,26 +156,28 @@ def update_recurring_definition(
 
 def create_expense_from_definition(
     uow: UnitOfWorkPort,
-    definition_id: int,
+    definition: RecurringDefinitionPublic,
     actor_id: int,
+    *,
+    is_auto_generated: bool = False,
 ) -> ExpensePublic:
     """Create an expense for the current billing period and advance next_due_date.
 
     Args:
         uow: Unit of work for transaction management
-        definition_id: ID of the recurring definition to generate from
+        definition: The recurring definition to generate from
         actor_id: User ID performing the action
+        is_auto_generated: True when created by the auto-generation engine
 
     Returns:
         The newly created ExpensePublic.
 
     Raises:
-        RecurringDefinitionNotFoundError: If definition doesn't exist or is deleted
+        RecurringDefinitionNotFoundError: If definition is soft-deleted
         DuplicateBillingPeriodError: If an expense already exists for this billing period
     """
-    definition = uow.recurring.get_by_id(definition_id)
-    if definition is None or definition.deleted_at is not None:
-        raise RecurringDefinitionNotFoundError(f"Recurring definition {definition_id} not found")
+    if definition.deleted_at is not None:
+        raise RecurringDefinitionNotFoundError(f"Recurring definition {definition.id} not found")
 
     billing_period = billing_period_for(definition.next_due_date)
     description = format_expense_description(definition.name, billing_period)
@@ -191,9 +193,9 @@ def create_expense_from_definition(
         currency=definition.currency,
         split_type=definition.split_type,
         status=ExpenseStatus.PENDING,
-        recurring_definition_id=definition_id,
+        recurring_definition_id=definition.id,
         billing_period=billing_period,
-        is_auto_generated=False,
+        is_auto_generated=is_auto_generated,
         created_at=None,  # type: ignore[arg-type]
         updated_at=None,  # type: ignore[arg-type]
     )
@@ -205,9 +207,46 @@ def create_expense_from_definition(
         definition.frequency,
         definition.interval_months,
     )
-    uow.recurring.update(definition_id, actor_id=actor_id, next_due_date=new_due_date)
+    uow.recurring.update(definition.id, actor_id=actor_id, next_due_date=new_due_date)
 
     return expense_pub
+
+
+def generate_pending_expenses(
+    uow: UnitOfWorkPort,
+    current_date: date_type,
+    actor_id: int,
+    limit: int | None = None,
+) -> list[ExpensePublic]:
+    """Generate expenses for all overdue auto_generate recurring definitions.
+
+    Iterates over active definitions whose next_due_date <= current_date
+    and creates an expense for each. Advances next_due_date after creation.
+
+    Args:
+        uow: Unit of work for transaction management
+        current_date: Reference date for "overdue" check
+        actor_id: User ID to record as creator (use system actor for automated runs)
+        limit: If set, process at most this many definitions
+
+    Returns:
+        List of created ExpensePublic objects.
+
+    Raises:
+        DuplicateBillingPeriodError: If an expense already exists for a billing period
+            (caller should wrap each call in a savepoint if per-item isolation is needed)
+    """
+    definitions = uow.recurring.list_overdue_auto(current_date)
+    if limit is not None:
+        definitions = definitions[:limit]
+
+    created: list[ExpensePublic] = []
+    for definition in definitions:
+        expense = create_expense_from_definition(
+            uow, definition, actor_id=actor_id, is_auto_generated=True
+        )
+        created.append(expense)
+    return created
 
 
 def pause_definition(

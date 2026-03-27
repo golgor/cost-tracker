@@ -599,7 +599,10 @@ async def create_expense_for_definition(
         if group is None:
             raise HTTPException(status_code=404, detail="No household group found")
 
-        create_expense_from_definition(uow, definition_id, actor_id=user_id)
+        definition = uow.recurring.get_by_id(definition_id)
+        if definition is None:
+            raise HTTPException(status_code=404, detail="Recurring definition not found")
+        create_expense_from_definition(uow, definition, actor_id=user_id)
 
         from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
         from app.adapters.sqlalchemy.queries.recurring_queries import (

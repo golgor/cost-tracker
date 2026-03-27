@@ -15,6 +15,7 @@ os.environ.setdefault("OIDC_CLIENT_ID", "test-client")
 os.environ.setdefault("OIDC_CLIENT_SECRET", "test-secret")
 os.environ.setdefault("OIDC_REDIRECT_URI", "http://localhost:8000/auth/callback")
 os.environ.setdefault("ENV", "dev")
+os.environ.setdefault("INTERNAL_WEBHOOK_SECRET", "test-webhook-secret")
 
 import pytest
 from sqlalchemy import create_engine, text

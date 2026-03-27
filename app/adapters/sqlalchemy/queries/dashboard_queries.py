@@ -5,7 +5,12 @@ from decimal import Decimal
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import (
+    ExpenseRow,
+    ExpenseSplitRow,
+    MembershipRow,
+    RecurringDefinitionRow,
+)
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
 from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
 
@@ -201,6 +206,20 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         "is_negative": balance < 0,  # Pre-computed flag for template
         "is_zero": balance == 0,  # Pre-computed flag for template
     }
+
+
+def get_recurring_definition_names(session: Session, definition_ids: list[int]) -> dict[int, str]:
+    """Return {definition_id: name} for the given IDs.
+
+    Used to show recurring source names on expense cards without fetching full definitions.
+    """
+    if not definition_ids:
+        return {}
+    statement = select(RecurringDefinitionRow).where(
+        RecurringDefinitionRow.id.in_(definition_ids)  # type: ignore[union-attr]
+    )
+    rows = session.exec(statement).all()
+    return {row.id: row.name for row in rows if row.id is not None}
 
 
 def get_this_month_total(session: Session, group_id: int) -> Decimal:

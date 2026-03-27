@@ -14,6 +14,7 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
     calculate_balance,
     get_filtered_expenses,
     get_group_members,
+    get_recurring_definition_names,
     get_this_month_total,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
@@ -574,6 +575,13 @@ async def expenses_list(
             if user_obj:
                 users_by_id[uid] = user_obj
 
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
     count_message = _build_expense_count_message(total_expenses)
@@ -599,6 +607,7 @@ async def expenses_list(
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "recurring_names": recurring_names,
             # Filter values for form persistence
             "filter_date_from": date_from or "",
             "filter_date_to": date_to or "",
@@ -653,6 +662,13 @@ async def expenses_filtered(
             if user_obj:
                 users_by_id[member.user_id] = user_obj
 
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
     count_message = _build_expense_count_message(total_expenses)
@@ -671,6 +687,7 @@ async def expenses_filtered(
             "count_message": count_message,
             "has_active_filters": has_active_filters,
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "recurring_names": recurring_names,
         },
     )
 

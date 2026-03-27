@@ -283,6 +283,14 @@ class RecurringDefinitionPort(Protocol):
         """Soft-delete a recurring definition by setting deleted_at. Auto-audits."""
         ...
 
+    def list_overdue_auto(self, current_date: date) -> list[RecurringDefinitionPublic]:
+        """Return active auto_generate definitions whose next_due_date <= current_date.
+
+        Excludes soft-deleted and paused definitions.
+        Ordered by next_due_date ascending (oldest first).
+        """
+        ...
+
 
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.

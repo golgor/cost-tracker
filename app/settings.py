@@ -1,7 +1,12 @@
 from pydantic import ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_INSECURE_SECRETS = {"change-me-in-production", "change-me", "test-secret-key-not-for-production"}
+_INSECURE_SECRETS = {
+    "change-me-in-production",
+    "change-me",
+    "test-secret-key-not-for-production",
+    "change-me-webhook-secret",
+}
 
 
 class Settings(BaseSettings):
@@ -22,6 +27,8 @@ class Settings(BaseSettings):
     SESSION_MAX_AGE: int = 86400  # 24 hours in seconds
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
+    INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
+    SYSTEM_ACTOR_ID: int = 0  # ID used for automated system-initiated actions
 
     @property
     def is_production(self) -> bool:
@@ -35,6 +42,10 @@ class Settings(BaseSettings):
                 raise ValueError("SECRET_KEY must be set to a secure value in production")
             if self.OIDC_CLIENT_SECRET in _INSECURE_SECRETS:
                 raise ValueError("OIDC_CLIENT_SECRET must be set in production")
+            if self.INTERNAL_WEBHOOK_SECRET in _INSECURE_SECRETS:
+                raise ValueError(
+                    "INTERNAL_WEBHOOK_SECRET must be set to a secure value in production"
+                )
         return self
 
 

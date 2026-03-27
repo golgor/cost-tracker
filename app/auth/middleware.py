@@ -8,6 +8,8 @@ from app.auth.session import decode_session
 from app.settings import settings
 
 PUBLIC_PATHS = {"/auth/login", "/auth/callback", "/health", "/static"}
+# Exact-match public paths (no prefix matching) — for internal webhook endpoints
+EXACT_PUBLIC_PATHS = {"/api/internal/generate-recurring"}
 SETUP_PATHS = {"/setup"}
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
@@ -21,7 +23,7 @@ def is_htmx_request(request: Request) -> bool:
 
 def is_public_path(path: str) -> bool:
     """Check if path is public (no auth required)."""
-    return any(path.startswith(p) for p in PUBLIC_PATHS)
+    return path in EXACT_PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PATHS)
 
 
 def is_setup_path(path: str) -> bool:
@@ -73,7 +75,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # Store token in request state for templates
         request.state.csrf_token = csrf_token
 
-        # Validate on state-changing methods (except public paths)
+        # Validate on state-changing methods (except public paths and exact-match paths)
         is_state_changing = request.method in ("POST", "PUT", "DELETE", "PATCH")
         needs_csrf = is_state_changing and not is_public_path(request.url.path)
         if needs_csrf and not await self._validate_csrf(request, csrf_token):
