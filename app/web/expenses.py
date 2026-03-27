@@ -55,8 +55,15 @@ def _parse_date_filters(
     return date_from_parsed, date_to_parsed
 
 
-def _build_expense_count_message(expense_count: int) -> str:
+def _build_expense_count_message(expense_count: int, search_query: str | None = None) -> str:
     """Build human-readable expense count message."""
+    if search_query:
+        if expense_count == 0:
+            return f'No expenses match "{search_query}"'
+        elif expense_count == 1:
+            return f'Showing 1 result for "{search_query}"'
+        else:
+            return f'Showing {expense_count} results for "{search_query}"'
     if expense_count == 0:
         return "No expenses"
     elif expense_count == 1:
@@ -523,6 +530,7 @@ async def expenses_list(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
 ):
     """Dedicated expenses list page with filtering.
 
@@ -548,6 +556,7 @@ async def expenses_list(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="PENDING",
+            search_query=search_query or None,
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
@@ -556,6 +565,7 @@ async def expenses_list(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="SETTLED",
+            search_query=search_query or None,
         )
 
         # Get balance data
@@ -584,7 +594,8 @@ async def expenses_list(
 
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
-    count_message = _build_expense_count_message(total_expenses)
+    active_search = search_query.strip() if search_query else None
+    count_message = _build_expense_count_message(total_expenses, active_search)
 
     # Check if any filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -607,6 +618,8 @@ async def expenses_list(
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
             "recurring_names": recurring_names,
             # Filter values for form persistence
             "filter_date_from": date_from or "",
@@ -624,6 +637,7 @@ async def expenses_filtered(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
 ):
     """HTMX endpoint for filtered expense feed partial.
 
@@ -637,6 +651,7 @@ async def expenses_filtered(
 
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        active_search = search_query.strip() if search_query else None
         unsettled_expenses = get_filtered_expenses(
             uow.session,
             group.id,
@@ -644,6 +659,7 @@ async def expenses_filtered(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="PENDING",
+            search_query=active_search,
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
@@ -652,6 +668,7 @@ async def expenses_filtered(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="SETTLED",
+            search_query=active_search,
         )
 
         # Get user details
@@ -671,7 +688,7 @@ async def expenses_filtered(
 
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
-    count_message = _build_expense_count_message(total_expenses)
+    count_message = _build_expense_count_message(total_expenses, active_search)
 
     # Check if filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -686,6 +703,8 @@ async def expenses_filtered(
             "current_user_id": user_id,
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
             "currency_symbol": _get_currency_symbol(group.default_currency),
             "recurring_names": recurring_names,
         },

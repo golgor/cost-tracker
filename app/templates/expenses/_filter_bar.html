@@ -1,112 +1,336 @@
-<!-- Filter Bar (collapsible) -->
-<div class="bg-surface-card rounded-lg shadow-sm mb-6 overflow-hidden">
-  <button
-    type="button"
-    class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-stone-50 transition-colors"
-    onclick="toggleFilters()"
-  >
-    <div class="flex items-center gap-2">
-      <span class="text-base font-semibold text-stone-900">Filters</span>
-      {% if has_active_filters %}
-        <span class="px-2 py-0.5 text-xs font-medium bg-primary-100 text-primary-700 rounded-full">Active</span>
-      {% endif %}
-    </div>
-    <svg class="w-5 h-5 text-stone-500 transform transition-transform" id="filter-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
-  </button>
-  
-  <!-- Collapsible Filter Section (hidden by default per UX-DR28) -->
-  <div id="filter-section" class="hidden border-t border-stone-200 px-6 py-4">
-    <form
-      hx-get="/expenses/filtered"
-      hx-target="#expense-feed"
-      hx-swap="outerHTML"
-      hx-push-url="true"
-      class="space-y-4"
-    >
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Date From -->
-        <div>
-          <label for="filter-date-from" class="block text-sm font-medium text-stone-700 mb-1">
-            From Date
-          </label>
-          <input
-            type="date"
-            id="filter-date-from"
-            name="date_from"
-            value="{{ filter_date_from }}"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-        </div>
-        
-        <!-- Date To -->
-        <div>
-          <label for="filter-date-to" class="block text-sm font-medium text-stone-700 mb-1">
-            To Date
-          </label>
-          <input
-            type="date"
-            id="filter-date-to"
-            name="date_to"
-            value="{{ filter_date_to }}"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-        </div>
-        
-        <!-- Paid By -->
-        <div>
-          <label for="filter-payer" class="block text-sm font-medium text-stone-700 mb-1">
-            Paid By
-          </label>
-          <select
-            id="filter-payer"
-            name="payer_id"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-            <option value="">All</option>
-            {% for member in group_members %}
-              {% set member_user = users.get(member.user_id) %}
-              {% if member_user %}
-                <option
-                  value="{{ member.user_id }}"
-                  {% if filter_payer_id|string == member.user_id|string %}selected{% endif %}
-                >
-                  {{ member_user.display_name }}
-                </option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      
-      <!-- Filter Actions -->
-      <div class="flex items-center gap-3">
-        <button
-          type="submit"
-          class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md hover:shadow-lg active:scale-95 transition-all"
+<!-- Filter Bar (always visible, compact) -->
+<div class="bg-surface-card rounded-lg shadow-sm mb-6">
+  <div class="px-6 py-4">
+    <div class="flex flex-wrap items-center gap-3">
+
+      <span class="text-sm font-semibold text-stone-700 mr-1">Filters</span>
+
+      <!-- Date Range Button -->
+      <button
+        type="button"
+        id="date-picker-btn"
+        onclick="openMonthPicker()"
+        class="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-colors {% if filter_date_from or filter_date_to %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %}"
+      >
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span id="date-display">
+          {% if filter_date_from and filter_date_to %}
+            {{ filter_date_from }} – {{ filter_date_to }}
+          {% elif filter_date_from %}
+            From {{ filter_date_from }}
+          {% elif filter_date_to %}
+            Until {{ filter_date_to }}
+          {% else %}
+            All dates
+          {% endif %}
+        </span>
+        <svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <!-- Paid By -->
+      <div class="flex items-center gap-2">
+        <label for="filter-payer" class="text-sm font-medium text-stone-700 whitespace-nowrap">Paid by</label>
+        <select
+          id="filter-payer"
+          class="px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
         >
-          Apply Filters
-        </button>
-        
-        {% if has_active_filters %}
-          <a
-            href="/expenses"
-            class="px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 font-medium transition-colors"
-          >
-            Clear Filters
-          </a>
-        {% endif %}
+          <option value="">All</option>
+          {% for member in group_members %}
+            {% set member_user = users.get(member.user_id) %}
+            {% if member_user %}
+              <option value="{{ member.user_id }}"
+                {% if filter_payer_id|string == member.user_id|string %}selected{% endif %}>
+                {{ member_user.display_name }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
       </div>
-    </form>
+
+      <!-- Apply -->
+      <button
+        type="button"
+        onclick="applyFilters()"
+        class="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 font-medium shadow-md hover:shadow-lg active:scale-95 transition-all"
+      >
+        Apply Filters
+      </button>
+
+      <!-- Clear all -->
+      <a href="/expenses" id="filter-clear-link"
+        class="text-sm text-stone-500 hover:text-stone-700 hover:underline {% if not has_active_filters %}hidden{% endif %}">
+        Clear all
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- Month Picker Modal -->
+<div id="month-picker-backdrop"
+  class="hidden fixed inset-0 z-40"
+  style="background: rgba(0,0,0,0.35);"
+  onclick="closeMonthPicker()"
+></div>
+
+<div id="month-picker-modal"
+  class="hidden fixed z-50 bg-white rounded-2xl shadow-2xl p-6"
+  style="width: 320px; top: 50%; left: 50%; transform: translate(-50%, -50%);"
+>
+  <!-- Year navigation -->
+  <div class="flex items-center justify-between mb-4">
+    <button type="button" onclick="mpPrevYear()"
+      class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <span id="mp-year-label" class="text-base font-semibold text-stone-800"></span>
+    <button type="button" onclick="mpNextYear()"
+      class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Month grid (4 × 3) -->
+  <div id="mp-grid" class="grid gap-1" style="grid-template-columns: repeat(4, 1fr);"></div>
+
+  <!-- Hint -->
+  <p id="mp-hint" class="text-xs text-stone-400 mt-3 text-center" style="min-height: 1rem;"></p>
+
+  <!-- Footer -->
+  <div class="flex items-center justify-between mt-3 pt-3 border-t border-stone-100">
+    <button type="button" onclick="mpClear()"
+      class="text-sm text-stone-500 hover:text-stone-700 transition-colors">
+      Clear dates
+    </button>
+    <div class="flex gap-2">
+      <button type="button" onclick="closeMonthPicker()"
+        class="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
+        Cancel
+      </button>
+      <button type="button" onclick="mpApply()"
+        class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+        Apply
+      </button>
+    </div>
   </div>
 </div>
 
 <script>
-function toggleFilters() {
-  const section = document.getElementById('filter-section');
-  const chevron = document.getElementById('filter-chevron');
-  section.classList.toggle('hidden');
-  chevron.classList.toggle('rotate-180');
-}
+(function () {
+  // ── State ────────────────────────────────────────────────────────────────
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const _mp = {
+    year: new Date().getFullYear(),
+    start: null,      // { year, month } month is 0-indexed | null
+    end:   null,      // { year, month } | null
+    hover: null,      // { year, month } | null — preview while selecting
+    selecting: false, // waiting for second click
+  };
+
+  // Initialise from server-rendered values (YYYY-MM-DD)
+  const INIT_FROM = '{{ filter_date_from }}';
+  const INIT_TO   = '{{ filter_date_to }}';
+  if (INIT_FROM) {
+    const p = INIT_FROM.split('-');
+    _mp.start = { year: +p[0], month: +p[1] - 1 };
+    _mp.year  = _mp.start.year;
+  }
+  if (INIT_TO) {
+    const p = INIT_TO.split('-');
+    _mp.end = { year: +p[0], month: +p[1] - 1 };
+  }
+
+  // Update button label on page load (server renders raw YYYY-MM-DD; replace with friendly label)
+  _updateBtn();
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function _cmp(a, b) {
+    // Returns negative if a < b, 0 if equal, positive if a > b
+    if (!a || !b) return 0;
+    return (a.year * 12 + a.month) - (b.year * 12 + b.month);
+  }
+
+  function _between(m, a, b) {
+    // true if m is strictly between a and b (order-independent)
+    if (!a || !b) return false;
+    const lo = _cmp(a, b) <= 0 ? a : b;
+    const hi = _cmp(a, b) <= 0 ? b : a;
+    return _cmp(m, lo) > 0 && _cmp(m, hi) < 0;
+  }
+
+  function _eq(a, b) {
+    return a && b && a.year === b.year && a.month === b.month;
+  }
+
+  function _lastDay(year, month) {
+    // month is 0-indexed; returns last calendar day of that month
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function _pad(n) { return String(n).padStart(2, '0'); }
+
+  function _labelFor(m) {
+    return `${MONTHS[m.month]} ${m.year}`;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  function _render() {
+    document.getElementById('mp-year-label').textContent = _mp.year;
+
+    const rangeEnd = _mp.selecting ? _mp.hover : _mp.end;
+    const cells = MONTHS.map((name, idx) => {
+      const m = { year: _mp.year, month: idx };
+      const isStart = _eq(m, _mp.start);
+      const isEnd   = _eq(m, _mp.end);
+      const inRange = _between(m, _mp.start, rangeEnd);
+
+      let cls = 'text-center text-sm py-2 cursor-pointer select-none rounded-lg transition-colors ';
+      if (isStart || isEnd) {
+        cls += 'bg-primary-600 text-white font-semibold';
+      } else if (inRange) {
+        cls += 'bg-primary-100 text-primary-800';
+      } else {
+        cls += 'text-stone-700 hover:bg-stone-100';
+      }
+
+      return `<div class="${cls}"
+                   onmouseenter="window._mpHover(${_mp.year},${idx})"
+                   onmouseleave="window._mpLeave()"
+                   onclick="window._mpClick(${_mp.year},${idx})">${name}</div>`;
+    });
+
+    document.getElementById('mp-grid').innerHTML = cells.join('');
+
+    document.getElementById('mp-hint').textContent = _mp.selecting
+      ? 'Click a second month to complete the range'
+      : (_mp.start ? '' : 'Click to select a start month');
+  }
+
+  // ── Month interactions ────────────────────────────────────────────────────
+  window._mpHover = function (year, month) {
+    if (!_mp.selecting) return;
+    _mp.hover = { year, month };
+    _render();
+  };
+
+  window._mpLeave = function () {
+    if (!_mp.selecting) return;
+    _mp.hover = null;
+    _render();
+  };
+
+  window._mpClick = function (year, month) {
+    const clicked = { year, month };
+    if (!_mp.selecting) {
+      _mp.start     = clicked;
+      _mp.end       = null;
+      _mp.hover     = null;
+      _mp.selecting = true;
+    } else {
+      _mp.end = clicked;
+      if (_cmp(_mp.end, _mp.start) < 0) {
+        [_mp.start, _mp.end] = [_mp.end, _mp.start];
+      }
+      _mp.hover     = null;
+      _mp.selecting = false;
+    }
+    _render();
+    _updateBtn();
+  };
+
+  window.mpPrevYear = function () { _mp.year--; _render(); };
+  window.mpNextYear = function () { _mp.year++; _render(); };
+
+  window.mpClear = function () {
+    _mp.start = _mp.end = _mp.hover = null;
+    _mp.selecting = false;
+    _mp.year = new Date().getFullYear();
+    _render();
+    _updateBtn();
+  };
+
+  window.mpApply = function () {
+    applyFilters();
+  };
+
+  // ── Button label + style ─────────────────────────────────────────────────
+  function _updateBtn() {
+    const el  = document.getElementById('date-display');
+    const btn = document.getElementById('date-picker-btn');
+    if (!el || !btn) return;
+
+    const hasDate = _mp.start || _mp.end;
+    btn.className = [
+      'flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-colors',
+      hasDate
+        ? 'border-primary-500 bg-primary-50 text-primary-700'
+        : 'border-stone-300 text-stone-700 hover:bg-stone-50',
+    ].join(' ');
+
+    if (_mp.start && _mp.end) {
+      el.textContent = `${_labelFor(_mp.start)} – ${_labelFor(_mp.end)}`;
+    } else if (_mp.start) {
+      el.textContent = `From ${_labelFor(_mp.start)}`;
+    } else if (_mp.end) {
+      el.textContent = `Until ${_labelFor(_mp.end)}`;
+    } else {
+      el.textContent = 'All dates';
+    }
+  }
+
+  // ── Modal open / close ────────────────────────────────────────────────────
+  window.openMonthPicker = function () {
+    document.getElementById('month-picker-backdrop').classList.remove('hidden');
+    document.getElementById('month-picker-modal').classList.remove('hidden');
+    _render();
+  };
+
+  window.closeMonthPicker = function () {
+    document.getElementById('month-picker-backdrop').classList.add('hidden');
+    document.getElementById('month-picker-modal').classList.add('hidden');
+  };
+
+  // ── Apply all filters ─────────────────────────────────────────────────────
+  window.applyFilters = function () {
+    closeMonthPicker();
+    const params = new URLSearchParams();
+
+    if (_mp.start) {
+      params.set('date_from', `${_mp.start.year}-${_pad(_mp.start.month + 1)}-01`);
+    }
+    if (_mp.end) {
+      const last = _lastDay(_mp.end.year, _mp.end.month);
+      params.set('date_to', `${_mp.end.year}-${_pad(_mp.end.month + 1)}-${_pad(last)}`);
+    }
+
+    const payer = document.getElementById('filter-payer').value;
+    if (payer) params.set('payer_id', payer);
+
+    // Preserve active search query
+    const sq = new URLSearchParams(window.location.search).get('search_query');
+    if (sq) params.set('search_query', sq);
+
+    const qs = params.toString();
+    window.history.pushState({}, '', '/expenses' + (qs ? '?' + qs : ''));
+
+    // Show/hide "Clear all" dynamically
+    const clearLink = document.getElementById('filter-clear-link');
+    if (clearLink) clearLink.classList.toggle('hidden', !qs);
+
+    htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
+      target: '#expense-feed',
+      swap: 'outerHTML',
+    });
+  };
+})();
 </script>

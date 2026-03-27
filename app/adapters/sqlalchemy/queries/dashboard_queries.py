@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlmodel import Session, func, select
 
 from app.adapters.sqlalchemy.orm_models import (
+    ExpenseNoteRow,
     ExpenseRow,
     ExpenseSplitRow,
     MembershipRow,
@@ -62,6 +63,7 @@ def get_filtered_expenses(
     date_to: date | None = None,
     payer_id: int | None = None,
     status: str | None = None,
+    search_query: str | None = None,
     limit: int = 100,
 ) -> list[ExpensePublic]:
     """Fetch expenses with optional filters, sorted newest first.
@@ -73,6 +75,7 @@ def get_filtered_expenses(
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
         status: Optional expense status filter (e.g., 'PENDING', 'SETTLED')
+        search_query: Optional keyword search against description and note content (ILIKE)
         limit: Maximum number of results (default 100)
 
     Returns:
@@ -91,6 +94,20 @@ def get_filtered_expenses(
         statement = statement.where(ExpenseRow.payer_id == payer_id)
     if status:
         statement = statement.where(ExpenseRow.status == status)
+
+    if search_query:
+        pattern = f"%{search_query}%"
+        statement = (
+            statement.outerjoin(  # type: ignore[call-overload]
+                ExpenseNoteRow,
+                ExpenseNoteRow.expense_id == ExpenseRow.id,  # type: ignore[union-attr]  # ty: ignore[invalid-argument-type]
+            )
+            .where(
+                ExpenseRow.description.ilike(pattern)  # type: ignore[union-attr]
+                | ExpenseNoteRow.content.ilike(pattern)  # type: ignore[union-attr]
+            )
+            .distinct()
+        )
 
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor

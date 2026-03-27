@@ -1,0 +1,95 @@
+<!-- Expense keyword search bar (AC-5.4.1, AC-5.4.2, AC-5.4.5) -->
+<div class="bg-surface-card rounded-lg shadow-sm mb-6 px-4 py-3">
+  <div class="flex items-center gap-2 border border-stone-300 rounded-lg bg-white px-3 focus-within:ring-2 focus-within:ring-primary-600 focus-within:border-primary-600">
+    <!-- Search icon -->
+    <svg class="w-5 h-5 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+
+    <!-- Search input -->
+    <input
+      type="text"
+      id="expense-search"
+      name="search_query"
+      value="{{ search_query }}"
+      placeholder="Search expenses..."
+      autocomplete="off"
+      class="flex-1 py-2 bg-transparent outline-none text-stone-900 placeholder-stone-400"
+    >
+
+    <!-- Clear button (visible only when text is present) -->
+    <button
+      type="button"
+      id="expense-search-clear"
+      onclick="clearSearch()"
+      class="flex-shrink-0 text-stone-400 hover:text-stone-600 {% if not search_query %}hidden{% endif %}"
+      aria-label="Clear search"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function () {
+  function debounce(fn, delay) {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn(...args), delay);
+    };
+  }
+
+  function getActiveFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const filters = {};
+    for (const key of ['date_from', 'date_to', 'payer_id']) {
+      const val = params.get(key);
+      if (val) filters[key] = val;
+    }
+    return filters;
+  }
+
+  function fetchSearchResults(query) {
+    const params = new URLSearchParams(getActiveFilters());
+    if (query) params.set('search_query', query);
+    const url = '/expenses/filtered?' + params.toString();
+
+    htmx.ajax('GET', url, { target: '#expense-feed', swap: 'outerHTML' });
+  }
+
+  function clearSearch() {
+    const input = document.getElementById('expense-search');
+    const clearBtn = document.getElementById('expense-search-clear');
+    if (input) input.value = '';
+    if (clearBtn) clearBtn.classList.add('hidden');
+    fetchSearchResults('');
+  }
+
+  // Expose for onclick handler
+  window.clearSearch = clearSearch;
+
+  const searchInput = document.getElementById('expense-search');
+  const clearBtn = document.getElementById('expense-search-clear');
+  if (!searchInput) return;
+
+  const debouncedSearch = debounce(() => {
+    fetchSearchResults(searchInput.value.trim());
+  }, 300);
+
+  searchInput.addEventListener('input', () => {
+    if (clearBtn) clearBtn.classList.toggle('hidden', !searchInput.value);
+    debouncedSearch();
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      fetchSearchResults(searchInput.value.trim());
+    }
+  });
+})();
+</script>

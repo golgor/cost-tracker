@@ -1,5 +1,10 @@
 <!-- Expense Feed (HTMX partial) -->
 <div id="expense-feed" class="space-y-6">
+  <!-- Result count / search context -->
+  {% if count_message %}
+    <p class="text-sm text-stone-600 px-1">{{ count_message }}</p>
+  {% endif %}
+
   {% if not unsettled_expenses and not settled_expenses %}
     <!-- Empty State - No expenses at all -->
     <div class="bg-surface-card rounded-lg shadow-sm overflow-hidden">
@@ -10,7 +15,11 @@
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-4">
           <span class="text-2xl">💰</span>
         </div>
-        {% if has_active_filters %}
+        {% if has_active_search %}
+          <!-- Search empty state -->
+          <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses match your search</h3>
+          <p class="text-stone-600 mb-6">Try a different search term or clear the search to see all expenses.</p>
+        {% elif has_active_filters %}
           <!-- Filtered empty state -->
           <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses match your filters</h3>
           <p class="text-stone-600 mb-6">Try adjusting your date range or clearing filters to see more expenses.</p>
