@@ -170,6 +170,7 @@ class ExpensePort(Protocol):
         date: Any | None = None,
         payer_id: int | None = None,
         currency: str | None = None,
+        split_type: Any | None = None,
     ) -> None:
         """Update expense fields. Only provided fields are updated. Auto-audits."""
         ...

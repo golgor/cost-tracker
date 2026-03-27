@@ -8,7 +8,7 @@ from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
 from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow, ExpenseSplitRow
 from app.domain.errors import DuplicateBillingPeriodError
-from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic
+from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic, SplitType
 
 
 class SqlAlchemyExpenseAdapter:
@@ -89,6 +89,7 @@ class SqlAlchemyExpenseAdapter:
         date: date | None = None,
         payer_id: int | None = None,
         currency: str | None = None,
+        split_type: SplitType | None = None,
     ) -> None:
         """Update expense fields. Only provided fields are updated. Auto-audits."""
         row = self._session.get(ExpenseRow, expense_id)
@@ -106,11 +107,13 @@ class SqlAlchemyExpenseAdapter:
             row.payer_id = payer_id
         if currency is not None:
             row.currency = currency
+        if split_type is not None:
+            row.split_type = split_type
 
         # Compute changes for audit log (must be done before flush)
         changes = compute_changes(
             row,
-            fields=["amount", "description", "date", "payer_id", "currency"],
+            fields=["amount", "description", "date", "payer_id", "currency", "split_type"],
         )
 
         # Only audit if changes exist

@@ -907,6 +907,13 @@ async def edit_expense_page(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
+    # Get current splits for pre-populating split config
+    current_splits = uow.expenses.get_splits(expense.id)
+    split_config_dict = {}
+    for s in current_splits:
+        if s.share_value is not None:
+            split_config_dict[s.user_id] = str(s.share_value)
+
     return templates.TemplateResponse(
         request,
         "expenses/_edit_modal.html",
@@ -919,6 +926,7 @@ async def edit_expense_page(
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "split_config": split_config_dict,
         },
     )
 
@@ -931,6 +939,7 @@ class UpdateExpenseForm(BaseModel):
     date: date
     payer_id: int
     currency: str = Field(max_length=3)
+    split_type: str = Field(default="even")
 
 
 @router.post("/expenses/{expense_id}/update", response_class=HTMLResponse)
@@ -952,6 +961,8 @@ async def update_expense_endpoint(
     date_str = form.get("date", "")
     payer_id_str = form.get("payer_id", "")
     currency = form.get("currency", "")
+    split_type_str = form.get("split_type", "even")
+    split_config_raw = form.get("split_config", "")
 
     # Validate form values are strings (not UploadFile)
     if not isinstance(amount, str):
@@ -1025,12 +1036,23 @@ async def update_expense_endpoint(
                 date=expense_date,
                 payer_id=payer_id,
                 currency=currency,
+                split_type=split_type_str if isinstance(split_type_str, str) else "even",
             )
     except ValidationError as e:
         for error in e.errors():
             field = str(error["loc"][0])
             errors[field] = error["msg"]
         form_data = None
+
+    # Parse split_config from JSON
+    split_config: dict[int, Decimal] | None = None
+    if isinstance(split_type_str, str) and split_type_str.upper() != "EVEN" and split_config_raw:
+        try:
+            config_str = split_config_raw if isinstance(split_config_raw, str) else ""
+            config_data = json.loads(config_str) if config_str else {}
+            split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
+        except (json.JSONDecodeError, ValueError):
+            errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors
     if errors or form_data is None:
@@ -1056,6 +1078,7 @@ async def update_expense_endpoint(
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
                 "currency_symbol": _get_currency_symbol(group.default_currency),
+                "split_config": {},
             },
             status_code=400,
         )
@@ -1064,6 +1087,11 @@ async def update_expense_endpoint(
     from app.domain.use_cases.expenses import update_expense
 
     with uow:
+        # Get member IDs for split recalculation
+        group = uow.groups.get_by_user_id(user_id)
+        group_members = get_group_members(uow.session, group.id) if group else []
+        member_ids = [m.user_id for m in group_members]
+
         update_expense(
             uow=uow,
             expense_id=expense_id,
@@ -1073,6 +1101,9 @@ async def update_expense_endpoint(
             payer_id=form_data.payer_id,
             currency=form_data.currency,
             actor_id=user_id,
+            split_type=form_data.split_type,
+            split_config=split_config,
+            member_ids=member_ids,
         )
 
     # Redirect to expense list with success message
