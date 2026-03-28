@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError  # noqa: F401
 
@@ -209,24 +209,18 @@ async def create_recurring(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
+    name: Annotated[str, Form()] = "",
+    amount_str: Annotated[str, Form(alias="amount")] = "",
+    frequency: Annotated[str, Form()] = "MONTHLY",
+    interval_months_str: Annotated[str, Form(alias="interval_months")] = "",
+    next_due_date_str: Annotated[str, Form(alias="next_due_date")] = "",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
+    split_type: Annotated[str, Form()] = "EVEN",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "",
+    category: Annotated[str, Form()] = "",
+    auto_generate_str: Annotated[str, Form(alias="auto_generate")] = "",
 ):
     """Handle create recurring definition form submission."""
-    # Use cached form from CSRF middleware if available (body stream already consumed)
-    if hasattr(request.state, "_cached_form"):
-        raw_form = request.state._cached_form
-    else:
-        raw_form = await request.form()
-
-    name = str(raw_form.get("name", ""))
-    amount_str = str(raw_form.get("amount", ""))
-    frequency = str(raw_form.get("frequency", "MONTHLY"))
-    interval_months_str = str(raw_form.get("interval_months", ""))
-    next_due_date_str = str(raw_form.get("next_due_date", ""))
-    payer_id_str = str(raw_form.get("payer_id", ""))
-    split_type = str(raw_form.get("split_type", "EVEN"))
-    split_config_json = str(raw_form.get("split_config", ""))
-    category = str(raw_form.get("category", ""))
-    auto_generate_str = str(raw_form.get("auto_generate", ""))
 
     try:
         payer_id = int(payer_id_str)
@@ -413,24 +407,18 @@ async def update_recurring(
     definition_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    name: Annotated[str, Form()] = "",
+    amount_str: Annotated[str, Form(alias="amount")] = "",
+    frequency: Annotated[str, Form()] = "MONTHLY",
+    interval_months_str: Annotated[str, Form(alias="interval_months")] = "",
+    next_due_date_str: Annotated[str, Form(alias="next_due_date")] = "",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
+    split_type: Annotated[str, Form()] = "EVEN",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "",
+    category: Annotated[str, Form()] = "",
+    auto_generate_str: Annotated[str, Form(alias="auto_generate")] = "",
 ):
     """Handle update recurring definition form submission."""
-    # Use cached form from CSRF middleware if available (body stream already consumed)
-    if hasattr(request.state, "_cached_form"):
-        raw_form = request.state._cached_form
-    else:
-        raw_form = await request.form()
-
-    name = str(raw_form.get("name", ""))
-    amount_str = str(raw_form.get("amount", ""))
-    frequency = str(raw_form.get("frequency", "MONTHLY"))
-    interval_months_str = str(raw_form.get("interval_months", ""))
-    next_due_date_str = str(raw_form.get("next_due_date", ""))
-    payer_id_str = str(raw_form.get("payer_id", ""))
-    split_type = str(raw_form.get("split_type", "EVEN"))
-    split_config_json = str(raw_form.get("split_config", ""))
-    category = str(raw_form.get("category", ""))
-    auto_generate_str = str(raw_form.get("auto_generate", ""))
 
     try:
         payer_id = int(payer_id_str)

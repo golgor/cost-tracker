@@ -72,6 +72,7 @@ app/
 - Always use `DateTime(timezone=True)` for datetime columns — never naive `TIMESTAMP`
 - Never manually assign `created_at` or `updated_at` in adapters — server/SQLAlchemy-managed via `server_default=func.now()` and `onupdate=func.now()`
 - No `Repository` naming — use `Port` (domain) + `Adapter` (infra)
+- Always use `Annotated[T, Form()]` for form parameters — never `T = Form(...)` or manual `await request.form()`. Use `alias` when the HTML field name differs from the Python parameter name (e.g., `date_str: Annotated[str, Form(alias="date")]`). The CSRF middleware calls `await request.body()` before `await request.form()` so that Starlette's `_CachedRequest` replays the body to FastAPI — do not remove the `body()` call or revert to manual `_cached_form` reads
 
 ## Error Handling
 

@@ -111,10 +111,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "multipart/form-data"
         ):
             try:
+                # Call body() before form() so Starlette's _CachedRequest buffers the
+                # raw bytes and replays them to the inner app (FastAPI). Without this,
+                # form() consumes the stream and FastAPI's Form() injection gets an
+                # empty body, causing 422 errors on all regular (non-HTMX) form POSTs.
+                await request.body()
                 form = await request.form()
-                # Cache form in request.state so route handlers can access it
-                # (body stream can only be read once)
-                request.state._cached_form = form
                 form_token = form.get(CSRF_FORM_FIELD)
                 if form_token == expected_token:
                     return True

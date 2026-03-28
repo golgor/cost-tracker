@@ -105,7 +105,7 @@ async def setup_step_2_post(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    household_name: str = Form(...),
+    household_name: Annotated[str, Form()],
 ):
     """Step 2: Create household group and proceed to step 3."""
     user = uow.users.get_by_id(user_id)
@@ -195,9 +195,9 @@ async def setup_step_3_post(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    default_currency: str = Form(...),
-    default_split_type: str = Form(...),
-    tracking_threshold: int = Form(...),
+    default_currency: Annotated[str, Form()],
+    default_split_type: Annotated[str, Form()],
+    tracking_threshold: Annotated[int, Form()],
 ):
     """Step 3: Save configuration and redirect to dashboard."""
     user = uow.users.get_by_id(user_id)

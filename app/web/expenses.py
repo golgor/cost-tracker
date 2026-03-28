@@ -196,32 +196,16 @@ async def get_split_preview(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
+    amount_str: Annotated[str, Form(alias="amount")] = "0",
+    split_type: Annotated[str, Form()] = "even",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "{}",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
 ):
     """Calculate and return split preview HTML (HTMX endpoint).
 
     Receives form data via POST and returns calculated split amounts.
     Uses the same split strategies as the expense creation use case.
     """
-    # Parse form data (use cached form from CSRF middleware if available)
-    if hasattr(request.state, "_cached_form"):
-        form = request.state._cached_form
-    else:
-        form = await request.form()
-
-    amount_str = form.get("amount", "0")
-    split_type = form.get("split_type", "even")
-    split_config_json = form.get("split_config", "{}")
-    payer_id_str = form.get("payer_id", "")
-
-    # Validate form values are strings (not UploadFile)
-    if not isinstance(amount_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: amount")
-    if not isinstance(split_type, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: split_type")
-    if not isinstance(split_config_json, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: split_config")
-    if not isinstance(payer_id_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
 
     # Parse amount
     try:
@@ -346,13 +330,13 @@ async def create_expense_endpoint(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    amount: str = Form(...),
-    description: str = Form(""),
-    date_str: str = Form(..., alias="date"),
-    payer_id: int = Form(...),
-    currency: str = Form("EUR"),
-    split_type: str = Form("even"),
-    split_config_json: str = Form("", alias="split_config"),
+    amount: Annotated[str, Form()],
+    date_str: Annotated[str, Form(alias="date")],
+    payer_id: Annotated[int, Form()],
+    description: Annotated[str, Form()] = "",
+    currency: Annotated[str, Form()] = "EUR",
+    split_type: Annotated[str, Form()] = "even",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "",
 ):
     """Create new expense (HTMX endpoint for mobile/desktop)."""
 
@@ -948,34 +932,15 @@ async def update_expense_endpoint(
     expense_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    amount: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    date_str: Annotated[str, Form(alias="date")] = "",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
+    currency: Annotated[str, Form()] = "",
+    split_type_str: Annotated[str, Form(alias="split_type")] = "even",
+    split_config_raw: Annotated[str, Form(alias="split_config")] = "",
 ):
     """Update expense (form submission)."""
-    # Parse form data (use cached form from CSRF middleware if available)
-    if hasattr(request.state, "_cached_form"):
-        form = request.state._cached_form
-    else:
-        form = await request.form()
-
-    amount = form.get("amount", "")
-    description = form.get("description", "")
-    date_str = form.get("date", "")
-    payer_id_str = form.get("payer_id", "")
-    currency = form.get("currency", "")
-    split_type_str = form.get("split_type", "even")
-    split_config_raw = form.get("split_config", "")
-
-    # Validate form values are strings (not UploadFile)
-    if not isinstance(amount, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: amount")
-    if not isinstance(description, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: description")
-    if not isinstance(date_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: date")
-    if not isinstance(payer_id_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
-    if not isinstance(currency, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: currency")
-
     # Convert payer_id to int
     try:
         payer_id = int(payer_id_str) if payer_id_str else None
@@ -1205,14 +1170,13 @@ async def add_expense_note(
     expense_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    content: Annotated[str, Form()] = "",
 ):
     """Add a note to an expense (HTMX endpoint).
 
     Returns updated notes section HTML.
     """
-    # Get form data
-    form_data = await request.form()
-    content = str(form_data.get("content", "")).strip()
+    content = content.strip()
 
     if not content:
         return HTMLResponse(
@@ -1305,15 +1269,14 @@ async def edit_expense_note(
     note_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    content: Annotated[str, Form()] = "",
 ):
     """Edit an expense note (HTMX endpoint).
 
     Only the author can edit their own notes.
     Returns updated notes section HTML.
     """
-    # Get form data
-    form_data = await request.form()
-    content = str(form_data.get("content", "")).strip()
+    content = content.strip()
 
     if not content:
         return HTMLResponse(

@@ -110,24 +110,30 @@ def test_entity(uow: UnitOfWork):
 
 Use `flush()` to get auto-generated IDs without committing the transaction.
 
-### CSRF Middleware & Form Data
-**CRITICAL:** The CSRF middleware consumes the request body with `await request.form()` to validate the CSRF token. Once consumed, FastAPI's `Form()` dependency receives empty data because the body stream can only be read once.
-
-**Solution:** Routes that use form data AND have CSRF protection must check for cached form data:
+### Form Parameters
+Always use `Annotated[T, Form()]` for form parameters — never `T = Form(...)` or manual `await request.form()`:
 
 ```python
-# In routes that handle form POSTs with CSRF protection
-cached_form = getattr(request.state, "_cached_form", None)
-if cached_form:
-    # Use cached form data (populated by CSRF middleware)
-    expense_ids_str = cached_form.getlist("expense_ids")
-    expense_ids = [int(eid) for eid in expense_ids_str if eid.isdigit()]
-else:
-    # Use FastAPI's Form dependency
-    expense_ids: list[int] = Form(default=[])
+from typing import Annotated
+from fastapi import Form
+
+@router.post("/example")
+async def example(
+    name: Annotated[str, Form()],                              # required
+    description: Annotated[str, Form()] = "",                   # optional with default
+    date_str: Annotated[str, Form(alias="date")] = "",          # alias maps HTML field name to Python param
+    items: Annotated[list[int] | None, Form()] = None,          # list type (use None default, not [])
+):
 ```
 
-**Always test POST routes with CSRF tokens** to catch this issue early.
+Use `alias` when the HTML field name differs from the Python parameter name. For `list` defaults, use `None` (not `[]`) to satisfy ruff B006, and initialize to `[]` in the function body.
+
+### CSRF Middleware & Form Body Replay
+The CSRF middleware (`app/auth/middleware.py`) validates CSRF tokens from form data on regular (non-HTMX) POST requests. It calls `await request.body()` before `await request.form()` — this is critical because Starlette's `_CachedRequest.wrapped_receive` only replays the body to the inner app (FastAPI) if `body()` was called. Without `body()`, `form()` consumes the stream and FastAPI's `Form()` injection receives empty data (422 errors).
+
+**Do not** remove the `await request.body()` call or revert to manual `request.state._cached_form` reads in route handlers.
+
+**Always test POST routes with CSRF tokens** to catch body-replay issues early.
 
 ### Templates (Jinja2)
 - No complex business logic in templates
