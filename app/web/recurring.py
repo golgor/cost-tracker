@@ -21,6 +21,7 @@ from app.domain.errors import DomainError, InvalidShareError
 from app.domain.models import (
     ExpensePublic,
     ExpenseStatus,
+    RecurringDefinitionPublic,
     RecurringFrequency,
     SplitType,
     UserPublic,
@@ -41,6 +42,7 @@ from app.domain.use_cases.recurring import (
 )
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
+from app.web.view_models import RecurringDefinitionViewModel
 
 router = APIRouter(tags=["recurring"])
 templates = setup_templates("app/templates")
@@ -115,6 +117,20 @@ def _build_users_dict(
     return {u.id: u for u in users}
 
 
+def _to_view_models(
+    definitions: list[RecurringDefinitionPublic],
+    uow: UnitOfWork,
+) -> list[RecurringDefinitionViewModel]:
+    """Convert domain models to template-ready view models."""
+    payer_ids = list({d.payer_id for d in definitions})
+    payer_users = uow.users.get_by_ids(payer_ids)
+    payer_map = {u.id: u.display_name for u in payer_users}
+    return [
+        RecurringDefinitionViewModel.from_domain(d, payer_map.get(d.payer_id, "Unknown"))
+        for d in definitions
+    ]
+
+
 @router.get("/recurring", response_class=HTMLResponse)
 async def registry_index(
     request: Request,
@@ -136,7 +152,8 @@ async def registry_index(
                 detail="User not found",
             )
 
-        definitions = get_active_definitions(uow.session, group.id)
+        domain_defs = get_active_definitions(uow.session, group.id)
+        definitions = _to_view_models(domain_defs, uow)
         summary = get_registry_summary(uow.session, group.id)
 
     return templates.TemplateResponse(
@@ -323,10 +340,11 @@ async def registry_tab(
             )
 
         if tab == "active":
-            definitions = get_active_definitions(uow.session, group.id)
+            domain_defs = get_active_definitions(uow.session, group.id)
         else:
-            definitions = get_paused_definitions(uow.session, group.id)
+            domain_defs = get_paused_definitions(uow.session, group.id)
 
+        definitions = _to_view_models(domain_defs, uow)
         summary = get_registry_summary(uow.session, group.id)
 
     return templates.TemplateResponse(
@@ -527,17 +545,11 @@ async def toggle_active(
             reactivate_definition(uow, definition_id)
 
         # Re-fetch updated definition for card render
-        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
-        from app.adapters.sqlalchemy.queries.recurring_queries import (
-            _build_definition_view,
-            _get_payer_map,
-        )
-
-        row = uow.session.get(RecurringDefinitionRow, definition_id)
-        if row is None:
+        updated = uow.recurring.get_by_id(definition_id)
+        if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        payer_map = _get_payer_map(uow.session, {row.payer_id})
-        defn = _build_definition_view(row, payer_map)
+        view_models = _to_view_models([updated], uow)
+        defn = view_models[0]
 
     return templates.TemplateResponse(
         request,
@@ -588,17 +600,12 @@ async def create_expense_for_definition(
             raise HTTPException(status_code=404, detail="Recurring definition not found")
         create_expense_from_definition(uow, definition)
 
-        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
-        from app.adapters.sqlalchemy.queries.recurring_queries import (
-            _build_definition_view,
-            _get_payer_map,
-        )
-
-        row = uow.session.get(RecurringDefinitionRow, definition_id)
-        if row is None:
+        # Re-fetch updated definition for card render
+        updated = uow.recurring.get_by_id(definition_id)
+        if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        payer_map = _get_payer_map(uow.session, {row.payer_id})
-        defn = _build_definition_view(row, payer_map)
+        view_models = _to_view_models([updated], uow)
+        defn = view_models[0]
 
     return templates.TemplateResponse(
         request,
