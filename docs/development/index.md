@@ -24,6 +24,3 @@ For deeper understanding of design decisions and patterns, see the
 This project uses Claude sub-agents for development assistance. Agent configuration lives in
 `CLAUDE.md` and `AGENTS.md` at the project root — these are the authoritative source for AI-specific
 conventions and are not duplicated here.
-
-!!! note "Work in progress"
-    Local setup, testing, and how-to guides are coming soon. Conventions are available now.
