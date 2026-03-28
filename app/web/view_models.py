@@ -10,7 +10,16 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.domain.models import RecurringDefinitionPublic, RecurringFrequency, UserPublic, UserRole
+from app.domain.models import (
+    ExpensePublic,
+    ExpenseStatus,
+    RecurringDefinitionPublic,
+    RecurringFrequency,
+    SettlementPublic,
+    SettlementTransactionPublic,
+    UserPublic,
+    UserRole,
+)
 from app.domain.recurring import normalized_monthly_cost
 
 _FREQUENCY_LABELS: dict[RecurringFrequency, str] = {
@@ -145,4 +154,124 @@ class RecurringDefinitionViewModel(BaseModel):
             is_auto_generate=defn.auto_generate,
             is_manual_mode=not defn.auto_generate,
             is_active=defn.is_active,
+        )
+
+
+class ExpenseCardViewModel(BaseModel):
+    """Template-ready representation of an expense card.
+
+    Replaces the pattern of passing raw ExpensePublic + users dict to templates.
+    All display logic (initials, formatting, badge color) is computed here.
+    """
+
+    id: int
+    description: str
+    amount: Decimal
+    date: date
+    formatted_date: str
+    currency: str
+    currency_symbol: str
+    payer_id: int
+    payer_display_name: str
+    payer_initials: str
+    is_current_user_payer: bool
+    is_settled: bool
+    is_gift: bool
+    is_pending: bool
+    is_recurring: bool
+    is_auto_generated: bool
+    recurring_definition_id: int | None
+    show_edit_button: bool
+    show_delete_button: bool
+
+    @classmethod
+    def from_domain(
+        cls,
+        expense: ExpensePublic,
+        payer_name: str,
+        currency_symbol: str,
+        current_user_id: int,
+        recurring_name: str | None = None,
+    ) -> ExpenseCardViewModel:
+        """Transform domain ExpensePublic into a template-ready view model.
+
+        Args:
+            expense: Domain expense model
+            payer_name: Display name of the payer
+            currency_symbol: Currency symbol for display (e.g., "$")
+            current_user_id: ID of the currently logged-in user
+            recurring_name: Name of the recurring definition, if any
+        """
+        is_settled = expense.status == ExpenseStatus.SETTLED
+        return cls(
+            id=expense.id,
+            description=expense.description or "Expense",
+            amount=expense.amount,
+            date=expense.date,
+            formatted_date=expense.date.strftime("%B %d, %Y"),
+            currency=expense.currency,
+            currency_symbol=currency_symbol,
+            payer_id=expense.payer_id,
+            payer_display_name=payer_name,
+            payer_initials=_initials(payer_name),
+            is_current_user_payer=expense.payer_id == current_user_id,
+            is_settled=is_settled,
+            is_gift=expense.status == ExpenseStatus.GIFT,
+            is_pending=expense.status == ExpenseStatus.PENDING,
+            is_recurring=expense.recurring_definition_id is not None,
+            is_auto_generated=expense.is_auto_generated,
+            recurring_definition_id=expense.recurring_definition_id,
+            show_edit_button=not is_settled,
+            show_delete_button=not is_settled,
+        )
+
+
+class SettlementHistoryViewModel(BaseModel):
+    """Template-ready representation of a settlement in the history list.
+
+    Replaces the manually-built dict in settlement_history_page.
+    """
+
+    id: int
+    reference_id: str
+    settled_at: str
+    expense_count: int
+    total_amount: Decimal
+    has_amount: bool
+    transaction_count: int
+    transaction_summaries: list[dict[str, str]]
+
+    @classmethod
+    def from_domain(
+        cls,
+        settlement: SettlementPublic,
+        expense_count: int,
+        transactions: list[SettlementTransactionPublic],
+        display_names: dict[int, str],
+    ) -> SettlementHistoryViewModel:
+        """Transform domain settlement + related data into a template-ready view model.
+
+        Args:
+            settlement: Domain settlement model
+            expense_count: Number of expenses in this settlement
+            transactions: List of settlement transactions
+            display_names: Mapping of user IDs to display names
+        """
+        total_amount = sum(tx.amount for tx in transactions)
+        summaries = [
+            {
+                "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
+                "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
+            }
+            for tx in transactions
+        ]
+        return cls(
+            id=settlement.id,
+            reference_id=settlement.reference_id,
+            settled_at=settlement.settled_at.strftime("%b %d, %Y"),
+            expense_count=expense_count,
+            total_amount=total_amount,
+            has_amount=total_amount > 0,
+            transaction_count=len(transactions),
+            transaction_summaries=summaries,
         )

@@ -12,6 +12,7 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
     get_recurring_definition_names,
     get_this_month_total,
 )
+from app.domain.models import ExpensePublic, UserPublic
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
@@ -21,8 +22,35 @@ from app.web.expenses._shared import (
     _parse_date_filters,
     templates,
 )
+from app.web.view_models import ExpenseCardViewModel
 
 router = APIRouter(tags=["expenses"])
+
+
+def _to_card_view_models(
+    expenses: list[ExpensePublic],
+    users_by_id: dict[int, UserPublic],
+    currency_symbol: str,
+    current_user_id: int,
+    recurring_names: dict[int, str],
+) -> list[ExpenseCardViewModel]:
+    """Transform a list of domain expenses into card view models."""
+    result = []
+    for expense in expenses:
+        payer = users_by_id.get(expense.payer_id)
+        payer_name = payer.display_name if payer else "Unknown User"
+        rec_def_id = expense.recurring_definition_id
+        rec_name = recurring_names.get(rec_def_id) if rec_def_id else None
+        result.append(
+            ExpenseCardViewModel.from_domain(
+                expense=expense,
+                payer_name=payer_name,
+                currency_symbol=currency_symbol,
+                current_user_id=current_user_id,
+                recurring_name=rec_name,
+            )
+        )
+    return result
 
 
 @router.get("/expenses", response_class=HTMLResponse)
@@ -100,8 +128,17 @@ async def expenses_list(
         ]
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
+        # Transform to view models
+        currency_symbol = _get_currency_symbol(group.default_currency)
+        unsettled_vms = _to_card_view_models(
+            unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
+        )
+        settled_vms = _to_card_view_models(
+            settled_expenses, users_by_id, currency_symbol, user_id, recurring_names
+        )
+
     # Result count message
-    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    total_expenses = len(unsettled_vms) + len(settled_vms)
     active_search = search_query.strip() if search_query else None
     count_message = _build_expense_count_message(total_expenses, active_search)
 
@@ -114,15 +151,15 @@ async def expenses_list(
         {
             "user": user,
             "group": group,
-            "unsettled_expenses": unsettled_expenses,
-            "settled_expenses": settled_expenses,
+            "unsettled_expenses": unsettled_vms,
+            "settled_expenses": settled_vms,
             "balance": balance_data,
             "this_month_total": this_month_total,
             "group_members": members,
             "users": users_by_id,
             "current_user_id": user_id,
             "today": date.today().isoformat(),
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": currency_symbol,
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
