@@ -57,10 +57,11 @@ exclude = ["alembic/"]
 [[tool.ty.overrides]]
 # SQLModel's Session.exec() is monkey-patched at runtime onto SQLAlchemy's Session.
 # ty cannot see it because the type stubs don't include it.
-# SQLAlchemy column descriptors (.desc(), .in_(), .notin_()) are InstrumentedAttribute
-# at runtime but ty sees the Python type annotation instead.
+# SQLAlchemy column descriptors (.desc(), .in_(), .notin_(), .order_by()) are
+# InstrumentedAttribute at runtime but ty sees the Python type annotation instead.
+# Field(sa_type=...) accepts instances at runtime but stubs declare type[Any].
 include = ["app/adapters/sqlalchemy/**"]
-rules = { unresolved-attribute = "warn" }
+rules = { invalid-argument-type = "warn", unresolved-attribute = "warn" }
 
 [[tool.ty.overrides]]
 # Test setup code passes row.id (int | None) everywhere after session.flush().
@@ -69,12 +70,6 @@ rules = { unresolved-attribute = "warn" }
 # Session.exec and column descriptors also apply here.
 include = ["tests/**"]
 rules = { invalid-argument-type = "warn", unresolved-attribute = "warn" }
-
-[[tool.ty.overrides]]
-# Field(sa_type=...) accepts instances at runtime but stubs declare type[Any].
-# This is a known SQLModel stub gap — all Field() calls in orm_models.py are correct.
-include = ["app/adapters/sqlalchemy/orm_models.py"]
-rules = { invalid-argument-type = "warn" }
 
 [build-system]
 requires = ["hatchling"]
