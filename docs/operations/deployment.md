@@ -51,7 +51,7 @@ docker run -d \
   ghcr.io/golgor/cost-tracker:latest
 ```
 
-Place behind a reverse proxy (nginx, Caddy, Traefik) for HTTPS termination.
+Place behind a reverse proxy (e.g., [Traefik](https://traefik.io/)) for HTTPS termination.
 
 ### k3s with ArgoCD
 
@@ -122,24 +122,47 @@ The `INTERNAL_WEBHOOK_SECRET` must match the value in your environment configura
 
 ## Reverse Proxy
 
-The app runs on port 8000 and expects a reverse proxy for HTTPS. Example nginx configuration:
+The app runs on port 8000 and expects a reverse proxy for HTTPS. [Traefik](https://traefik.io/)
+is recommended — it handles automatic HTTPS via Let's Encrypt and integrates natively with Docker
+and Kubernetes.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name costs.example.com;
+### Traefik with Docker labels
 
-    ssl_certificate /etc/ssl/certs/costs.pem;
-    ssl_certificate_key /etc/ssl/private/costs.key;
+Add labels to your Cost Tracker container to let Traefik auto-discover it:
 
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+```yaml
+services:
+  cost-tracker:
+    image: ghcr.io/golgor/cost-tracker:latest
+    env_file: .env.prod
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.costtracker.rule=Host(`costs.example.com`)"
+      - "traefik.http.routers.costtracker.entrypoints=websecure"
+      - "traefik.http.routers.costtracker.tls.certresolver=letsencrypt"
+      - "traefik.http.services.costtracker.loadbalancer.server.port=8000"
+```
+
+### Traefik with Kubernetes IngressRoute
+
+For k3s deployments (Traefik is the default ingress controller in k3s):
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cost-tracker
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`costs.example.com`)
+      kind: Rule
+      services:
+        - name: cost-tracker
+          port: 8000
+  tls:
+    certResolver: letsencrypt
 ```
 
 ## CI/CD Pipeline
