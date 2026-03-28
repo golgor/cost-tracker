@@ -188,10 +188,6 @@ class TestDashboardBalanceBar:
 class TestDashboardExpenseFeed:
     """Test expense feed display and ordering."""
 
-    @pytest.mark.skip(
-        reason="TODO: Test setup issue with transaction handling - "
-        "query sorting verified in adapter tests"
-    )
     def test_expense_feed_shows_newest_first(self, authenticated_client, user1, test_group, uow):
         """Expenses are sorted newest first in the feed."""
         today = date.today()

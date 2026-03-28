@@ -99,7 +99,7 @@ def create_expense(
         id=0,
         **expense.model_dump(),
     )
-    splits = _calculate_splits(
+    splits = calculate_splits(
         expense=expense_for_splits,
         member_ids=member_ids,
         split_type=split_type_enum,
@@ -125,7 +125,7 @@ def create_expense(
     return saved_expense
 
 
-def _calculate_splits(
+def calculate_splits(
     expense: ExpensePublic,
     member_ids: list[int],
     split_type: SplitType,
@@ -283,7 +283,7 @@ def update_expense(
                         if s.share_value is not None
                     }
 
-            new_splits = _calculate_splits(
+            new_splits = calculate_splits(
                 expense=updated_expense,
                 member_ids=effective_member_ids,
                 split_type=updated_expense.split_type,

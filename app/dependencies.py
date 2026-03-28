@@ -9,7 +9,12 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.settings import settings
 
 # Database engine (created once at module load)
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=5,
+)
 
 
 def get_db_session() -> Generator[Session]:
