@@ -3,11 +3,7 @@
 import pytest
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.domain.errors import (
-    DeactivatedUserAccessDenied,
-    LastActiveAdminDeactivationForbidden,
-    UserNotFoundError,
-)
+from app.domain.errors import UserNotFoundError
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
 
@@ -41,7 +37,7 @@ class TestBootstrapAdminRole:
 
     def test_first_user_gets_admin_role_when_provisioned(self, uow: UnitOfWork):
         """AC1: First user automatically becomes admin."""
-        assert uow.users.count_active_admins() == 0
+        assert uow.users.count_admins() == 0
 
         # Provision first user
         with uow:
@@ -56,8 +52,7 @@ class TestBootstrapAdminRole:
             admin = uow.users.promote_to_admin(user.id)
 
         assert admin.role == UserRole.ADMIN
-        assert admin.is_active
-        assert uow.users.count_active_admins() == 1
+        assert uow.users.count_admins() == 1
 
     def test_second_user_gets_regular_role_when_admin_exists(
         self, first_user: dict, uow: UnitOfWork
@@ -76,58 +71,7 @@ class TestBootstrapAdminRole:
             )
 
         assert user.role == UserRole.USER
-        assert user.is_active
-        assert uow.users.count_active_admins() == 1
-
-
-class TestDeactivation:
-    """Test user deactivation logic."""
-
-    def test_deactivate_user_marks_inactive(self, first_user, uow: UnitOfWork):
-        """AC3: Deactivate marks user inactive and tracked in audit."""
-        assert first_user.is_active
-
-        user = user_use_cases.deactivate_user(uow, first_user.id)
-
-        assert not user.is_active
-        assert user.deactivated_at is not None
-
-    def test_deactivated_user_blocked_at_login(self, first_user, uow: UnitOfWork):
-        """AC4: Deactivated user cannot get app session."""
-        user_use_cases.deactivate_user(uow, first_user.id)
-
-        with pytest.raises(DeactivatedUserAccessDenied):
-            user_use_cases.provision_user(
-                uow,
-                oidc_sub=first_user.oidc_sub,
-                email=first_user.email,
-                display_name=first_user.display_name,
-            )
-
-    def test_cannot_deactivate_last_active_admin(self, uow: UnitOfWork):
-        """AC5: Last active admin cannot be deactivated."""
-        # Create and promote first user to admin
-        with uow:
-            user = user_use_cases.provision_user(
-                uow,
-                oidc_sub="admin@example.com",
-                email="admin@example.com",
-                display_name="admin",
-            )
-            uow.users.promote_to_admin(user.id)
-
-        assert uow.users.count_active_admins() == 1
-
-        with pytest.raises(LastActiveAdminDeactivationForbidden):
-            user_use_cases.deactivate_user(uow, user.id)
-
-    def test_reactivate_user(self, first_user, uow: UnitOfWork):
-        """Test reactivating a deactivated user."""
-        user_use_cases.deactivate_user(uow, first_user.id)
-        user = user_use_cases.reactivate_user(uow, first_user.id)
-
-        assert user.is_active
-        assert user.deactivated_at is None
+        assert uow.users.count_admins() == 1
 
 
 class TestRoleManagement:
@@ -140,7 +84,7 @@ class TestRoleManagement:
         user = user_use_cases.promote_user_to_admin(uow, first_user.id)
 
         assert user.role == UserRole.ADMIN
-        assert uow.users.count_active_admins() == 1
+        assert uow.users.count_admins() == 1
 
     def test_demote_admin_to_user(self, first_user, second_user, uow: UnitOfWork):
         """Test demoting admin to regular user."""
@@ -170,7 +114,7 @@ class TestBootstrapFirstAdmin:
 
         assert was_promoted is True
         assert promoted_user.role == UserRole.ADMIN
-        assert uow.users.count_active_admins() == 1
+        assert uow.users.count_admins() == 1
 
     def test_existing_admin_not_reproduced(self, first_user, uow: UnitOfWork):
         """AC: bootstrap_first_admin returns False when an admin already exists."""
@@ -193,7 +137,7 @@ class TestBootstrapFirstAdmin:
 
         assert was_promoted is False
         assert result_user.role == UserRole.USER
-        assert uow.users.count_active_admins() == 1
+        assert uow.users.count_admins() == 1
 
     def test_bootstrap_raises_on_nonexistent_user(self, uow: UnitOfWork):
         """AC: bootstrap_first_admin raises error for nonexistent user when admin exists."""

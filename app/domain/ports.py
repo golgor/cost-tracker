@@ -52,20 +52,12 @@ class UserPort(Protocol):
         """Demote user to regular user role."""
         ...
 
-    def deactivate(self, user_id: int) -> UserPublic:
-        """Deactivate a user."""
+    def count_admins(self) -> int:
+        """Count the number of admin users."""
         ...
 
-    def reactivate(self, user_id: int) -> UserPublic:
-        """Reactivate a deactivated user."""
-        ...
-
-    def count_active_admins(self) -> int:
-        """Count the number of active admin users."""
-        ...
-
-    def get_active_admins(self) -> list[UserPublic]:
-        """Get list of all active admin users."""
+    def get_admins(self) -> list[UserPublic]:
+        """Get list of all admin users."""
         ...
 
 

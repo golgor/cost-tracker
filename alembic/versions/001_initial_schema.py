@@ -34,9 +34,6 @@ def upgrade() -> None:
             nullable=False,
             server_default="USER",
         ),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("deactivated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("deactivated_by_user_id", sa.Integer(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -50,11 +47,6 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(
-            ["deactivated_by_user_id"],
-            ["users.id"],
-            name="users_deactivated_by_user_id_fkey",
-        ),
         sa.CheckConstraint(
             "role IN ('ADMIN', 'USER')",
             name="ck_users_role",
@@ -62,8 +54,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_users_oidc_sub", "users", ["oidc_sub"], unique=True)
     op.create_index("ix_users_role", "users", ["role"])
-    op.create_index("ix_users_is_active", "users", ["is_active"])
-    op.create_index("ix_users_deactivated_at", "users", ["deactivated_at"])
 
     # ── 2. groups ─────────────────────────────────────────────────────
     op.create_table(
