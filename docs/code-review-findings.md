@@ -228,13 +228,13 @@ The same `CURRENCY_SYMBOLS` dict exists in 3 files.
 
 ---
 
-### F-17: Manual form parsing alongside Pydantic validation
+### F-17: Duplicated form parsing logic between preview and submit paths
 
-**Files:** `app/web/expenses.py:354-404`, `app/web/recurring.py:666-745`, `app/web/setup.py`
+**Files:** `app/web/expenses.py`, `app/web/recurring.py`
 
-Handlers manually parse form fields (Decimal conversion, date parsing, JSON parsing) before or alongside Pydantic validation. This creates double-validation and inconsistent error handling.
+The HTMX split preview endpoints need lenient "best effort" parsing for immediate feedback, while the create/update endpoints need strict validation. This two-step flow is correct — the issue is that the parsing logic (Decimal from string, date from string, JSON split config) is duplicated inline in both paths rather than shared.
 
-**Fix:** Move all parsing into Pydantic form models with custom validators. Example: a `CreateExpenseForm` with `@field_validator` for amount, date, split_config.
+**Fix:** Extract shared parsing helpers (e.g., `parse_amount(s) -> Decimal`, `parse_split_config(s) -> dict`) and call them from both the preview endpoint and the Pydantic form validators. This reduces duplication without losing the lenient/strict distinction.
 
 ---
 
