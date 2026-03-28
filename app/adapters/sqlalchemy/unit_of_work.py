@@ -3,7 +3,6 @@ from typing import Any
 
 from sqlmodel import Session
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.expense_adapter import SqlAlchemyExpenseAdapter
 from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
@@ -27,12 +26,11 @@ class UnitOfWork:
 
     def __init__(self, session: Session) -> None:
         self.session = session
-        self.audit = SqlAlchemyAuditAdapter(session)
-        self.users = SqlAlchemyUserAdapter(session, self.audit)
-        self.groups = SqlAlchemyGroupAdapter(session, self.audit)
-        self.expenses = SqlAlchemyExpenseAdapter(session, self.audit)
-        self.settlements = SqlAlchemySettlementAdapter(session, self.audit)
-        self.recurring = SqlAlchemyRecurringDefinitionAdapter(session, self.audit)
+        self.users = SqlAlchemyUserAdapter(session)
+        self.groups = SqlAlchemyGroupAdapter(session)
+        self.expenses = SqlAlchemyExpenseAdapter(session)
+        self.settlements = SqlAlchemySettlementAdapter(session)
+        self.recurring = SqlAlchemyRecurringDefinitionAdapter(session)
 
     def __enter__(self) -> UnitOfWork:
         """Enter context manager - return self for use in with block."""

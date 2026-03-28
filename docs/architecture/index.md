@@ -1,87 +1,27 @@
-# Architecture Decision Document
+# Architecture
 
-## Table of Contents
+Technical architecture documentation for Cost Tracker. These are **living documents** — updated as
+the architecture evolves.
 
-- [Architecture Decision Document](#table-of-contents)
-  - [Project Context Analysis](./project-context-analysis.md)
-    - [Requirements Overview](./project-context-analysis.md#requirements-overview)
-    - [Technical Constraints & Dependencies](./project-context-analysis.md#technical-constraints-dependencies)
-    - [Cross-Cutting Concerns Identified](./project-context-analysis.md#cross-cutting-concerns-identified)
-    - [Architectural Principles (from First Principles
-      Analysis)](./project-context-analysis.md#architectural-principles-from-first-principles-analysis)
-    - [Critical Failure Modes Identified](./project-context-analysis.md#critical-failure-modes-identified)
-  - [Starter Template Evaluation](./starter-template-evaluation.md)
-    - [Primary Technology Domain](./starter-template-evaluation.md#primary-technology-domain)
-    - [Starter Options Considered](./starter-template-evaluation.md#starter-options-considered)
-    - [Selected Approach: Custom Scaffolding with Ports &
-      Adapters](./starter-template-evaluation.md#selected-approach-custom-scaffolding-with-ports-adapters)
-  - [Core Architectural Decisions](./core-architectural-decisions.md)
-    - [Decision Priority Analysis](./core-architectural-decisions.md#decision-priority-analysis)
-    - [Data Architecture](./core-architectural-decisions.md#data-architecture)
-    - [Authentication & Security](./core-architectural-decisions.md#authentication-security)
-    - [API & Communication Patterns](./core-architectural-decisions.md#api-communication-patterns)
-    - [Frontend Architecture](./core-architectural-decisions.md#frontend-architecture)
-    - [Infrastructure & Deployment](./core-architectural-decisions.md#infrastructure-deployment)
-    - [Layer Import Rules](./core-architectural-decisions.md#layer-import-rules)
-    - [Testing Strategy (Updated)](./core-architectural-decisions.md#testing-strategy-updated)
-    - [Architectural Guardrails (Consolidated)](./core-architectural-decisions.md#architectural-guardrails-consolidated)
-    - [Decision Impact Analysis](./core-architectural-decisions.md#decision-impact-analysis)
-    - [Architecture Decision Records](./core-architectural-decisions.md#architecture-decision-records)
-      - [ADR-001: Ports & Adapters (Hexagonal
-        Architecture)](./core-architectural-decisions.md#adr-001-ports-adapters-hexagonal-architecture)
-      - [ADR-002: Declarative ORM with Adapter
-        Separation](./core-architectural-decisions.md#adr-002-declarative-orm-with-adapter-separation)
-      - [ADR-003: UnitOfWork as Domain Port](./core-architectural-decisions.md#adr-003-unitofwork-as-domain-port)
-      - [ADR-004: Audit Logging as Domain
-        Concern](./core-architectural-decisions.md#adr-004-audit-logging-as-domain-concern)
-      - [ADR-005: Sync SQLAlchemy for MVP](./core-architectural-decisions.md#adr-005-sync-sqlalchemy-for-mvp)
-      - [ADR-006: View Queries Bypass Domain
-        Ports](./core-architectural-decisions.md#adr-006-view-queries-bypass-domain-ports)
-      - [ADR-007: API Routes Deferred Past MVP](./core-architectural-decisions.md#adr-007-api-routes-deferred-past-mvp)
-      - [ADR-008: Structured Logging with
-        structlog](./core-architectural-decisions.md#adr-008-structured-logging-with-structlog)
-      - [ADR-009: Split CI Workflows by Path](./core-architectural-decisions.md#adr-009-split-ci-workflows-by-path)
-      - [ADR-010: pydantic-settings for
-        Configuration](./core-architectural-decisions.md#adr-010-pydantic-settings-for-configuration)
-      - [ADR-011: SQLModel for Domain and ORM
-        Models](./core-architectural-decisions.md#adr-011-sqlmodel-for-domain-and-orm-models)
-      - [ADR-012: Human-Readable Settlement
-        References](./core-architectural-decisions.md#adr-012-human-readable-settlement-references)
-      - [ADR-013: Soft Immutability for Settled
-        Expenses](./core-architectural-decisions.md#adr-013-soft-immutability-for-settled-expenses)
-      - [ADR-014: Stateless Settlement Review
-        Flow](./core-architectural-decisions.md#adr-014-stateless-settlement-review-flow)
-      - [ADR-015: Group-Centric Settlement
-        Design](./core-architectural-decisions.md#adr-015-group-centric-settlement-design)
-  - [Settlement Patterns (Epic 3)](./settlement-patterns.md)
-    - [Settlement State Machine](./settlement-patterns.md#settlement-state-machine)
-    - [Soft Immutability Enforcement](./settlement-patterns.md#soft-immutability-enforcement)
-    - [Reference ID Generation](./settlement-patterns.md#reference-id-generation)
-    - [Transfer Direction Calculation](./settlement-patterns.md#transfer-direction-calculation)
-    - [Stateless Review Flow](./settlement-patterns.md#stateless-review-flow)
-    - [Group-Centric Design](./settlement-patterns.md#group-centric-design)
-    - [Concurrency Protection](./settlement-patterns.md#concurrency-protection)
-  - [Implementation Patterns & Consistency Rules](./implementation-patterns-consistency-rules.md)
-    - [Pattern Categories Defined](./implementation-patterns-consistency-rules.md#pattern-categories-defined)
-    - [Naming Patterns](./implementation-patterns-consistency-rules.md#naming-patterns)
-    - [Structure Patterns](./implementation-patterns-consistency-rules.md#structure-patterns)
-    - [Format Patterns](./implementation-patterns-consistency-rules.md#format-patterns)
-    - [Communication Patterns](./implementation-patterns-consistency-rules.md#communication-patterns)
-    - [Process Patterns](./implementation-patterns-consistency-rules.md#process-patterns)
-    - [Enforcement Guidelines](./implementation-patterns-consistency-rules.md#enforcement-guidelines)
-    - [Pattern Examples](./implementation-patterns-consistency-rules.md#pattern-examples)
-  - [Project Structure & Boundaries](./project-structure-boundaries.md)
-    - [Complete Project Directory Structure](./project-structure-boundaries.md#complete-project-directory-structure)
-    - [Architectural Boundaries](./project-structure-boundaries.md#architectural-boundaries)
-    - [Requirements to Structure Mapping](./project-structure-boundaries.md#requirements-to-structure-mapping)
-    - [Integration Points](./project-structure-boundaries.md#integration-points)
-    - [Documentation Structure](./project-structure-boundaries.md#documentation-structure)
-    - [Development Workflow Integration](./project-structure-boundaries.md#development-workflow-integration)
-  - [Architecture Validation Results](./architecture-validation-results.md)
-    - [Coherence Validation ✅](./architecture-validation-results.md#coherence-validation)
-    - [Requirements Coverage Validation ✅](./architecture-validation-results.md#requirements-coverage-validation)
-    - [Implementation Readiness Validation ✅](./architecture-validation-results.md#implementation-readiness-validation)
-    - [Gap Analysis Results](./architecture-validation-results.md#gap-analysis-results)
-    - [Architecture Completeness Checklist](./architecture-validation-results.md#architecture-completeness-checklist)
-    - [Architecture Readiness Assessment](./architecture-validation-results.md#architecture-readiness-assessment)
-    - [Implementation Handoff](./architecture-validation-results.md#implementation-handoff)
+## Core Documents
+
+- [Core Architectural Decisions](./core-architectural-decisions.md) — ADRs covering data, auth,
+  API patterns, frontend, infrastructure, and testing
+- [Project Structure & Boundaries](./project-structure-boundaries.md) — Directory layout,
+  layer boundaries, and integration points
+- [Implementation Patterns & Consistency Rules](./implementation-patterns-consistency-rules.md) —
+  Naming, structure, format, and process patterns with enforcement guidelines
+- [Settlement Patterns](./settlement-patterns.md) — State machine, soft immutability, reference
+  IDs, and transaction calculations (Epic 3)
+- [Project Context Analysis](./project-context-analysis.md) — Requirements overview, technical
+  constraints, and architectural principles
+
+## Design-Phase Records
+
+These documents were created during initial architecture evaluation and are preserved as historical
+records:
+
+- [Starter Template Evaluation](../design/architecture/starter-template-evaluation.md) — Technology
+  options considered and rationale for custom scaffolding
+- [Architecture Validation Results](../design/architecture/architecture-validation-results.md) —
+  Validation tests and readiness assessment from initial design phase

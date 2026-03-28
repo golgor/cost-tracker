@@ -269,7 +269,6 @@ async def create_recurring(
                 create_recurring_definition(
                     uow,
                     group_id=group.id,
-                    actor_id=user_id,
                     name=name,
                     amount=parsed["amount"],
                     frequency=parsed["frequency"],
@@ -471,7 +470,6 @@ async def update_recurring(
                 update_recurring_definition(
                     uow,
                     definition_id=definition_id,
-                    actor_id=user_id,
                     name=name,
                     amount=parsed["amount"],
                     frequency=parsed["frequency"],
@@ -526,9 +524,9 @@ async def toggle_active(
             raise HTTPException(status_code=404, detail="Recurring definition not found")
 
         if definition.is_active:
-            pause_definition(uow, definition_id, actor_id=user_id)
+            pause_definition(uow, definition_id)
         else:
-            reactivate_definition(uow, definition_id, actor_id=user_id)
+            reactivate_definition(uow, definition_id)
 
         # Re-fetch updated definition for card render
         from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
@@ -566,7 +564,7 @@ async def delete_recurring(
         if group is None:
             raise HTTPException(status_code=404, detail="No household group found")
 
-        delete_definition(uow, definition_id, actor_id=user_id)
+        delete_definition(uow, definition_id)
 
     return HTMLResponse(content="", status_code=200)
 
@@ -590,7 +588,7 @@ async def create_expense_for_definition(
         definition = uow.recurring.get_by_id(definition_id)
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        create_expense_from_definition(uow, definition, actor_id=user_id)
+        create_expense_from_definition(uow, definition)
 
         from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
         from app.adapters.sqlalchemy.queries.recurring_queries import (

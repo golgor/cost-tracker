@@ -147,7 +147,6 @@ async def callback(request: Request, uow: UowDep):
                 oidc_sub=oidc_sub,
                 email=email,
                 display_name=display_name,
-                actor_id=1,  # Use system actor for OIDC provisioning (no user context yet)
             )
         except DeactivatedUserAccessDenied:
             logger.info("Deactivated user %s attempted login", oidc_sub)
@@ -162,7 +161,7 @@ async def callback(request: Request, uow: UowDep):
             )
 
         # Bootstrap first admin if needed
-        user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id, actor_id=user.id)
+        user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id)
         if was_promoted:
             logger.info("Promoted first user %d to admin role", user.id)
 
@@ -175,7 +174,7 @@ async def callback(request: Request, uow: UowDep):
 
         from app.web.api_internal import run_auto_generation
 
-        run_auto_generation(uow.session, date.today(), user.id)
+        run_auto_generation(uow.session, date.today())
     except Exception:
         logger.warning("Auto-generation on login failed (non-fatal)", exc_info=True)
 

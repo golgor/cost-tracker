@@ -39,19 +39,17 @@ def create_household(
                 group.id,
                 user_id,
                 MemberRole.USER,
-                actor_id=user_id,
             )
 
         return group
 
     group = uow.groups.save(
         name,
-        actor_id=user_id,
         default_currency=default_currency,
         default_split_type=default_split_type,
         tracking_threshold=tracking_threshold,
     )
-    uow.groups.add_member(group.id, user_id, MemberRole.ADMIN, actor_id=user_id)
+    uow.groups.add_member(group.id, user_id, MemberRole.ADMIN)
 
     return group
 
@@ -78,7 +76,6 @@ def add_member(
         group_id,
         user_id,
         role,
-        actor_id=user_id,
     )
 
     return membership
@@ -113,7 +110,6 @@ def update_group_defaults(
 
     updated_group = uow.groups.update(
         group_id,
-        actor_id=actor_user_id,
         default_currency=default_currency,
         default_split_type=default_split_type,
         tracking_threshold=tracking_threshold,
