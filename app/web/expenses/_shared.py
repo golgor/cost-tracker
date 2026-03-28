@@ -1,10 +1,13 @@
 """Shared helpers, constants, type aliases, and templates for expense routes."""
 
+import contextlib
 from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
@@ -23,8 +26,6 @@ def _parse_date_filters(
     date_from: str | None, date_to: str | None
 ) -> tuple[date | None, date | None]:
     """Parse date filter strings into date objects, ignoring invalid dates."""
-    import contextlib
-
     date_from_parsed = None
     date_to_parsed = None
 
@@ -110,3 +111,25 @@ def _render_expense_notes_section(
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
+
+
+class CreateExpenseForm(BaseModel):
+    """Form validation for expense creation."""
+
+    amount: Decimal = Field(gt=0, le=Decimal("1000000.00"), decimal_places=2)
+    description: str = Field(default="", max_length=200)
+    date: date
+    payer_id: int
+    currency: str = Field(default="EUR", max_length=3)
+    split_type: str = Field(default="even")
+
+
+class UpdateExpenseForm(BaseModel):
+    """Form validation for expense updates."""
+
+    amount: Decimal = Field(gt=0, le=Decimal("1000000.00"))
+    description: str = Field(default="", max_length=200)
+    date: date
+    payer_id: int
+    currency: str = Field(max_length=3)
+    split_type: str = Field(default="even")

@@ -1,4 +1,4 @@
-"""Expense create, update, delete endpoints."""
+"""Create, update, and delete expense endpoints."""
 
 from datetime import date
 from decimal import Decimal
@@ -6,42 +6,22 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
 from app.domain.errors import InvalidShareError
 from app.domain.use_cases.expenses import create_expense, delete_expense, update_expense
 from app.web.expenses._shared import (
+    CreateExpenseForm,
     CurrentUserId,
     UowDep,
+    UpdateExpenseForm,
     _get_currency_symbol,
     templates,
 )
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 
 router = APIRouter(tags=["expenses"])
-
-
-class CreateExpenseForm(BaseModel):
-    """Form validation for expense creation."""
-
-    amount: Decimal = Field(gt=0, le=Decimal("1000000.00"), decimal_places=2)
-    description: str = Field(default="", max_length=200)
-    date: date
-    payer_id: int
-    currency: str = Field(default="EUR", max_length=3)
-    split_type: str = Field(default="even")
-
-
-class UpdateExpenseForm(BaseModel):
-    """Form validation for expense updates."""
-
-    amount: Decimal = Field(gt=0, le=Decimal("1000000.00"))
-    description: str = Field(default="", max_length=200)
-    date: date
-    payer_id: int
-    currency: str = Field(max_length=3)
-    split_type: str = Field(default="even")
 
 
 @router.post("/expenses/create", response_class=HTMLResponse)

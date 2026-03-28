@@ -1,0 +1,265 @@
+"""Expense list, filtered feed, and balance endpoints."""
+
+from datetime import date
+
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+
+from app.adapters.sqlalchemy.queries.dashboard_queries import (
+    calculate_balance,
+    get_filtered_expenses,
+    get_group_members,
+    get_recurring_definition_names,
+    get_this_month_total,
+)
+from app.web.expenses._shared import (
+    CurrentUserId,
+    UowDep,
+    _build_expense_count_message,
+    _get_currency_symbol,
+    _has_active_expense_filters,
+    _parse_date_filters,
+    templates,
+)
+
+router = APIRouter(tags=["expenses"])
+
+
+@router.get("/expenses", response_class=HTMLResponse)
+async def expenses_list(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
+):
+    """Dedicated expenses list page with filtering.
+
+    Shows all expenses for the group with filter controls.
+    Distinct from dashboard which shows recent expenses only.
+    """
+    with uow:
+        # Get user and group
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        unsettled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="PENDING",
+            search_query=search_query or None,
+        )
+        settled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="SETTLED",
+            search_query=search_query or None,
+        )
+
+        # Get balance data (filtered when filters are active)
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
+
+        # Get this month total
+        this_month_total = get_this_month_total(uow.session, group.id)
+
+        # Get group members for display and filters
+        members = get_group_members(uow.session, group.id)
+
+        # Get user details for expense cards (batch query)
+        member_user_ids = [m.user_id for m in members]
+        users_list = uow.users.get_by_ids(member_user_ids)
+        users_by_id = {u.id: u for u in users_list}
+
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
+    # Result count message
+    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    active_search = search_query.strip() if search_query else None
+    count_message = _build_expense_count_message(total_expenses, active_search)
+
+    # Check if any filters are active
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/index.html",
+        {
+            "user": user,
+            "group": group,
+            "unsettled_expenses": unsettled_expenses,
+            "settled_expenses": settled_expenses,
+            "balance": balance_data,
+            "this_month_total": this_month_total,
+            "group_members": members,
+            "users": users_by_id,
+            "current_user_id": user_id,
+            "today": date.today().isoformat(),
+            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
+            "recurring_names": recurring_names,
+            # Filter values for form persistence
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+            "filter_payer_id": payer_id or "",
+        },
+    )
+
+
+@router.get("/expenses/filtered", response_class=HTMLResponse)
+async def expenses_filtered(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
+):
+    """HTMX endpoint for filtered expense feed partial.
+
+    Returns only the expense feed section for HTMX partial swap.
+    """
+    with uow:
+        # Get user's group
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        # Parse date filters and get filtered expenses
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        active_search = search_query.strip() if search_query else None
+        unsettled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="PENDING",
+            search_query=active_search,
+        )
+        settled_expenses = get_filtered_expenses(
+            uow.session,
+            group.id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            status="SETTLED",
+            search_query=active_search,
+        )
+
+        # Get user details (batch query)
+        members = get_group_members(uow.session, group.id)
+        member_ids = [m.user_id for m in members]
+        users_list = uow.users.get_by_ids(member_ids)
+        users_by_id = {u.id: u for u in users_list}
+
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
+    # Result count message
+    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    count_message = _build_expense_count_message(total_expenses, active_search)
+
+    # Check if filters are active
+    has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_expense_feed.html",
+        {
+            "unsettled_expenses": unsettled_expenses,
+            "settled_expenses": settled_expenses,
+            "users": users_by_id,
+            "current_user_id": user_id,
+            "count_message": count_message,
+            "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
+            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "recurring_names": recurring_names,
+        },
+    )
+
+
+@router.get("/expenses/balance", response_class=HTMLResponse)
+async def expenses_balance(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
+):
+    """HTMX endpoint for filtered balance bar partial."""
+    with uow:
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
+
+        members = get_group_members(uow.session, group.id)
+        member_ids = [m.user_id for m in members]
+        users_list = uow.users.get_by_ids(member_ids)
+        users_by_id = {u.id: u for u in users_list}
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_balance_bar.html",
+        {
+            "balance": balance_data,
+            "user": user,
+            "users": users_by_id,
+        },
+    )
