@@ -5,8 +5,6 @@ with pre-computed display strings, CSS classes, and visibility flags.
 This keeps templates dumb (no logic) and makes presentation decisions testable.
 """
 
-from typing import Literal
-
 from pydantic import BaseModel
 
 from app.domain.models import UserPublic, UserRole
@@ -22,31 +20,22 @@ class UserRowViewModel(BaseModel):
     # Pre-computed display strings
     role_label: str
     role_badge_color: str  # Tailwind classes
-    status_label: str
-    status_badge_color: str
-    status_filter: Literal["active", "deactivated"]
 
     # Button visibility flags
     show_promote: bool
     show_demote: bool
-    show_deactivate: bool
-    show_reactivate: bool
 
     @classmethod
-    def from_domain(
-        cls, user: UserPublic, active_admin_count: int | None = None
-    ) -> UserRowViewModel:
+    def from_domain(cls, user: UserPublic, admin_count: int | None = None) -> UserRowViewModel:
         """Transform domain UserPublic → presentation UserRowViewModel.
 
         Args:
             user: Domain user model
-            active_admin_count: Number of active admins (disables demote/deactivate
-                if last admin)
+            admin_count: Number of admins (disables demote if last admin)
         """
         is_admin = user.role == UserRole.ADMIN
-        is_active = user.is_active
-        # If active_admin_count not provided, assume actions are allowed
-        can_mutate_admin = active_admin_count is None or active_admin_count > 1
+        # If admin_count not provided, assume actions are allowed
+        can_mutate_admin = admin_count is None or admin_count > 1
 
         return cls(
             id=user.id,
@@ -57,16 +46,9 @@ class UserRowViewModel(BaseModel):
             role_badge_color="bg-primary-500 text-white"
             if is_admin
             else "bg-stone-200 text-stone-900",
-            # Status badge
-            status_label="Active" if is_active else "Deactivated",
-            status_badge_color="bg-green-700 text-white" if is_active else "bg-red-700 text-white",
-            status_filter="active" if is_active else "deactivated",
-            # Button visibility - only active users can be promoted/demoted/deactivated
-            # Both demote and deactivate disabled if they're the last active admin
-            show_promote=is_active and not is_admin,
-            show_demote=is_active and is_admin and can_mutate_admin,
-            show_deactivate=is_active and (not is_admin or can_mutate_admin),
-            show_reactivate=not is_active,
+            # Button visibility
+            show_promote=not is_admin,
+            show_demote=is_admin and can_mutate_admin,
         )
 
 

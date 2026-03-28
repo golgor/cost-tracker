@@ -11,7 +11,6 @@ from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
 from app.dependencies import get_uow
 from app.domain.errors import (
-    DeactivatedUserAccessDenied,
     DuplicateMembershipError,
     GroupNotFoundError,
 )
@@ -140,25 +139,12 @@ async def callback(request: Request, uow: UowDep):
 
     # Step 3: Provision user and handle all database mutations in transaction
     with uow:
-        # Provision/update user with deactivation check
-        try:
-            user = user_use_cases.provision_user(
-                uow,
-                oidc_sub=oidc_sub,
-                email=email,
-                display_name=display_name,
-            )
-        except DeactivatedUserAccessDenied:
-            logger.info("Deactivated user %s attempted login", oidc_sub)
-            return templates.TemplateResponse(
-                request,
-                "auth/error.html",
-                {
-                    "csrf_token": "",
-                    "message": "Your account is deactivated. Please contact an administrator.",
-                },
-                status_code=403,
-            )
+        user = user_use_cases.provision_user(
+            uow,
+            oidc_sub=oidc_sub,
+            email=email,
+            display_name=display_name,
+        )
 
         # Bootstrap first admin if needed
         user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id)
