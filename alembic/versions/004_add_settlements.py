@@ -5,9 +5,10 @@ Revises: 003_add_expenses
 Create Date: 2025-03-25
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "004"

@@ -6,16 +6,17 @@ Create Date: 2026-03-27 12:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "008"
-down_revision: Union[str, None] = "007"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "007"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -52,9 +53,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(sa.text("DROP INDEX IF EXISTS uq_expenses_definition_billing_period"))
-    op.drop_constraint(
-        "fk_expenses_recurring_definition_id", "expenses", type_="foreignkey"
-    )
+    op.drop_constraint("fk_expenses_recurring_definition_id", "expenses", type_="foreignkey")
     op.drop_column("expenses", "is_auto_generated")
     op.drop_column("expenses", "billing_period")
     op.drop_column("expenses", "recurring_definition_id")

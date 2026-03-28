@@ -371,7 +371,7 @@ async def create_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except (InvalidOperation, ValueError):
+        except InvalidOperation, ValueError:
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
@@ -415,7 +415,7 @@ async def create_expense_endpoint(
         try:
             config_data = json.loads(split_config_json) if split_config_json else {}
             split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors (UX-DR24)
@@ -1001,7 +1001,7 @@ async def update_expense_endpoint(
         # Parse amount
         try:
             amount_decimal = Decimal(amount)
-        except (InvalidOperation, ValueError):
+        except InvalidOperation, ValueError:
             errors["amount"] = "Invalid amount format"
             amount_decimal = None
 
@@ -1051,7 +1051,7 @@ async def update_expense_endpoint(
             config_str = split_config_raw if isinstance(split_config_raw, str) else ""
             config_data = json.loads(config_str) if config_str else {}
             split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors

@@ -240,8 +240,8 @@ def update_expense(
     if split_type is not None:
         try:
             split_type_enum = SplitType(split_type.upper())
-        except ValueError:
-            raise DomainError(f"Invalid split type: {split_type}")
+        except ValueError as err:
+            raise DomainError(f"Invalid split type: {split_type}") from err
 
     # Update expense fields (adapter handles change tracking and audit)
     uow.expenses.update(
@@ -281,9 +281,15 @@ def update_expense(
             effective_config = split_config
             if effective_config is None and not split_type_changed:
                 current_splits = uow.expenses.get_splits(expense_id)
-                if updated_expense.split_type in (SplitType.SHARES, SplitType.PERCENTAGE, SplitType.EXACT):
+                if updated_expense.split_type in (
+                    SplitType.SHARES,
+                    SplitType.PERCENTAGE,
+                    SplitType.EXACT,
+                ):
                     effective_config = {
-                        s.user_id: s.share_value for s in current_splits if s.share_value is not None
+                        s.user_id: s.share_value
+                        for s in current_splits
+                        if s.share_value is not None
                     }
 
             new_splits = _calculate_splits(
