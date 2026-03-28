@@ -3,7 +3,7 @@
 # Forbidden imports: app.adapters, app.web, app.auth, app.api (internal modules)
 from datetime import date
 from decimal import Decimal
-from typing import Any, Protocol  # noqa: F401
+from typing import Any, Protocol
 
 from app.domain.models import (
     ExpensePublic,
@@ -20,22 +20,6 @@ from app.domain.models import (
 )
 
 
-class AuditPort(Protocol):
-    """Port for audit log persistence."""
-
-    def log(
-        self,
-        *,
-        action: str,
-        actor_id: int,
-        entity_type: str,
-        entity_id: int,
-        changes: dict[str, Any] | None = None,
-    ) -> None:
-        """Persist an audit log entry. Must share the same transaction as business changes."""
-        ...
-
-
 class UserPort(Protocol):
     """Port for User persistence operations."""
 
@@ -47,24 +31,24 @@ class UserPort(Protocol):
         """Retrieve user by OIDC subject identifier."""
         ...
 
-    def save(self, oidc_sub: str, email: str, display_name: str, *, actor_id: int) -> UserPublic:
-        """Create or update a user. Returns the persisted user. Auto-audits."""
+    def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
+        """Create or update a user. Returns the persisted user."""
         ...
 
-    def promote_to_admin(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Promote user to admin role. Auto-audits."""
+    def promote_to_admin(self, user_id: int) -> UserPublic:
+        """Promote user to admin role."""
         ...
 
-    def demote_to_user(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Demote user to regular user role. Auto-audits."""
+    def demote_to_user(self, user_id: int) -> UserPublic:
+        """Demote user to regular user role."""
         ...
 
-    def deactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Deactivate a user. Auto-audits."""
+    def deactivate(self, user_id: int) -> UserPublic:
+        """Deactivate a user."""
         ...
 
-    def reactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Reactivate a deactivated user. Auto-audits."""
+    def reactivate(self, user_id: int) -> UserPublic:
+        """Reactivate a deactivated user."""
         ...
 
     def count_active_admins(self) -> int:
@@ -95,25 +79,23 @@ class GroupPort(Protocol):
         self,
         name: str,
         *,
-        actor_id: int,
         default_currency: str = "EUR",
         default_split_type: SplitType = SplitType.EVEN,
         tracking_threshold: int = 30,
     ) -> GroupPublic:
-        """Create a new group. Returns the persisted group. Auto-audits."""
+        """Create a new group. Returns the persisted group."""
         ...
 
     def update(
         self,
         group_id: int,
         *,
-        actor_id: int,
         name: str | None = None,
         default_currency: str | None = None,
         default_split_type: SplitType | None = None,
         tracking_threshold: int | None = None,
     ) -> GroupPublic:
-        """Update group configuration. Returns the updated group. Auto-audits."""
+        """Update group configuration. Returns the updated group."""
         ...
 
     def add_member(
@@ -121,10 +103,8 @@ class GroupPort(Protocol):
         group_id: int,
         user_id: int,
         role: MemberRole,
-        *,
-        actor_id: int,
     ) -> MembershipPublic:
-        """Add a user to a group with specified role. Auto-audits."""
+        """Add a user to a group with specified role."""
         ...
 
     def get_membership(self, user_id: int, group_id: int) -> MembershipPublic | None:
@@ -146,10 +126,8 @@ class ExpensePort(Protocol):
     def save(
         self,
         expense: ExpensePublic,
-        *,
-        actor_id: int,
     ) -> ExpensePublic:
-        """Create a new expense. Returns the persisted expense. Auto-audits."""
+        """Create a new expense. Returns the persisted expense."""
         ...
 
     def get_by_id(self, expense_id: int) -> ExpensePublic | None:
@@ -164,7 +142,6 @@ class ExpensePort(Protocol):
         self,
         expense_id: int,
         *,
-        actor_id: int,
         amount: Any | None = None,
         description: str | None = None,
         date: Any | None = None,
@@ -172,21 +149,19 @@ class ExpensePort(Protocol):
         currency: str | None = None,
         split_type: Any | None = None,
     ) -> None:
-        """Update expense fields. Only provided fields are updated. Auto-audits."""
+        """Update expense fields. Only provided fields are updated."""
         ...
 
-    def delete(self, expense_id: int, *, actor_id: int) -> None:
-        """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
+    def delete(self, expense_id: int) -> None:
+        """Delete an expense."""
         ...
 
     def save_splits(
         self,
         expense_id: int,
         splits: list[ExpenseSplitPublic],
-        *,
-        actor_id: int,
     ) -> list[ExpenseSplitPublic]:
-        """Save split rows for an expense. Replaces existing splits. Auto-audits."""
+        """Save split rows for an expense. Replaces existing splits."""
         ...
 
     def get_splits(self, expense_id: int) -> list[ExpenseSplitPublic]:
@@ -202,10 +177,8 @@ class SettlementPort(Protocol):
         settlement: SettlementPublic,
         expense_ids: list[int],
         transactions: list[SettlementTransactionPublic],
-        *,
-        actor_id: int,
     ) -> SettlementPublic:
-        """Create a new settlement with linked expenses and transactions. Auto-audits."""
+        """Create a new settlement with linked expenses and transactions."""
         ...
 
     def get_by_id(self, settlement_id: int) -> SettlementPublic | None:
@@ -236,10 +209,8 @@ class SettlementPort(Protocol):
 class RecurringDefinitionPort(Protocol):
     """Port for RecurringDefinition persistence operations."""
 
-    def save(
-        self, definition: RecurringDefinitionPublic, *, actor_id: int
-    ) -> RecurringDefinitionPublic:
-        """Create a new recurring definition. Returns the persisted definition. Auto-audits."""
+    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
+        """Create a new recurring definition. Returns the persisted definition."""
         ...
 
     def get_by_id(self, definition_id: int) -> RecurringDefinitionPublic | None:
@@ -263,7 +234,6 @@ class RecurringDefinitionPort(Protocol):
         self,
         definition_id: int,
         *,
-        actor_id: int,
         name: str | None = None,
         amount: Decimal | None = None,
         frequency: RecurringFrequency | None = None,
@@ -277,11 +247,11 @@ class RecurringDefinitionPort(Protocol):
         is_active: bool | None = None,
         currency: str | None = None,
     ) -> RecurringDefinitionPublic:
-        """Update recurring definition fields. Only provided fields are updated. Auto-audits."""
+        """Update recurring definition fields. Only provided fields are updated."""
         ...
 
-    def soft_delete(self, definition_id: int, *, actor_id: int) -> None:
-        """Soft-delete a recurring definition by setting deleted_at. Auto-audits."""
+    def soft_delete(self, definition_id: int) -> None:
+        """Soft-delete a recurring definition by setting deleted_at."""
         ...
 
     def list_overdue_auto(self, current_date: date) -> list[RecurringDefinitionPublic]:
@@ -307,7 +277,6 @@ class UnitOfWorkPort(Protocol):
     users: UserPort
     groups: GroupPort
     expenses: ExpensePort
-    audit: AuditPort
     settlements: SettlementPort
     recurring: RecurringDefinitionPort
 

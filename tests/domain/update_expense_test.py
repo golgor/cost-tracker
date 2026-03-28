@@ -19,7 +19,6 @@ def user1(uow):
             oidc_sub="user1@test.com",
             email="user1@test.com",
             display_name="User One",
-            actor_id=1,
         )
     return user
 
@@ -32,7 +31,6 @@ def user2(uow):
             oidc_sub="user2@test.com",
             email="user2@test.com",
             display_name="User Two",
-            actor_id=2,
         )
     return user
 
@@ -41,9 +39,9 @@ def user2(uow):
 def test_group(user1, user2, uow):
     """Create a test group with both users as members."""
     with uow:
-        group = uow.groups.save(name="Test Household", actor_id=user1.id)
-        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
-        uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
+        group = uow.groups.save(name="Test Household")
+        uow.groups.add_member(group.id, user1.id, "ADMIN")
+        uow.groups.add_member(group.id, user2.id, "USER")
     return group
 
 
@@ -69,7 +67,6 @@ def test_update_expense_changes_amount(uow, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             amount=Decimal("99.99"),
-            actor_id=user1.id,
         )
 
     # Verify update
@@ -100,7 +97,6 @@ def test_update_expense_changes_description(uow, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             description="Updated description",
-            actor_id=user1.id,
         )
 
     with uow:
@@ -128,7 +124,6 @@ def test_update_expense_changes_payer(uow, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             payer_id=user2.id,
-            actor_id=user1.id,
         )
 
     with uow:
@@ -160,7 +155,6 @@ def test_update_expense_changes_date(uow, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             date=new_date,
-            actor_id=user1.id,
         )
 
     with uow:
@@ -199,7 +193,6 @@ def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             amount=Decimal("99.99"),
-            actor_id=user1.id,
         )
 
     assert exc_info.value.expense_id == expense.id
@@ -225,7 +218,6 @@ def test_update_expense_validates_positive_amount(uow, test_group, user1, user2)
             uow=uow,
             expense_id=expense.id,
             amount=Decimal("-10.00"),
-            actor_id=user1.id,
         )
 
 
@@ -250,12 +242,11 @@ def test_update_expense_validates_future_date(uow, test_group, user1, user2):
             uow=uow,
             expense_id=expense.id,
             date=future_date,
-            actor_id=user1.id,
         )
 
 
-def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1, user2):
-    """Test audit logging: records changed fields with previous values."""
+def test_update_expense_changes_multiple_fields(uow: UnitOfWork, test_group, user1, user2):
+    """Test updating multiple fields at once."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
@@ -276,27 +267,11 @@ def test_update_expense_logs_audit_trail(uow: UnitOfWork, test_group, user1, use
             expense_id=expense.id,
             amount=Decimal("75.00"),
             description="Updated",
-            actor_id=user1.id,
         )
 
-    # Verify audit log entry was created
-    # Query audit_logs table directly
-    from sqlmodel import select
-
-    from app.adapters.sqlalchemy.orm_models import AuditRow
-
-    audit_entries = uow.session.exec(
-        select(AuditRow).where(
-            AuditRow.entity_type == "expense",
-            AuditRow.entity_id == expense.id,
-            AuditRow.action == "expense_updated",
-        )
-    ).all()
-
-    assert len(audit_entries) >= 1
-    latest = audit_entries[-1]
-    assert latest.actor_id == user1.id
-    assert latest.changes is not None
-    assert "amount" in latest.changes
-    assert latest.changes["amount"]["old"] == "50.00"
-    assert latest.changes["amount"]["new"] == "75.00"
+    # Verify both fields were updated
+    with uow:
+        updated = uow.expenses.get_by_id(expense.id)
+        assert updated is not None
+        assert updated.amount == Decimal("75.00")
+        assert updated.description == "Updated"

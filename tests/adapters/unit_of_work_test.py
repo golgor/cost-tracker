@@ -9,9 +9,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from sqlmodel import select
 
-from app.adapters.sqlalchemy.orm_models import AuditRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 
 
@@ -37,7 +35,6 @@ class TestUnitOfWorkContextManager:
                 oidc_sub="test_user_commit",
                 email="test@example.com",
                 display_name="Test User",
-                actor_id=1,
             )
             created_user_id = user.id
 
@@ -58,7 +55,6 @@ class TestUnitOfWorkContextManager:
                     oidc_sub="test_user_rollback",
                     email="rollback@example.com",
                     display_name="Rollback User",
-                    actor_id=1,
                 )
                 user_id = user.id
                 # Simulate an exception after the user is created
@@ -124,7 +120,6 @@ class TestUnitOfWorkTransactionIsolation:
                 oidc_sub="isolation_test_1",
                 email="isolation1@example.com",
                 display_name="Isolation Test 1",
-                actor_id=1,
             )
             user_id = user.id
 
@@ -133,34 +128,3 @@ class TestUnitOfWorkTransactionIsolation:
         fresh_user = uow.users.get_by_id(user_id)
         assert fresh_user is not None
         assert fresh_user.oidc_sub == "isolation_test_1"
-
-    def test_audit_logging_within_transaction(self, uow: UnitOfWork) -> None:
-        """AC: Audit log entry is committed with user in the same transaction."""
-        # When a user is created with auto-auditing, the audit log
-        # should be persisted along with the user in the same transaction
-        audit_count_before = len(uow.session.exec(select(AuditRow)).all())
-
-        with uow:
-            user = uow.users.save(
-                oidc_sub="audit_test_user",
-                email="audit@example.com",
-                display_name="Audit Test User",
-                actor_id=1,
-            )
-
-        # Both user and audit log should be committed together
-        persisted_user = uow.users.get_by_id(user.id)
-        assert persisted_user is not None
-        assert persisted_user.display_name == "Audit Test User"
-
-        # Verify corresponding audit row was written and committed
-        audit_rows = uow.session.exec(select(AuditRow)).all()
-        assert len(audit_rows) > audit_count_before
-        # Find the user_created event for our user
-        user_audit_rows = [
-            row for row in audit_rows if row.action == "user_created" and row.entity_id == user.id
-        ]
-        assert len(user_audit_rows) == 1
-        audit_entry = user_audit_rows[0]
-        assert audit_entry.entity_type == "user"
-        assert audit_entry.actor_id == 1

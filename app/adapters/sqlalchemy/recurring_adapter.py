@@ -5,8 +5,6 @@ from decimal import Decimal
 
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
 from app.domain.errors import RecurringDefinitionNotFoundError
 from app.domain.models import (
@@ -19,14 +17,11 @@ from app.domain.models import (
 class SqlAlchemyRecurringDefinitionAdapter:
     """SQLAlchemy adapter implementing RecurringDefinitionPort."""
 
-    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._audit = audit
 
-    def save(
-        self, definition: RecurringDefinitionPublic, *, actor_id: int
-    ) -> RecurringDefinitionPublic:
-        """Create a new recurring definition. Returns the persisted definition. Auto-audits."""
+    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
+        """Create a new recurring definition. Returns the persisted definition."""
         row = RecurringDefinitionRow(
             group_id=definition.group_id,
             name=definition.name,
@@ -42,18 +37,9 @@ class SqlAlchemyRecurringDefinitionAdapter:
             is_active=definition.is_active,
             currency=definition.currency,
         )
-        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at", "deleted_at"})
         self._session.add(row)
         self._session.flush()
 
-        assert row.id is not None  # guaranteed after flush
-        self._audit.log(
-            action="recurring_definition_created",
-            actor_id=actor_id,
-            entity_type="recurring_definition",
-            entity_id=row.id,
-            changes=changes,
-        )
         return self._to_public(row)
 
     def get_by_id(self, definition_id: int) -> RecurringDefinitionPublic | None:
@@ -90,7 +76,6 @@ class SqlAlchemyRecurringDefinitionAdapter:
         self,
         definition_id: int,
         *,
-        actor_id: int,
         name: str | None = None,
         amount: Decimal | None = None,
         frequency: RecurringFrequency | None = None,
@@ -104,7 +89,7 @@ class SqlAlchemyRecurringDefinitionAdapter:
         is_active: bool | None = None,
         currency: str | None = None,
     ) -> RecurringDefinitionPublic:
-        """Update recurring definition fields. Only provided fields are updated. Auto-audits."""
+        """Update recurring definition fields. Only provided fields are updated."""
         row = self._session.get(RecurringDefinitionRow, definition_id)
         if row is None or row.deleted_at is not None:
             raise RecurringDefinitionNotFoundError(
@@ -136,18 +121,9 @@ class SqlAlchemyRecurringDefinitionAdapter:
         if currency is not None:
             row.currency = currency
 
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
 
-        if changes:
-            self._audit.log(
-                action="recurring_definition_updated",
-                actor_id=actor_id,
-                entity_type="recurring_definition",
-                entity_id=definition_id,
-                changes=changes,
-            )
         return self._to_public(row)
 
     def list_overdue_auto(self, current_date: date) -> list[RecurringDefinitionPublic]:
@@ -163,8 +139,8 @@ class SqlAlchemyRecurringDefinitionAdapter:
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
 
-    def soft_delete(self, definition_id: int, *, actor_id: int) -> None:
-        """Soft-delete a recurring definition by setting deleted_at. Auto-audits."""
+    def soft_delete(self, definition_id: int) -> None:
+        """Soft-delete a recurring definition by setting deleted_at."""
         row = self._session.get(RecurringDefinitionRow, definition_id)
         if row is None or row.deleted_at is not None:
             raise RecurringDefinitionNotFoundError(
@@ -174,15 +150,6 @@ class SqlAlchemyRecurringDefinitionAdapter:
         row.deleted_at = datetime.now(tz=UTC)
         self._session.add(row)
         self._session.flush()
-
-        assert row.id is not None  # guaranteed for persisted rows
-        self._audit.log(
-            action="recurring_definition_deleted",
-            actor_id=actor_id,
-            entity_type="recurring_definition",
-            entity_id=row.id,
-            changes={"deleted_at": {"old": None, "new": row.deleted_at.isoformat()}},
-        )
 
     def _to_public(self, row: RecurringDefinitionRow) -> RecurringDefinitionPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""

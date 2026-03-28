@@ -24,7 +24,6 @@ def user1(uow):
             oidc_sub="user1@test.com",
             email="user1@test.com",
             display_name="Alice",
-            actor_id=1,
         )
     return user
 
@@ -37,7 +36,6 @@ def user2(uow):
             oidc_sub="user2@test.com",
             email="user2@test.com",
             display_name="Bob",
-            actor_id=2,
         )
     return user
 
@@ -46,9 +44,9 @@ def user2(uow):
 def test_group(user1, user2, uow):
     """Create a test group with two members."""
     with uow:
-        group = uow.groups.save(name="Test Household", actor_id=user1.id)
-        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
-        uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
+        group = uow.groups.save(name="Test Household")
+        uow.groups.add_member(group.id, user1.id, "ADMIN")
+        uow.groups.add_member(group.id, user2.id, "USER")
     return group
 
 

@@ -4,8 +4,6 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
 from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow, ExpenseSplitRow
 from app.domain.errors import DuplicateBillingPeriodError
 from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic, SplitType
@@ -14,17 +12,14 @@ from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPubl
 class SqlAlchemyExpenseAdapter:
     """SQLAlchemy adapter implementing ExpensePort."""
 
-    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._audit = audit
 
     def save(
         self,
         expense: ExpensePublic,
-        *,
-        actor_id: int,
     ) -> ExpensePublic:
-        """Create a new expense. Returns the persisted expense. Auto-audits."""
+        """Create a new expense. Returns the persisted expense."""
         row = ExpenseRow(
             group_id=expense.group_id,
             amount=expense.amount,
@@ -39,7 +34,6 @@ class SqlAlchemyExpenseAdapter:
             billing_period=expense.billing_period,
             is_auto_generated=expense.is_auto_generated,
         )
-        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at"})
         self._session.add(row)
         try:
             self._session.flush()
@@ -52,14 +46,6 @@ class SqlAlchemyExpenseAdapter:
                 ) from exc
             raise
 
-        assert row.id is not None  # guaranteed after flush
-        self._audit.log(
-            action="expense_created",
-            actor_id=actor_id,
-            entity_type="expense",
-            entity_id=row.id,
-            changes=changes,
-        )
         return self._to_public(row)
 
     def get_by_id(self, expense_id: int) -> ExpensePublic | None:
@@ -83,7 +69,6 @@ class SqlAlchemyExpenseAdapter:
         self,
         expense_id: int,
         *,
-        actor_id: int,
         amount: Decimal | None = None,
         description: str | None = None,
         date: date | None = None,
@@ -91,7 +76,7 @@ class SqlAlchemyExpenseAdapter:
         currency: str | None = None,
         split_type: SplitType | None = None,
     ) -> None:
-        """Update expense fields. Only provided fields are updated. Auto-audits."""
+        """Update expense fields. Only provided fields are updated."""
         row = self._session.get(ExpenseRow, expense_id)
         if not row:
             raise ValueError(f"Expense {expense_id} not found")
@@ -110,55 +95,25 @@ class SqlAlchemyExpenseAdapter:
         if split_type is not None:
             row.split_type = split_type
 
-        # Compute changes for audit log (must be done before flush)
-        changes = compute_changes(
-            row,
-            fields=["amount", "description", "date", "payer_id", "currency", "split_type"],
-        )
+        self._session.add(row)
+        self._session.flush()
 
-        # Only audit if changes exist
-        if changes:
-            self._session.add(row)
-            self._session.flush()
-
-            self._audit.log(
-                action="expense_updated",
-                actor_id=actor_id,
-                entity_type="expense",
-                entity_id=expense_id,
-                changes=changes,
-            )
-
-    def delete(self, expense_id: int, *, actor_id: int) -> None:
-        """Delete an expense. Auto-audits the deletion with pre-delete snapshot."""
+    def delete(self, expense_id: int) -> None:
+        """Delete an expense."""
         row = self._session.get(ExpenseRow, expense_id)
         if not row:
             raise ValueError(f"Expense {expense_id} not found")
 
-        # Capture pre-deletion snapshot (must be before delete)
-        changes = snapshot_deleted(row, exclude={"id", "created_at", "updated_at"})
-
         self._session.delete(row)
         self._session.flush()
-
-        self._audit.log(
-            action="expense_deleted",
-            actor_id=actor_id,
-            entity_type="expense",
-            entity_id=expense_id,
-            changes=changes,
-        )
 
     def save_splits(
         self,
         expense_id: int,
         splits: list[ExpenseSplitPublic],
-        *,
-        actor_id: int,
     ) -> list[ExpenseSplitPublic]:
-        """Save split rows for an expense. Replaces existing splits. Auto-audits."""
+        """Save split rows for an expense. Replaces existing splits."""
         # Delete existing splits
-        self._session.exec(select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense_id))
         existing = self._session.exec(
             select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense_id)
         ).all()
@@ -182,24 +137,6 @@ class SqlAlchemyExpenseAdapter:
             new_rows.append(row)
 
         self._session.flush()
-
-        # Audit the change
-        self._audit.log(
-            action="splits_saved",
-            actor_id=actor_id,
-            entity_type="expense",
-            entity_id=expense_id,
-            changes={
-                "splits": [
-                    {
-                        "user_id": s.user_id,
-                        "amount": str(s.amount),
-                        "share_value": str(s.share_value) if s.share_value else None,
-                    }
-                    for s in splits
-                ]
-            },
-        )
 
         return [self._split_to_public(row) for row in new_rows]
 
@@ -248,10 +185,8 @@ class SqlAlchemyExpenseAdapter:
     def save_note(
         self,
         note: ExpenseNotePublic,
-        *,
-        actor_id: int,
     ) -> ExpenseNotePublic:
-        """Create a new note for an expense. Auto-audits."""
+        """Create a new note for an expense."""
         row = ExpenseNoteRow(
             expense_id=note.expense_id,
             author_id=note.author_id,
@@ -260,70 +195,33 @@ class SqlAlchemyExpenseAdapter:
         self._session.add(row)
         self._session.flush()
 
-        assert row.id is not None  # guaranteed after flush
-        # Audit the creation
-        self._audit.log(
-            action="note_created",
-            actor_id=actor_id,
-            entity_type="expense_note",
-            entity_id=row.id,
-            changes=snapshot_new(row, ["expense_id", "author_id", "content"]),
-        )
-
         return self._note_to_public(row)
 
     def update_note(
         self,
         note_id: int,
         content: str,
-        *,
-        actor_id: int,
     ) -> ExpenseNotePublic:
-        """Update note content. Only author can edit. Auto-audits."""
+        """Update note content. Only author can edit."""
         row = self._session.exec(select(ExpenseNoteRow).where(ExpenseNoteRow.id == note_id)).first()
 
         if row is None:
             raise ValueError(f"Note {note_id} not found")
 
-        # Store previous content for audit
-        previous_content = row.content
-
-        # Update the note
         row.content = content
         self._session.flush()
 
-        # Audit the change
-        self._audit.log(
-            action="note_updated",
-            actor_id=actor_id,
-            entity_type="expense_note",
-            entity_id=note_id,
-            changes={"previous_content": previous_content, "new_content": content},
-        )
-
         return self._note_to_public(row)
 
-    def delete_note(self, note_id: int, *, actor_id: int) -> None:
-        """Delete a note. Only author can delete. Auto-audits."""
+    def delete_note(self, note_id: int) -> None:
+        """Delete a note. Only author can delete."""
         row = self._session.exec(select(ExpenseNoteRow).where(ExpenseNoteRow.id == note_id)).first()
 
         if row is None:
             raise ValueError(f"Note {note_id} not found")
 
-        # Store content for audit before deletion
-        previous_content = row.content
-
         self._session.delete(row)
         self._session.flush()
-
-        # Audit the deletion
-        self._audit.log(
-            action="note_deleted",
-            actor_id=actor_id,
-            entity_type="expense_note",
-            entity_id=note_id,
-            changes={"previous_content": previous_content},
-        )
 
     def get_note_by_id(self, note_id: int) -> ExpenseNotePublic | None:
         """Retrieve note by database ID."""

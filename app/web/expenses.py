@@ -1065,7 +1065,6 @@ async def update_expense_endpoint(
             date=form_data.date,
             payer_id=form_data.payer_id,
             currency=form_data.currency,
-            actor_id=user_id,
             split_type=form_data.split_type,
             split_config=split_config,
             member_ids=member_ids,
@@ -1135,7 +1134,6 @@ async def delete_expense_route(
         delete_expense(
             uow=uow,
             expense_id=expense_id,
-            actor_id=user_id,
         )
 
     # Redirect to expense list (modal closes automatically, page refreshes)
@@ -1216,7 +1214,7 @@ async def add_expense_note(
             created_at=datetime.now(),  # Placeholder, will be set by database
             updated_at=datetime.now(),  # Placeholder, will be set by database
         )
-        uow.expenses.save_note(note, actor_id=user_id)
+        uow.expenses.save_note(note)
 
     return _render_expense_notes_section(request, expense_id, user_id, uow)
 
@@ -1306,7 +1304,7 @@ async def edit_expense_note(
 
     # Update note
     with uow:
-        uow.expenses.update_note(note_id, content, actor_id=user_id)
+        uow.expenses.update_note(note_id, content)
 
     return _render_expense_notes_section(request, note.expense_id, user_id, uow)
 
@@ -1348,6 +1346,6 @@ async def delete_expense_note(
 
     # Delete note
     with uow:
-        uow.expenses.delete_note(note_id, actor_id=user_id)
+        uow.expenses.delete_note(note_id)
 
     return _render_expense_notes_section(request, note.expense_id, user_id, uow)

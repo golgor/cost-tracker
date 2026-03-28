@@ -24,7 +24,7 @@ def _create(uow, group_id, user_id, **kwargs):
         payer_id=user_id,
     )
     defaults.update(kwargs)
-    return create_recurring_definition(uow, group_id=group_id, actor_id=user_id, **defaults)
+    return create_recurring_definition(uow, group_id=group_id, **defaults)
 
 
 class TestCreateRecurringDefinition:
@@ -128,7 +128,6 @@ class TestCreateRecurringDefinition:
             create_recurring_definition(
                 uow,
                 group_id=99999,
-                actor_id=1,
                 name="Test",
                 amount=Decimal("10.00"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -190,9 +189,7 @@ class TestUpdateRecurringDefinition:
         defn = _create(uow, group.id, user.id, name="Old Name")
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, actor_id=user.id, name="New Name"
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, name="New Name")
         uow.session.commit()
 
         assert updated.name == "New Name"
@@ -208,9 +205,7 @@ class TestUpdateRecurringDefinition:
         defn = _create(uow, group.id, user.id, amount=Decimal("14.99"))
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, actor_id=user.id, amount=Decimal("19.99")
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, amount=Decimal("19.99"))
         uow.session.commit()
 
         assert updated.amount == Decimal("19.99")
@@ -218,7 +213,7 @@ class TestUpdateRecurringDefinition:
     def test_raises_for_missing_definition(self, uow: UnitOfWork):
         """RecurringDefinitionNotFoundError raised when definition_id does not exist."""
         with pytest.raises(RecurringDefinitionNotFoundError):
-            update_recurring_definition(uow, definition_id=99999, actor_id=1, name="X")
+            update_recurring_definition(uow, definition_id=99999, name="X")
 
     def test_update_frequency_to_every_n_months_requires_interval(self, uow: UnitOfWork):
         """Changing frequency to EVERY_N_MONTHS without interval_months raises DomainError."""
@@ -235,7 +230,6 @@ class TestUpdateRecurringDefinition:
             update_recurring_definition(
                 uow,
                 definition_id=defn.id,
-                actor_id=user.id,
                 frequency=RecurringFrequency.EVERY_N_MONTHS,
                 interval_months=None,
             )
@@ -254,7 +248,6 @@ class TestUpdateRecurringDefinition:
         updated = update_recurring_definition(
             uow,
             definition_id=defn.id,
-            actor_id=user.id,
             frequency=RecurringFrequency.EVERY_N_MONTHS,
             interval_months=4,
         )
@@ -276,9 +269,7 @@ class TestUpdateRecurringDefinition:
         )
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, actor_id=user.id, name="Netflix Plus"
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, name="Netflix Plus")
         uow.session.commit()
 
         assert updated.amount == Decimal("14.99")
