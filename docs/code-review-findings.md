@@ -278,13 +278,15 @@ Early migrations use `sa.DateTime(timezone=True)`, later ones use `postgresql.TI
 
 ---
 
-### F-21: `settlement_expenses` join table missing CASCADE
+### F-21: `settlement_expenses` join table missing CASCADE — inconsistent with `settlement_transactions`
 
 **File:** `alembic/versions/004_add_settlements.py:40-47`
 
-The `settlement_expenses` join table has plain FK constraints without `ondelete`. Deleting a settlement or expense won't cascade to this join table.
+The `settlement_expenses` join table has plain FK constraints without `ondelete`. Meanwhile, `settlement_transactions` already has `ondelete="CASCADE"` on its settlement FK. This inconsistency means deleting a settlement would cascade to transactions but fail on the join table with a FK violation.
 
-**Fix:** Add `ondelete="CASCADE"` to both foreign keys.
+Currently settlements are never deleted (immutable by design), but the schema should be correct by construction.
+
+**Fix:** Add `ondelete="CASCADE"` to both foreign keys on `settlement_expenses`.
 
 ---
 
