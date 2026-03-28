@@ -8,6 +8,7 @@ from app.domain.errors import (
     DomainError,
     GroupNotFoundError,
     InvalidShareError,
+    RecurringExpenseDescriptionError,
 )
 from app.domain.models import ExpensePublic, ExpenseSplitPublic, ExpenseStatus, SplitType
 from app.domain.ports import UnitOfWorkPort
@@ -181,6 +182,9 @@ def update_expense(
     date: date_type | None = None,
     payer_id: int | None = None,
     currency: str | None = None,
+    split_type: str | None = None,
+    split_config: dict[int, Decimal] | None = None,
+    member_ids: list[int] | None = None,
 ) -> None:
     """Update an existing expense.
 
@@ -190,6 +194,7 @@ def update_expense(
     - Date cannot be in the future
 
     Audit logging: Records all changed fields with previous values.
+    Recalculates splits when amount or split type changes.
 
     Args:
         uow: Unit of work for transaction management
@@ -200,6 +205,9 @@ def update_expense(
         date: New date (optional)
         payer_id: New payer ID (optional)
         currency: New currency (optional)
+        split_type: New split type (optional, e.g. "even", "shares")
+        split_config: Split configuration for non-even splits (optional)
+        member_ids: Group member IDs for split calculation (required if split_type changes)
 
     Raises:
         CannotEditSettledExpenseError: If expense is settled
@@ -214,6 +222,12 @@ def update_expense(
     if expense.status == ExpenseStatus.SETTLED:
         raise CannotEditSettledExpenseError(expense_id)
 
+    # Description is locked for recurring expenses
+    if description is not None and expense.recurring_definition_id is not None:
+        raise RecurringExpenseDescriptionError(
+            "Cannot change the description of a recurring expense"
+        )
+
     # Validation
     if amount is not None and amount <= 0:
         raise DomainError("Amount must be greater than zero")
@@ -221,7 +235,15 @@ def update_expense(
     if date and date > date_type.today():
         raise DomainError("Expense date cannot be in the future")
 
-    # Update fields (adapter handles change tracking and audit)
+    # Parse split_type enum if provided
+    split_type_enum: SplitType | None = None
+    if split_type is not None:
+        try:
+            split_type_enum = SplitType(split_type.upper())
+        except ValueError as err:
+            raise DomainError(f"Invalid split type: {split_type}") from err
+
+    # Update expense fields (adapter handles change tracking and audit)
     uow.expenses.update(
         expense_id=expense_id,
         amount=amount,
@@ -231,6 +253,63 @@ def update_expense(
         currency=currency,
         actor_id=actor_id,
     )
+
+    # Update split_type on the expense row if changed
+    if split_type_enum is not None and split_type_enum != expense.split_type:
+        uow.expenses.update(
+            expense_id=expense_id,
+            split_type=split_type_enum,
+            actor_id=actor_id,
+        )
+
+    # Recalculate splits when amount or split type changes
+    amount_changed = amount is not None and amount != expense.amount
+    split_type_changed = split_type_enum is not None and split_type_enum != expense.split_type
+    if amount_changed or split_type_changed or split_config is not None:
+        updated_expense = uow.expenses.get_by_id(expense_id)
+        if updated_expense is None:
+            raise DomainError(f"Expense {expense_id} not found after update")
+
+        # Determine member IDs: use provided list, or fall back to existing splits
+        effective_member_ids = member_ids
+        if not effective_member_ids:
+            current_splits = uow.expenses.get_splits(expense_id)
+            effective_member_ids = [s.user_id for s in current_splits]
+
+        if effective_member_ids:
+            # Use provided split_config, or rebuild from existing share_values
+            effective_config = split_config
+            if effective_config is None and not split_type_changed:
+                current_splits = uow.expenses.get_splits(expense_id)
+                if updated_expense.split_type in (
+                    SplitType.SHARES,
+                    SplitType.PERCENTAGE,
+                    SplitType.EXACT,
+                ):
+                    effective_config = {
+                        s.user_id: s.share_value
+                        for s in current_splits
+                        if s.share_value is not None
+                    }
+
+            new_splits = _calculate_splits(
+                expense=updated_expense,
+                member_ids=effective_member_ids,
+                split_type=updated_expense.split_type,
+                split_config=effective_config,
+            )
+
+            split_publics = [
+                ExpenseSplitPublic.model_construct(
+                    id=0,
+                    expense_id=expense_id,
+                    user_id=uid,
+                    amount=split_amount,
+                    share_value=share_value,
+                )
+                for uid, split_amount, share_value in new_splits
+            ]
+            uow.expenses.save_splits(expense_id, split_publics, actor_id=actor_id)
 
 
 def delete_expense(

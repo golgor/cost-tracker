@@ -1,0 +1,6 @@
+<!-- Summary bar: active count + normalized monthly total -->
+{% if summary.has_active_definitions %}
+<div class="text-sm text-stone-600 mb-4">
+  {{ summary.active_count }} active cost{{ summary.active_plural }} · {{ summary.currency | currency_symbol }}{{ summary.total_monthly_cost | format_decimal }}/mo
+</div>
+{% endif %}

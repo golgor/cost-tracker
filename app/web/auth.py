@@ -169,7 +169,17 @@ async def callback(request: Request, uow: UowDep):
         # Determine redirect and auto-provision to group if needed
         redirect_url = _determine_redirect_url(uow, user.id)
 
-    # Step 4: Create session cookie and redirect
+    # Step 4: Trigger auto-generation on login (best-effort, limit to avoid slow logins)
+    try:
+        from datetime import date
+
+        from app.web.api_internal import run_auto_generation
+
+        run_auto_generation(uow.session, date.today(), user.id)
+    except Exception:
+        logger.warning("Auto-generation on login failed (non-fatal)", exc_info=True)
+
+    # Step 5: Create session cookie and redirect
     session_value = encode_session(user.id)
     response = RedirectResponse(redirect_url, status_code=302)
     response.set_cookie(

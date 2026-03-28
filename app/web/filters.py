@@ -1,6 +1,6 @@
 """Custom Jinja2 filters for template rendering."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -15,7 +15,7 @@ def format_decimal(value):
 
 def strftime_filter(value, format_string):
     """Format a date or datetime using strftime."""
-    if isinstance(value, datetime):
+    if isinstance(value, (date, datetime)):
         return value.strftime(format_string)
     return ""
 

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; source .env; set +a; npx -y @modelcontextprotocol/server-postgres \"$DATABASE_URL\""
+      ],
+      "env": {}
+    }
+  }
+}

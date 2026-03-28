@@ -373,7 +373,8 @@ function updateExactFieldPlaceholders() {
 }
 
 // Batch entry: clear form and refocus on success
-function handleDesktopFormSubmit(event) {
+// Exposed to window because hx-on::after-request evaluates in global scope
+window.handleDesktopFormSubmit = function(event) {
     const xhr = event.detail.xhr;
     
     if (xhr.status >= 200 && xhr.status < 300) {
@@ -409,7 +410,7 @@ function handleDesktopFormSubmit(event) {
             el.textContent = '';
         });
     }
-}
+};
 
 // On page load: restore last payer and render initial split fields
 document.addEventListener('DOMContentLoaded', function() {

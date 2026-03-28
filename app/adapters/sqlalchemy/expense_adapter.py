@@ -1,12 +1,14 @@
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.changes import compute_changes, snapshot_deleted, snapshot_new
 from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow, ExpenseSplitRow
-from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic
+from app.domain.errors import DuplicateBillingPeriodError
+from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic, SplitType
 
 
 class SqlAlchemyExpenseAdapter:
@@ -33,10 +35,22 @@ class SqlAlchemyExpenseAdapter:
             currency=expense.currency,
             split_type=expense.split_type,
             status=expense.status,
+            recurring_definition_id=expense.recurring_definition_id,
+            billing_period=expense.billing_period,
+            is_auto_generated=expense.is_auto_generated,
         )
         changes = snapshot_new(row, exclude={"id", "created_at", "updated_at"})
         self._session.add(row)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as exc:
+            self._session.rollback()
+            if "uq_expenses_definition_billing_period" in str(exc.orig):
+                raise DuplicateBillingPeriodError(
+                    definition_id=expense.recurring_definition_id or 0,
+                    billing_period=expense.billing_period or "",
+                ) from exc
+            raise
 
         assert row.id is not None  # guaranteed after flush
         self._audit.log(
@@ -75,6 +89,7 @@ class SqlAlchemyExpenseAdapter:
         date: date | None = None,
         payer_id: int | None = None,
         currency: str | None = None,
+        split_type: SplitType | None = None,
     ) -> None:
         """Update expense fields. Only provided fields are updated. Auto-audits."""
         row = self._session.get(ExpenseRow, expense_id)
@@ -92,11 +107,13 @@ class SqlAlchemyExpenseAdapter:
             row.payer_id = payer_id
         if currency is not None:
             row.currency = currency
+        if split_type is not None:
+            row.split_type = split_type
 
         # Compute changes for audit log (must be done before flush)
         changes = compute_changes(
             row,
-            fields=["amount", "description", "date", "payer_id", "currency"],
+            fields=["amount", "description", "date", "payer_id", "currency", "split_type"],
         )
 
         # Only audit if changes exist
@@ -147,6 +164,10 @@ class SqlAlchemyExpenseAdapter:
         ).all()
         for split_row in existing:
             self._session.delete(split_row)
+
+        # Flush deletes before inserting to avoid unique constraint violations
+        if existing:
+            self._session.flush()
 
         # Create new splits
         new_rows: list[ExpenseSplitRow] = []
@@ -204,6 +225,9 @@ class SqlAlchemyExpenseAdapter:
             currency=row.currency,
             split_type=row.split_type,
             status=row.status,
+            recurring_definition_id=row.recurring_definition_id,
+            billing_period=row.billing_period,
+            is_auto_generated=row.is_auto_generated,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

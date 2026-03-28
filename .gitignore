@@ -217,6 +217,7 @@ app/static/css/output.css
 _bmad/*
 _bmad-output/*
 .claude/*
+!.claude/settings.json
 .windsurf/*
 .gemini/*
 .github/skills/*

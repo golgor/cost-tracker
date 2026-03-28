@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit Recurring Cost" if is_edit else "Add Recurring Cost" }} - Cost Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <!-- Back link -->
+  <a href="/recurring" class="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 mb-6 focus-ring rounded">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Registry
+  </a>
+
+  <h1 class="text-xl font-semibold text-stone-800 mb-6">
+    {% if is_edit %}Edit Recurring Cost{% else %}Add Recurring Cost{% endif %}
+  </h1>
+
+  <!-- Edit-forward info banner (edit mode only) -->
+  {% if is_edit %}
+  <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
+    <p>Changes apply to future expenses only. Existing expenses in the feed are unchanged.</p>
+  </div>
+  {% endif %}
+
+  <!-- Global error message -->
+  {% if errors.__all__ %}
+  <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm text-red-800">
+    {{ errors.__all__ }}
+  </div>
+  {% endif %}
+
+  <!-- Form -->
+  <form
+    method="post"
+    action="{% if is_edit %}/recurring/{{ definition.id }}{% else %}/recurring{% endif %}"
+    class="space-y-6"
+    id="recurring-form"
+  >
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <!-- Name -->
+    <div>
+      <label for="name" class="block text-sm font-medium text-stone-700 mb-1">
+        What recurring cost? <span class="text-red-500" aria-hidden="true">*</span>
+      </label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        value="{{ form_data.name }}"
+        placeholder="Netflix, Car Insurance, Rent…"
+        required
+        maxlength="255"
+        class="w-full px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.name %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
+      >
+      {% if errors.name %}<p class="mt-1 text-xs text-red-600">{{ errors.name }}</p>{% endif %}
+    </div>
+
+    <!-- Amount -->
+    <div>
+      <label for="amount" class="block text-sm font-medium text-stone-700 mb-1">
+        Amount <span class="text-red-500" aria-hidden="true">*</span>
+      </label>
+      <input
+        type="text"
+        id="amount"
+        name="amount"
+        value="{{ form_data.amount }}"
+        placeholder="0.00"
+        required
+        inputmode="decimal"
+        class="w-full px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.amount %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
+      >
+      {% if errors.amount %}<p class="mt-1 text-xs text-red-600">{{ errors.amount }}</p>{% endif %}
+    </div>
+
+    <!-- Frequency pills -->
+    <div>
+      <label class="block text-sm font-medium text-stone-700 mb-2">
+        Frequency <span class="text-red-500" aria-hidden="true">*</span>
+      </label>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Billing frequency">
+        {% for opt in frequency_options %}
+        <label class="cursor-pointer">
+          <input
+            type="radio"
+            name="frequency"
+            value="{{ opt.value }}"
+            {% if opt.is_selected %}checked{% endif %}
+            class="sr-only"
+            onchange="handleFrequencyChange(this.value)"
+          >
+          <span class="frequency-pill inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border transition-colors {% if opt.is_selected %}bg-primary-500 text-white border-primary-500{% else %}bg-white text-stone-600 border-stone-300 hover:border-primary-400{% endif %}" data-value="{{ opt.value }}">
+            {{ opt.label }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+      {% if errors.frequency %}<p class="mt-1 text-xs text-red-600">{{ errors.frequency }}</p>{% endif %}
+
+      <!-- Interval months field (Every N Months only) — shown/hidden by JS -->
+      <div id="interval-months-row" class="mt-3 {% if is_every_n_months %}{% else %}hidden{% endif %}">
+        <label for="interval_months" class="block text-sm font-medium text-stone-700 mb-1">
+          Every how many months? <span class="text-red-500" aria-hidden="true">*</span>
+        </label>
+        <input
+          type="number"
+          id="interval_months"
+          name="interval_months"
+          value="{{ form_data.interval_months }}"
+          min="1"
+          step="1"
+          placeholder="3"
+          {% if is_every_n_months %}required{% endif %}
+          class="w-32 px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.interval_months %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
+        >
+        {% if errors.interval_months %}<p class="mt-1 text-xs text-red-600">{{ errors.interval_months }}</p>{% endif %}
+      </div>
+    </div>
+
+    <!-- Payer & Split Method -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
+          Who Pays <span class="text-red-500" aria-hidden="true">*</span>
+        </label>
+        <select
+          id="payer_id"
+          name="payer_id"
+          required
+          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+        >
+          {% for member in members %}
+          <option value="{{ member.user_id }}" {% if form_data.payer_id == member.user_id %}selected{% endif %}>
+            {{ users[member.user_id].display_name if member.user_id in users else "User " ~ member.user_id }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="split_type" class="block text-sm font-medium text-stone-700 mb-1">
+          Split Method <span class="text-red-500" aria-hidden="true">*</span>
+        </label>
+        <select
+          id="split_type"
+          name="split_type"
+          required
+          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+          onchange="handleSplitTypeChange(this.value)"
+        >
+          {% for opt in split_type_options %}
+          <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.split_type %}<p class="mt-1 text-xs text-red-600">{{ errors.split_type }}</p>{% endif %}
+      </div>
+    </div>
+
+    <!-- Dynamic split config fields (shown for non-EVEN splits) -->
+    <div id="split-fields" class="{% if is_even_split %}hidden{% endif %}">
+      <!-- Populated by JavaScript -->
+    </div>
+    <input type="hidden" id="split-config" name="split_config" value="{{ form_data.split_config }}">
+
+    <!-- Split preview (reuses the same endpoint as the expense form) -->
+    <div id="split-preview-container" class="{% if is_even_split %}hidden{% endif %}">
+      <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
+        <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
+        <div id="split-preview-content" class="space-y-1 text-sm">
+          <!-- Populated by JavaScript fetch -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule separator -->
+    <div class="relative flex items-center">
+      <div class="flex-grow border-t border-stone-200"></div>
+      <span class="flex-shrink mx-3 text-xs font-medium text-stone-500 uppercase tracking-wide">Schedule</span>
+      <div class="flex-grow border-t border-stone-200"></div>
+    </div>
+
+    <!-- Next Due Date -->
+    <div>
+      <label for="next_due_date" class="block text-sm font-medium text-stone-700 mb-1">
+        Next Due Date <span class="text-red-500" aria-hidden="true">*</span>
+      </label>
+      <input
+        type="date"
+        id="next_due_date"
+        name="next_due_date"
+        value="{{ form_data.next_due_date }}"
+        required
+        class="w-full px-3 py-2 border rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.next_due_date %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
+      >
+      {% if errors.next_due_date %}<p class="mt-1 text-xs text-red-600">{{ errors.next_due_date }}</p>{% endif %}
+    </div>
+
+    <!-- Auto-Generate toggle -->
+    <div>
+      <div class="flex items-center justify-between">
+        <label for="auto_generate" class="text-sm font-medium text-stone-700">Auto-Generate</label>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            id="auto_generate"
+            name="auto_generate"
+            value="on"
+            {% if form_data.auto_generate %}checked{% endif %}
+            class="sr-only peer"
+            onchange="handleAutoGenerateChange(this.checked)"
+          >
+          <div class="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+        </label>
+      </div>
+      <p id="auto-generate-hint" class="mt-1 text-xs text-stone-500">
+        {% if form_data.auto_generate %}
+        Expenses created automatically on billing date as proposed
+        {% else %}
+        Create expenses manually from the registry when due
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- More options toggle (category) -->
+    <div>
+      <button
+        type="button"
+        class="text-sm text-primary-600 hover:text-primary-700 font-medium focus-ring rounded"
+        onclick="toggleMoreOptions()"
+        id="more-options-btn"
+        aria-expanded="{% if has_category %}true{% else %}false{% endif %}"
+      >
+        <span id="more-options-arrow">{% if has_category %}▾{% else %}▸{% endif %}</span> More options
+      </button>
+
+      <div id="more-options-panel" class="{% if has_category %}{% else %}hidden{% endif %} mt-4">
+        <label for="category" class="block text-sm font-medium text-stone-700 mb-1">Category</label>
+        <select
+          id="category"
+          name="category"
+          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+        >
+          {% for opt in category_options %}
+          <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="pt-2">
+      <button
+        type="submit"
+        class="w-full px-4 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring font-medium transition-colors"
+      >
+        {% if is_edit %}Save Changes{% else %}Add Recurring Cost{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+const groupMembers = [
+  {% for member in members %}
+  { id: {{ member.user_id }}, name: '{{ (users[member.user_id].display_name if member.user_id in users else "User " ~ member.user_id) | replace("'", "\\'") }}' },
+  {% endfor %}
+];
+
+const splitFieldsDiv = document.getElementById('split-fields');
+const splitConfigInput = document.getElementById('split-config');
+const splitPreviewContainer = document.getElementById('split-preview-container');
+const splitPreviewContent = document.getElementById('split-preview-content');
+
+const initialSplitConfig = (() => {
+  try { return splitConfigInput.value ? JSON.parse(splitConfigInput.value) : {}; }
+  catch(e) { return {}; }
+})();
+
+function debounce(fn, delay) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
+
+async function fetchSplitPreview() {
+  const splitType = document.getElementById('split_type').value;
+  if (splitType === 'EVEN') {
+    splitPreviewContainer.classList.add('hidden');
+    return;
+  }
+  updateSplitConfig();
+  const formData = new FormData();
+  formData.append('amount', document.getElementById('amount').value || '0');
+  formData.append('split_type', splitType.toLowerCase());
+  formData.append('split_config', splitConfigInput.value || '{}');
+  formData.append('payer_id', document.getElementById('payer_id').value || '');
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const response = await fetch('/expenses/split-preview', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+    });
+    if (response.ok) {
+      splitPreviewContent.innerHTML = await response.text();
+      splitPreviewContainer.classList.remove('hidden');
+    }
+  } catch (_) {
+    // Silently ignore network errors in the preview
+  }
+}
+
+const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
+
+function updateSplitConfig() {
+  const mode = document.getElementById('split_type').value.toLowerCase();
+  if (mode === 'even') { splitConfigInput.value = ''; return; }
+  const config = {};
+  splitFieldsDiv.querySelectorAll('[data-member]').forEach(inp => {
+    config[inp.dataset.member] = inp.value || '0';
+  });
+  splitConfigInput.value = JSON.stringify(config);
+}
+
+function renderSplitFields(mode, existing) {
+  if (mode === 'even') {
+    splitFieldsDiv.classList.add('hidden');
+    splitFieldsDiv.innerHTML = '';
+    splitConfigInput.value = '';
+    return;
+  }
+  splitFieldsDiv.classList.remove('hidden');
+
+  const inputClass = 'w-24 px-2 py-1.5 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none';
+
+  if (mode === 'shares') {
+    splitFieldsDiv.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
+      groupMembers.map(m => `<div class="flex items-center gap-3 mb-2">
+        <label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label>
+        <input type="number" min="0" step="1" value="${existing[m.id] || 1}" data-member="${m.id}" class="${inputClass}" oninput="updateSplitConfig()">
+      </div>`).join('');
+  } else if (mode === 'percentage') {
+    splitFieldsDiv.innerHTML = '<p class="text-xs text-stone-500 mb-2">Percentages must sum to 100%.</p>' +
+      groupMembers.map(m => `<div class="flex items-center gap-3 mb-2">
+        <label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label>
+        <div class="flex items-center gap-1">
+          <input type="number" min="0" max="100" step="0.01" value="${existing[m.id] || 50}" data-member="${m.id}" class="${inputClass}" oninput="updateSplitConfig()">
+          <span class="text-sm text-stone-500">%</span>
+        </div>
+      </div>`).join('');
+  } else if (mode === 'exact') {
+    const total = (parseFloat(document.getElementById('amount').value.replace(',', '.')) || 0).toFixed(2);
+    splitFieldsDiv.innerHTML = `<p class="text-xs text-stone-500 mb-2">Exact amounts must sum to the total (${total}).</p>` +
+      groupMembers.map(m => `<div class="flex items-center gap-3 mb-2">
+        <label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label>
+        <input type="number" min="0" step="0.01" value="${existing[m.id] || 0}" data-member="${m.id}" class="${inputClass}" oninput="updateSplitConfig()">
+      </div>`).join('');
+  }
+
+  updateSplitConfig();
+}
+
+function handleSplitTypeChange(value) {
+  renderSplitFields(value.toLowerCase(), {});
+  debouncedFetchPreview();
+}
+
+function handleFrequencyChange(value) {
+  const row = document.getElementById('interval-months-row');
+  const input = document.getElementById('interval_months');
+  document.querySelectorAll('.frequency-pill').forEach(pill => {
+    const active = pill.dataset.value === value;
+    pill.classList.toggle('bg-primary-500', active);
+    pill.classList.toggle('text-white', active);
+    pill.classList.toggle('border-primary-500', active);
+    pill.classList.toggle('bg-white', !active);
+    pill.classList.toggle('text-stone-600', !active);
+    pill.classList.toggle('border-stone-300', !active);
+  });
+  if (value === 'EVERY_N_MONTHS') {
+    row.classList.remove('hidden');
+    input.required = true;
+  } else {
+    row.classList.add('hidden');
+    input.required = false;
+    input.value = '';
+  }
+}
+
+function handleAutoGenerateChange(checked) {
+  document.getElementById('auto-generate-hint').textContent = checked
+    ? 'Expenses created automatically on billing date as proposed'
+    : 'Create expenses manually from the registry when due';
+}
+
+function toggleMoreOptions() {
+  const panel = document.getElementById('more-options-panel');
+  const arrow = document.getElementById('more-options-arrow');
+  const btn = document.getElementById('more-options-btn');
+  const open = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !open);
+  arrow.textContent = open ? '▾' : '▸';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const currentSplit = document.getElementById('split_type').value.toLowerCase();
+  if (currentSplit !== 'even') {
+    renderSplitFields(currentSplit, initialSplitConfig);
+    fetchSplitPreview();
+  }
+});
+
+document.getElementById('amount').addEventListener('input', debouncedFetchPreview);
+document.getElementById('payer_id').addEventListener('change', debouncedFetchPreview);
+splitFieldsDiv.addEventListener('input', () => {
+  updateSplitConfig();
+  debouncedFetchPreview();
+});
+</script>
+{% endblock %}

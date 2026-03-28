@@ -15,6 +15,8 @@ from app.domain.models import (
     ExpenseStatus,
     GroupBase,
     MemberRole,
+    RecurringDefinitionBase,
+    RecurringFrequency,
     SettlementBase,
     SettlementTransactionBase,
     SplitType,
@@ -148,7 +150,14 @@ class ExpenseRow(ExpenseBase, table=True):
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["creator_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(
+            ["recurring_definition_id"],
+            ["recurring_definitions.id"],
+            ondelete="SET NULL",
+            name="fk_expenses_recurring_definition_id",
+        ),
         sa.Index("ix_expenses_group_id_date", "group_id", "date"),
+        # Partial unique index enforced at migration level; declared here for documentation
     )
 
 
@@ -264,6 +273,55 @@ class SettlementExpenseRow(SQLModel, table=True):
     expense_id: int = Field(foreign_key="expenses.id", primary_key=True)
 
 
+class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
+    """ORM model for RecurringDefinition — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "recurring_definitions"
+
+    # Override frequency to use PostgreSQL ENUM
+    frequency: RecurringFrequency = Field(
+        sa_type=sa.Enum(RecurringFrequency, name="recurringfrequency", native_enum=True),  # type: ignore[arg-type]
+    )
+
+    # Override split_type to reuse existing PostgreSQL ENUM
+    split_type: SplitType = Field(
+        default=SplitType.EVEN,
+        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+    )
+
+    # Override amount to use exact numeric type
+    amount: Decimal = Field(
+        sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
+    )
+
+    # Override split_config to use JSON column
+    split_config: dict | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.JSON, nullable=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    deleted_at: datetime | None = Field(
+        default=None,
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
+        sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.Index("ix_recurring_definitions_group_id", "group_id"),
+        sa.Index("ix_recurring_definitions_next_due_date", "next_due_date"),
+    )
+
+
 # Re-export SQLModel for Alembic env.py
 __all__ = [
     "SQLModel",
@@ -276,4 +334,5 @@ __all__ = [
     "SettlementRow",
     "SettlementTransactionRow",
     "SettlementExpenseRow",
+    "RecurringDefinitionRow",
 ]

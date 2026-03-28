@@ -27,6 +27,16 @@ from typing import Any
 from sqlmodel import Field, SQLModel  # noqa: F401
 
 
+class RecurringFrequency(StrEnum):
+    """Supported recurring cost frequencies."""
+
+    MONTHLY = "MONTHLY"
+    QUARTERLY = "QUARTERLY"
+    SEMI_ANNUALLY = "SEMI_ANNUALLY"
+    YEARLY = "YEARLY"
+    EVERY_N_MONTHS = "EVERY_N_MONTHS"
+
+
 class SplitType(StrEnum):
     """Supported expense split types."""
 
@@ -150,6 +160,9 @@ class ExpenseBase(SQLModel):
     currency: str = Field(max_length=3)
     split_type: SplitType = Field(default=SplitType.EVEN)
     status: ExpenseStatus = Field(default=ExpenseStatus.PENDING)
+    recurring_definition_id: int | None = Field(default=None)
+    billing_period: str | None = Field(default=None, max_length=10)
+    is_auto_generated: bool = Field(default=False)
 
 
 class ExpensePublic(ExpenseBase):
@@ -221,3 +234,30 @@ class SettlementPublic(SettlementBase):
 
     id: int
     created_at: datetime
+
+
+class RecurringDefinitionBase(SQLModel):
+    """Domain base for RecurringDefinition — validation + business data. No table."""
+
+    group_id: int
+    name: str = Field(max_length=255)
+    amount: Decimal = Field(decimal_places=2, ge=0.01)
+    frequency: RecurringFrequency
+    interval_months: int | None = Field(default=None)
+    next_due_date: date
+    payer_id: int
+    split_type: SplitType = Field(default=SplitType.EVEN)
+    split_config: dict | None = Field(default=None)
+    category: str | None = Field(default=None, max_length=50)
+    auto_generate: bool = Field(default=False)
+    is_active: bool = Field(default=True)
+    currency: str = Field(max_length=3)
+
+
+class RecurringDefinitionPublic(RecurringDefinitionBase):
+    """Output schema for RecurringDefinition — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None = None

@@ -1,112 +1,728 @@
-<!-- Filter Bar (collapsible) -->
-<div class="bg-surface-card rounded-lg shadow-sm mb-6 overflow-hidden">
-  <button
-    type="button"
-    class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-stone-50 transition-colors"
-    onclick="toggleFilters()"
-  >
-    <div class="flex items-center gap-2">
-      <span class="text-base font-semibold text-stone-900">Filters</span>
-      {% if has_active_filters %}
-        <span class="px-2 py-0.5 text-xs font-medium bg-primary-100 text-primary-700 rounded-full">Active</span>
-      {% endif %}
-    </div>
-    <svg class="w-5 h-5 text-stone-500 transform transition-transform" id="filter-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
-  </button>
-  
-  <!-- Collapsible Filter Section (hidden by default per UX-DR28) -->
-  <div id="filter-section" class="hidden border-t border-stone-200 px-6 py-4">
-    <form
-      hx-get="/expenses/filtered"
-      hx-target="#expense-feed"
-      hx-swap="outerHTML"
-      hx-push-url="true"
-      class="space-y-4"
-    >
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Date From -->
-        <div>
-          <label for="filter-date-from" class="block text-sm font-medium text-stone-700 mb-1">
-            From Date
-          </label>
-          <input
-            type="date"
-            id="filter-date-from"
-            name="date_from"
-            value="{{ filter_date_from }}"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-        </div>
-        
-        <!-- Date To -->
-        <div>
-          <label for="filter-date-to" class="block text-sm font-medium text-stone-700 mb-1">
-            To Date
-          </label>
-          <input
-            type="date"
-            id="filter-date-to"
-            name="date_to"
-            value="{{ filter_date_to }}"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-        </div>
-        
-        <!-- Paid By -->
-        <div>
-          <label for="filter-payer" class="block text-sm font-medium text-stone-700 mb-1">
-            Paid By
-          </label>
-          <select
-            id="filter-payer"
-            name="payer_id"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-          >
-            <option value="">All</option>
-            {% for member in group_members %}
-              {% set member_user = users.get(member.user_id) %}
-              {% if member_user %}
-                <option
-                  value="{{ member.user_id }}"
-                  {% if filter_payer_id|string == member.user_id|string %}selected{% endif %}
-                >
-                  {{ member_user.display_name }}
-                </option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      
-      <!-- Filter Actions -->
-      <div class="flex items-center gap-3">
-        <button
-          type="submit"
-          class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md hover:shadow-lg active:scale-95 transition-all"
+<style>
+  #cal-month-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1c1917;
+    cursor: pointer;
+    padding-right: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0 center;
+  }
+  #cal-month-select:hover {
+    color: #a8622a;
+  }
+  #cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, 36px);
+  }
+</style>
+
+<!-- Unified Filter Bar -->
+<div class="bg-white rounded-lg shadow-sm mb-6">
+  <div class="px-4 pt-3 pb-3 space-y-2">
+
+    <!-- Row 1: Search field + Date button -->
+    <div class="flex items-stretch gap-2">
+
+      <!-- Search wrapper -->
+      <div class="flex items-center gap-2 border border-stone-300 rounded-lg bg-white px-3 flex-1 focus-within:ring-2 focus-within:ring-primary-600 focus-within:border-primary-600 transition-shadow">
+        <svg class="w-4 h-4 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          name="search_query"
+          value="{{ search_query }}"
+          placeholder="Search expenses..."
+          autocomplete="off"
+          class="flex-1 py-3 bg-transparent outline-none text-stone-900 placeholder-stone-400 text-sm"
         >
-          Apply Filters
+        <button
+          type="button"
+          id="search-clear-btn"
+          class="text-stone-400 hover:text-stone-600 {% if not search_query %}hidden{% endif %}"
+          aria-label="Clear search"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
-        
-        {% if has_active_filters %}
-          <a
-            href="/expenses"
-            class="px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 font-medium transition-colors"
-          >
-            Clear Filters
-          </a>
-        {% endif %}
       </div>
-    </form>
+
+      <!-- Date picker button -->
+      <button
+        type="button"
+        id="date-picker-btn"
+        onclick="openModal()"
+        class="flex items-center gap-2 px-3 border rounded-lg text-sm transition-colors whitespace-nowrap {% if filter_date_from or filter_date_to %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-stone-300 text-stone-700{% endif %}"
+      >
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <div class="flex flex-col text-left leading-snug">
+          <span id="date-start" class="text-xs font-medium">
+            {%- if filter_date_from -%}{{ filter_date_from }}{%- else -%}All dates{%- endif -%}
+          </span>
+          <span id="date-end" class="text-xs font-medium text-primary-500">
+            {%- if filter_date_to -%}{{ filter_date_to }}{%- endif -%}
+          </span>
+        </div>
+        <svg class="w-3 h-3 text-primary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+    </div>
+
+    <!-- Row 2: Paid by + Clear all + Toast -->
+    <div class="flex items-center justify-center gap-2 flex-wrap">
+      <div class="flex items-center gap-2">
+        <label for="payer-select" class="text-sm font-medium text-stone-700 whitespace-nowrap">Paid by</label>
+        <select
+          id="payer-select"
+          onchange="applyPaidBy()"
+          class="px-3 py-1.5 border border-stone-300 rounded-lg text-sm text-stone-700 focus:ring-2 focus:ring-primary-600 focus:border-primary-600 outline-none cursor-pointer"
+        >
+          <option value="">All</option>
+          {% for member in group_members %}
+            {% set member_user = users.get(member.user_id) %}
+            {% if member_user %}
+              <option value="{{ member.user_id }}"
+                {% if filter_payer_id|string == member.user_id|string %}selected{% endif %}>
+                {{ member_user.display_name }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <a href="#" onclick="clearAll(event)"
+        class="text-sm text-stone-500 hover:text-stone-700 hover:underline whitespace-nowrap">
+        Clear all
+      </a>
+      <span id="paidby-toast" class="hidden text-xs text-primary-600 font-medium">Filter applied ✓</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal backdrop -->
+<div
+  id="modal-backdrop"
+  class="hidden fixed inset-0 z-40"
+  style="background: rgba(0,0,0,0.35)"
+  onclick="closeModal()"
+></div>
+
+<!-- Date picker modal -->
+<div
+  id="date-picker-modal"
+  class="hidden fixed z-50 bg-white rounded-2xl shadow-2xl overflow-hidden"
+  style="width: 320px; top: 12%; left: 50%; transform: translateX(-50%);"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="date-picker-title"
+  tabindex="-1"
+>
+  <span id="date-picker-title" class="sr-only">Date range picker</span>
+
+  <!-- Month + year navigation -->
+  <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100">
+    <button type="button" onclick="calPrev()"
+      class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <div class="flex items-center gap-2">
+      <select id="cal-month-select" onchange="calSetMonth(+this.value)">
+        <option value="0">January</option>
+        <option value="1">February</option>
+        <option value="2">March</option>
+        <option value="3">April</option>
+        <option value="4">May</option>
+        <option value="5">June</option>
+        <option value="6">July</option>
+        <option value="7">August</option>
+        <option value="8">September</option>
+        <option value="9">October</option>
+        <option value="10">November</option>
+        <option value="11">December</option>
+      </select>
+      <input
+        type="number"
+        id="cal-year-label"
+        min="2000"
+        max="2099"
+        onchange="calSetYear(+this.value)"
+        class="text-base font-semibold text-stone-800 bg-transparent outline-none border-none text-center"
+        style="width: 80px;"
+      />
+    </div>
+    <button type="button" onclick="calNext()"
+      class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Day-of-week headers (Monday-first) -->
+  <div class="text-center px-3 pt-2 pb-1" style="display: grid; grid-template-columns: repeat(7, 1fr);">
+    <span class="text-xs font-medium text-stone-400">Mo</span>
+    <span class="text-xs font-medium text-stone-400">Tu</span>
+    <span class="text-xs font-medium text-stone-400">We</span>
+    <span class="text-xs font-medium text-stone-400">Th</span>
+    <span class="text-xs font-medium text-stone-400">Fr</span>
+    <span class="text-xs font-medium text-stone-500">Sa</span>
+    <span class="text-xs font-medium text-stone-500">Su</span>
+  </div>
+
+  <!-- Day grid — 42 cells (6 rows × 7 cols), fixed height -->
+  <div id="cal-grid" class="px-3 pb-1" onmouseleave="window._cl()"></div>
+
+  <!-- Hint line -->
+  <p id="cal-hint" class="text-xs text-stone-400 text-center px-4" style="min-height: 1.25rem"></p>
+
+  <!-- Footer -->
+  <div class="flex items-center justify-between px-4 py-3 border-t border-stone-100">
+    <button type="button" onclick="clearDates()"
+      class="text-sm text-stone-500 hover:text-stone-700 transition-colors">
+      Clear dates
+    </button>
+    <div class="flex gap-2">
+      <button type="button" onclick="closeModal()"
+        class="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
+        Cancel
+      </button>
+      <button type="button" onclick="applyDates()"
+        class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+        Apply
+      </button>
+    </div>
   </div>
 </div>
 
 <script>
-function toggleFilters() {
-  const section = document.getElementById('filter-section');
-  const chevron = document.getElementById('filter-chevron');
-  section.classList.toggle('hidden');
-  chevron.classList.toggle('rotate-180');
-}
+(function () {
+  // ── Constants ─────────────────────────────────────────────────────────────
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // ── State (_s is the sole source of truth for all filter state) ───────────
+  const _s = {
+    // Filter state
+    searchQuery: '',
+    payerId: '',
+    // Calendar state
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    calStart: null,       // { year, month (0-indexed), day } | null
+    calEnd: null,         // { year, month (0-indexed), day } | null
+    calHover: null,       // { year, month, day } | null — live range preview
+    calSelecting: false,  // true = waiting for second click
+    // Internal
+    _snapshot: null,      // snapshot of cal state on modal open for cancel-restore
+    _reqId: 0,            // monotonic counter for stale-response guard
+    _debounceTimer: null,
+    _toastTimer: null,
+    _leaveTimer: null,
+  };
+
+  // ── Server-rendered initialisation ───────────────────────────────────────
+  function _parseDate(str) {
+    if (!str || typeof str !== 'string') return null;
+    const parts = str.split('-');
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1; // convert to 0-indexed
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    if (y < 2000 || y > 2099 || m < 0 || m > 11 || d < 1) return null;
+    // Validate day against actual month length
+    if (d > new Date(y, m + 1, 0).getDate()) return null;
+    return { year: y, month: m, day: d };
+  }
+
+  const _initStart = _parseDate({{ filter_date_from | tojson }});
+  const _initEnd   = _parseDate({{ filter_date_to | tojson }});
+
+  if (_initStart) {
+    _s.calStart = _initStart;
+    _s.calYear  = _initStart.year;
+    _s.calMonth = _initStart.month;
+  }
+  if (_initEnd) {
+    _s.calEnd = _initEnd;
+  }
+
+  // search_query: use tojson for safe JS string embedding
+  _s.searchQuery = {{ search_query | tojson }} || '';
+
+  _s.payerId = {{ filter_payer_id | tojson }} || '';
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function _daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+  // Returns 0=Monday … 6=Sunday
+  function _firstWeekday(y, m) { return (new Date(y, m, 1).getDay() + 6) % 7; }
+
+  function _cmp(a, b) {
+    if (!a || !b) return 0;
+    return a.year * 10000 + a.month * 100 + a.day - (b.year * 10000 + b.month * 100 + b.day);
+  }
+
+  function _eq(a, b) {
+    return a && b && a.year === b.year && a.month === b.month && a.day === b.day;
+  }
+
+  function _between(d, lo, hi) {
+    return !!(lo && hi && _cmp(d, lo) > 0 && _cmp(d, hi) < 0);
+  }
+
+  function _pad(n) { return String(n).padStart(2, '0'); }
+
+  function _fmt(d) { return `${_pad(d.day)} ${MONTHS_SHORT[d.month]} ${d.year}`; }
+
+  // ── Render functions ──────────────────────────────────────────────────────
+  function _render() {
+    const { calYear: y, calMonth: m } = _s;
+    document.getElementById('cal-year-label').value = y;
+    document.getElementById('cal-month-select').value = m;
+
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    const totalDays = _daysInMonth(y, m);
+    const firstWd = _firstWeekday(y, m);
+    const rangeEnd = _s.calSelecting ? _s.calHover : _s.calEnd;
+
+    const cells = [];
+
+    // Pad cells from previous month
+    const prevM = m === 0 ? 11 : m - 1;
+    const prevY = m === 0 ? y - 1 : y;
+    const prevDays = _daysInMonth(prevY, prevM);
+    for (let i = firstWd - 1; i >= 0; i--) {
+      cells.push(_cell(prevY, prevM, prevDays - i, true, rangeEnd, todayKey));
+    }
+
+    // Current month days
+    for (let d = 1; d <= totalDays; d++) {
+      cells.push(_cell(y, m, d, false, rangeEnd, todayKey));
+    }
+
+    // Pad to exactly 42 cells with next month days
+    const nextM = m === 11 ? 0 : m + 1;
+    const nextY = m === 11 ? y + 1 : y;
+    let nextD = 1;
+    while (cells.length < 42) {
+      cells.push(_cell(nextY, nextM, nextD++, true, rangeEnd, todayKey));
+    }
+
+    document.getElementById('cal-grid').innerHTML = cells.join('');
+
+    document.getElementById('cal-hint').textContent = _s.calSelecting
+      ? 'Click an end date'
+      : (_s.calStart ? '' : 'Click to select a start date');
+  }
+
+  function _cell(y, m, d, faded, rangeEnd, todayKey) {
+    const date = { year: y, month: m, day: d };
+    const isToday = `${y}-${m}-${d}` === todayKey;
+    const isStart = _eq(date, _s.calStart);
+    const isEnd   = _eq(date, _s.calEnd);
+    const inRange = _between(date, _s.calStart, rangeEnd);
+    const isHover = _eq(date, _s.calHover);
+
+    const rowBg = inRange ? 'bg-primary-100' : '';
+
+    let pill = 'w-8 h-8 flex items-center justify-center rounded-full text-sm cursor-pointer select-none transition-colors ';
+    if (isStart || isEnd || isHover) {
+      pill += 'bg-primary-600 text-white font-semibold';
+    } else if (faded) {
+      pill += 'text-stone-300 hover:text-stone-500';
+    } else if (isToday) {
+      pill += 'ring-1 ring-stone-400 text-stone-700 hover:bg-stone-100';
+    } else {
+      pill += 'text-stone-700 hover:bg-stone-100';
+    }
+
+    return `<div class="${rowBg} flex items-center justify-center"
+         onmouseenter="window._ch(${y},${m},${d})"
+         onclick="window._cc(${y},${m},${d})">
+      <div class="${pill}">${d}</div>
+    </div>`;
+  }
+
+  // _setDateBtn is the single place that manages date button text + active/inactive classes.
+  // Call contract: _setDateBtn(null, null) → inactive. _setDateBtn(startObj, endObj) → active.
+  // Always pass both arguments explicitly.
+  function _setDateBtn(start, end) {
+    const startEl = document.getElementById('date-start');
+    const endEl   = document.getElementById('date-end');
+    const btn     = document.getElementById('date-picker-btn');
+    if (!startEl || !endEl || !btn) return;
+    if (start) {
+      startEl.textContent = _fmt(start);
+      endEl.textContent   = end ? _fmt(end) : _fmt(start);
+      btn.classList.add('border-primary-500', 'bg-primary-50', 'text-primary-700');
+      btn.classList.remove('border-stone-300', 'text-stone-700');
+    } else {
+      startEl.textContent = 'All dates';
+      endEl.textContent   = '';
+      btn.classList.add('border-stone-300', 'text-stone-700');
+      btn.classList.remove('border-primary-500', 'bg-primary-50', 'text-primary-700');
+    }
+  }
+
+  // ── Cell interactions ─────────────────────────────────────────────────────
+  // _ch: cell hover — updates live range preview
+  window._ch = function (y, m, d) {
+    if (!_s.calSelecting) return;
+    clearTimeout(_s._leaveTimer);
+    if (_eq(_s.calHover, { year: y, month: m, day: d })) return;
+    _s.calHover = { year: y, month: m, day: d };
+    _render();
+  };
+
+  // _cl: grid container mouseleave — 80ms debounce to clear hover
+  // (on container, not individual cells, to avoid re-render flicker loop)
+  window._cl = function () {
+    if (!_s.calSelecting) return;
+    _s._leaveTimer = setTimeout(function () { _s.calHover = null; _render(); }, 80);
+  };
+
+  // _cc: cell click — first click sets start, second click completes range
+  window._cc = function (y, m, d) {
+    const clicked = { year: y, month: m, day: d };
+    if (!_s.calSelecting) {
+      _s.calStart = clicked;
+      _s.calEnd = null;
+      _s.calHover = null;
+      _s.calSelecting = true;
+    } else {
+      _s.calEnd = clicked;
+      if (_cmp(_s.calEnd, _s.calStart) < 0) {
+        const tmp = _s.calStart;
+        _s.calStart = _s.calEnd;
+        _s.calEnd = tmp;
+      }
+      _s.calHover = null;
+      _s.calSelecting = false;
+    }
+    // Navigate to out-of-month day (design doc requirement)
+    if (_s.calYear !== y || _s.calMonth !== m) {
+      _s.calYear = y;
+      _s.calMonth = m;
+    }
+    _render();
+  };
+
+  // ── Month / year navigation ───────────────────────────────────────────────
+  window.calPrev = function () {
+    if (_s.calMonth === 0) { _s.calMonth = 11; _s.calYear--; }
+    else _s.calMonth--;
+    _render();
+  };
+
+  window.calNext = function () {
+    if (_s.calMonth === 11) { _s.calMonth = 0; _s.calYear++; }
+    else _s.calMonth++;
+    _render();
+  };
+
+  window.calSetMonth = function (m) {
+    if (isNaN(m) || m < 0 || m > 11) return;
+    _s.calMonth = m;
+    _render();
+  };
+
+  window.calSetYear = function (y) {
+    if (isNaN(y) || y < 2000 || y > 2099) {
+      // Revert input to last valid value
+      document.getElementById('cal-year-label').value = _s.calYear;
+      return;
+    }
+    _s.calYear = y;
+    _render();
+  };
+
+  // ── Modal open / close ────────────────────────────────────────────────────
+  window.openModal = function () {
+    // Snapshot committed state for cancel-restore
+    _s._snapshot = {
+      calStart:    _s.calStart,
+      calEnd:      _s.calEnd,
+      calSelecting: _s.calSelecting,
+      calHover:    _s.calHover,
+      calYear:     _s.calYear,
+      calMonth:    _s.calMonth,
+    };
+    document.getElementById('modal-backdrop').classList.remove('hidden');
+    const modal = document.getElementById('date-picker-modal');
+    modal.classList.remove('hidden');
+    _render();
+    modal.focus();
+  };
+
+  window.closeModal = function () {
+    // If snapshot is set, restore pre-open committed state (cancel / backdrop click)
+    if (_s._snapshot !== null) {
+      _s.calStart    = _s._snapshot.calStart;
+      _s.calEnd      = _s._snapshot.calEnd;
+      _s.calSelecting = _s._snapshot.calSelecting;
+      _s.calHover    = _s._snapshot.calHover;
+      _s.calYear     = _s._snapshot.calYear;
+      _s.calMonth    = _s._snapshot.calMonth;
+      _s._snapshot = null;
+      _setDateBtn(_s.calStart, _s.calEnd);
+      _render();
+    }
+    clearTimeout(_s._leaveTimer);
+    document.getElementById('modal-backdrop').classList.add('hidden');
+    document.getElementById('date-picker-modal').classList.add('hidden');
+    document.getElementById('date-picker-btn').focus();
+  };
+
+  // ── Apply dates (commits draft → button/URL/feed) ─────────────────────────
+  window.applyDates = function () {
+    // Single-day range: if only start selected, end defaults to start
+    if (_s.calStart && !_s.calEnd) {
+      _s.calEnd = _s.calStart;
+    }
+    _s.calSelecting = false;
+    _s.calHover = null;
+    _setDateBtn(_s.calStart, _s.calEnd);
+    // Discard snapshot — prevents restore on closeModal
+    _s._snapshot = null;
+    clearTimeout(_s._debounceTimer);
+    closeModal(); // snapshot is null → no restore
+    applyFilters();
+  };
+
+  // ── Clear dates (draft-only — does NOT update button/URL/feed) ────────────
+  window.clearDates = function () {
+    _s.calStart = _s.calEnd = _s.calHover = null;
+    _s.calSelecting = false;
+    _render();
+    // NOTE: Intentionally does NOT call _setDateBtn or applyFilters.
+    // The date button and expense feed only change when the user clicks Apply.
+    // Clicking Cancel after Clear dates will restore the pre-open committed state.
+  };
+
+  // ── applyFilters — single exit point for all filter state → HTMX ─────────
+  // _lastFiredId lives in the IIFE closure and survives outerHTML element replacement.
+  let _lastFiredId = 0;
+
+  window.applyFilters = function () {
+    const myId = ++_s._reqId;
+    _lastFiredId = myId;
+
+    const params = new URLSearchParams();
+    if (_s.calStart) {
+      params.set('date_from', `${_s.calStart.year}-${_pad(_s.calStart.month + 1)}-${_pad(_s.calStart.day)}`);
+    }
+    if (_s.calEnd) {
+      params.set('date_to', `${_s.calEnd.year}-${_pad(_s.calEnd.month + 1)}-${_pad(_s.calEnd.day)}`);
+    }
+    if (_s.payerId)     params.set('payer_id', _s.payerId);
+    if (_s.searchQuery) params.set('search_query', _s.searchQuery);
+
+    const qs = params.toString();
+    window.history.pushState({}, '', '/expenses' + (qs ? '?' + qs : ''));
+
+    htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
+      target: '#expense-feed',
+      swap: 'outerHTML',
+    });
+    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
+      target: '#balance-bar',
+      swap: 'outerHTML',
+    });
+  };
+
+  // ── HTMX beforeSwap: stale response guard + error suppression ────────────
+  document.body.addEventListener('htmx:beforeSwap', function (evt) {
+    if (!evt.detail.target) return;
+    var tid = evt.detail.target.id;
+    if (tid !== 'expense-feed' && tid !== 'balance-bar') return;
+    // Error suppression: preserve existing feed on server/network error
+    if (evt.detail.xhr.status >= 400 || evt.detail.xhr.status === 0) {
+      evt.detail.shouldSwap = false;
+      return;
+    }
+    // Stale response guard (expense-feed only — balance-bar is lightweight)
+    if (tid === 'expense-feed' && _lastFiredId < _s._reqId) {
+      evt.detail.shouldSwap = false;
+    }
+  });
+
+  // ── Paid-by change — fires immediately with 1.5s toast ───────────────────
+  window.applyPaidBy = function () {
+    _s.payerId = document.getElementById('payer-select').value;
+    clearTimeout(_s._toastTimer);
+    applyFilters();
+    const toast = document.getElementById('paidby-toast');
+    toast.classList.remove('hidden');
+    _s._toastTimer = setTimeout(function () { toast.classList.add('hidden'); }, 1500);
+  };
+
+  // ── Clear All — resets all filters, syncs DOM, triggers reload ────────────
+  window.clearAll = function (e) {
+    e.preventDefault();
+    _s.searchQuery = '';
+    _s.payerId = '';
+    _s.calStart = _s.calEnd = _s.calHover = null;
+    _s.calSelecting = false;
+    // Reset calendar nav to current month
+    _s.calYear = new Date().getFullYear();
+    _s.calMonth = new Date().getMonth();
+
+    var searchEl = document.getElementById('search-input');
+    var clearEl = document.getElementById('search-clear-btn');
+    if (searchEl) searchEl.value = '';
+    if (clearEl) clearEl.classList.add('hidden');
+
+    var payerEl = document.getElementById('payer-select');
+    if (payerEl) payerEl.value = '';
+
+    // Cancel any pending toast
+    clearTimeout(_s._toastTimer);
+    var toast = document.getElementById('paidby-toast');
+    if (toast) toast.classList.add('hidden');
+
+    _setDateBtn(null, null);
+    clearTimeout(_s._debounceTimer);
+    applyFilters();
+  };
+
+  // ── Search input — debounce 300ms, Enter immediate ────────────────────────
+  const searchInput = document.getElementById('search-input');
+  const searchClearBtn = document.getElementById('search-clear-btn');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      _s.searchQuery = searchInput.value;
+      if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
+      clearTimeout(_s._debounceTimer);
+      _s._debounceTimer = setTimeout(function () { applyFilters(); }, 300);
+    });
+
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(_s._debounceTimer);
+        applyFilters();
+      }
+    });
+  }
+
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener('click', function () {
+      _s.searchQuery = '';
+      if (searchInput) searchInput.value = '';
+      searchClearBtn.classList.add('hidden');
+      clearTimeout(_s._debounceTimer);
+      applyFilters();
+    });
+  }
+
+  // ── Escape key closes the modal (same behaviour as Cancel) ───────────────
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('date-picker-modal');
+      if (modal && !modal.classList.contains('hidden')) {
+        closeModal();
+      }
+    }
+  });
+
+  // ── Popstate — browser back/forward hydrates _s + reloads feed ───────────
+  // Exception to "applyFilters is the single exit point": popstate fires htmx.ajax
+  // directly to avoid pushing a duplicate history entry.
+  window.addEventListener('popstate', function () {
+    const params = new URLSearchParams(window.location.search);
+
+    // Search query
+    _s.searchQuery = params.get('search_query') || '';
+    if (searchInput) searchInput.value = _s.searchQuery;
+    if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
+
+    // Payer ID — validate numeric + option exists
+    const rawPayer = params.get('payer_id');
+    _s.payerId = (rawPayer && /^\d+$/.test(rawPayer)) ? rawPayer : '';
+    const payerSelect = document.getElementById('payer-select');
+    if (payerSelect) {
+      payerSelect.value = _s.payerId;
+      // If option doesn't exist, normalize to All
+      if (payerSelect.value !== _s.payerId) {
+        _s.payerId = '';
+        payerSelect.value = '';
+      }
+    }
+
+    // Date range + reset selection state
+    _s.calSelecting = false;
+    _s.calHover = null;
+    const parsedStart = _parseDate(params.get('date_from'));
+    const parsedEnd   = _parseDate(params.get('date_to'));
+    _s.calStart = parsedStart;
+    _s.calEnd   = parsedEnd;
+    if (_s.calStart) {
+      _s.calYear  = _s.calStart.year;
+      _s.calMonth = _s.calStart.month;
+    }
+    _setDateBtn(_s.calStart, _s.calEnd);
+
+    // Fire request without pushing a new history entry
+    const myId = ++_s._reqId;
+    _lastFiredId = myId;
+
+    const p = new URLSearchParams();
+    if (_s.calStart) {
+      p.set('date_from', `${_s.calStart.year}-${_pad(_s.calStart.month + 1)}-${_pad(_s.calStart.day)}`);
+    }
+    if (_s.calEnd) {
+      p.set('date_to', `${_s.calEnd.year}-${_pad(_s.calEnd.month + 1)}-${_pad(_s.calEnd.day)}`);
+    }
+    if (_s.payerId)     p.set('payer_id', _s.payerId);
+    if (_s.searchQuery) p.set('search_query', _s.searchQuery);
+
+    const qs = p.toString();
+    htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
+      target: '#expense-feed',
+      swap: 'outerHTML',
+    });
+    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
+      target: '#balance-bar',
+      swap: 'outerHTML',
+    });
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  // Sync date button to server-rendered state
+  _setDateBtn(_s.calStart, _s.calEnd);
+  // Render the calendar grid (hidden until modal opens, but pre-renders month)
+  _render();
+  // Sync search field
+  if (searchInput) searchInput.value = _s.searchQuery;
+  if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
+  // Sync payer select + validate option exists
+  const _initPayerSelect = document.getElementById('payer-select');
+  if (_initPayerSelect) {
+    _initPayerSelect.value = _s.payerId;
+    if (_initPayerSelect.value !== _s.payerId) {
+      _s.payerId = '';
+      _initPayerSelect.value = '';
+    }
+  }
+})();
 </script>

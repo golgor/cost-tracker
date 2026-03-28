@@ -5,7 +5,13 @@ from decimal import Decimal
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import (
+    ExpenseNoteRow,
+    ExpenseRow,
+    ExpenseSplitRow,
+    MembershipRow,
+    RecurringDefinitionRow,
+)
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
 from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
 
@@ -57,6 +63,7 @@ def get_filtered_expenses(
     date_to: date | None = None,
     payer_id: int | None = None,
     status: str | None = None,
+    search_query: str | None = None,
     limit: int = 100,
 ) -> list[ExpensePublic]:
     """Fetch expenses with optional filters, sorted newest first.
@@ -68,6 +75,7 @@ def get_filtered_expenses(
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
         status: Optional expense status filter (e.g., 'PENDING', 'SETTLED')
+        search_query: Optional keyword search against description and note content (ILIKE)
         limit: Maximum number of results (default 100)
 
     Returns:
@@ -87,6 +95,20 @@ def get_filtered_expenses(
     if status:
         statement = statement.where(ExpenseRow.status == status)
 
+    if search_query:
+        pattern = f"%{search_query}%"
+        statement = (
+            statement.outerjoin(  # type: ignore[call-overload]
+                ExpenseNoteRow,
+                ExpenseNoteRow.expense_id == ExpenseRow.id,  # type: ignore[union-attr]  # ty: ignore[invalid-argument-type]
+            )
+            .where(
+                ExpenseRow.description.ilike(pattern)  # type: ignore[union-attr]
+                | ExpenseNoteRow.content.ilike(pattern)  # type: ignore[union-attr]
+            )
+            .distinct()
+        )
+
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
     ).limit(limit)
@@ -95,7 +117,54 @@ def get_filtered_expenses(
     return [expense_row_to_public(row) for row in rows]
 
 
-def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
+def _filtered_expense_ids_subquery(
+    group_id: int,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    payer_id: int | None = None,
+    search_query: str | None = None,
+):
+    """Build a subquery of ExpenseRow IDs matching optional filters.
+
+    Used by calculate_balance() to avoid row duplication from note joins
+    affecting split-sum calculations.
+    """
+    stmt = select(ExpenseRow.id).where(  # type: ignore[arg-type]
+        ExpenseRow.group_id == group_id,
+        ExpenseRow.status == ExpenseStatus.PENDING,
+        ExpenseRow.status != ExpenseStatus.GIFT,
+    )
+    if date_from:
+        stmt = stmt.where(ExpenseRow.date >= date_from)
+    if date_to:
+        stmt = stmt.where(ExpenseRow.date <= date_to)
+    if payer_id:
+        stmt = stmt.where(ExpenseRow.payer_id == payer_id)
+    if search_query:
+        pattern = f"%{search_query}%"
+        stmt = (
+            stmt.outerjoin(  # type: ignore[call-overload]
+                ExpenseNoteRow,
+                ExpenseNoteRow.expense_id == ExpenseRow.id,  # type: ignore[union-attr]  # ty: ignore[invalid-argument-type]
+            )
+            .where(
+                ExpenseRow.description.ilike(pattern)  # type: ignore[union-attr]
+                | ExpenseNoteRow.content.ilike(pattern)  # type: ignore[union-attr]
+            )
+            .distinct()
+        )
+    return stmt
+
+
+def calculate_balance(
+    session: Session,
+    group_id: int,
+    user_id: int,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    payer_id: int | None = None,
+    search_query: str | None = None,
+) -> dict:
     """Calculate current balance for a group using actual split amounts from expense_splits.
 
     Returns: {
@@ -106,6 +175,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
 
     This query sums from expense_splits table to support all split modes (even, shares,
     percentage, exact). Excludes GIFT status expenses from balance calculation.
+    Optionally filters by date range, payer, and search query.
     """
     # Get group members to identify partner
     members = get_group_members(session, group_id)
@@ -122,6 +192,7 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
 
     # Query all splits for pending expenses in this group
     # Join with expenses to filter by status and get payer info
+    has_filters = any([date_from, date_to, payer_id, search_query])
     statement = (
         select(ExpenseSplitRow, ExpenseRow.payer_id)
         .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
@@ -131,6 +202,11 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
             ExpenseRow.status != ExpenseStatus.GIFT,
         )
     )
+    if has_filters:
+        filtered_ids = _filtered_expense_ids_subquery(
+            group_id, date_from, date_to, payer_id, search_query
+        )
+        statement = statement.where(ExpenseSplitRow.expense_id.in_(filtered_ids))  # type: ignore[union-attr]
     results = session.exec(statement).all()
 
     # Calculate balance from splits
@@ -174,6 +250,10 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         )
         .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))  # ty: ignore[unresolved-attribute]
     )
+    if has_filters:
+        expenses_without_splits = expenses_without_splits.where(
+            ExpenseRow.id.in_(filtered_ids)  # type: ignore[union-attr]
+        )
     legacy_expenses = session.exec(expenses_without_splits).all()
 
     for expense in legacy_expenses:
@@ -201,6 +281,20 @@ def calculate_balance(session: Session, group_id: int, user_id: int) -> dict:
         "is_negative": balance < 0,  # Pre-computed flag for template
         "is_zero": balance == 0,  # Pre-computed flag for template
     }
+
+
+def get_recurring_definition_names(session: Session, definition_ids: list[int]) -> dict[int, str]:
+    """Return {definition_id: name} for the given IDs.
+
+    Used to show recurring source names on expense cards without fetching full definitions.
+    """
+    if not definition_ids:
+        return {}
+    statement = select(RecurringDefinitionRow).where(
+        RecurringDefinitionRow.id.in_(definition_ids)  # type: ignore[union-attr]
+    )
+    rows = session.exec(statement).all()
+    return {row.id: row.name for row in rows if row.id is not None}
 
 
 def get_this_month_total(session: Session, group_id: int) -> Decimal:

@@ -3,14 +3,18 @@
 Verifies that domain models can be persisted and retrieved without data loss.
 """
 
+from datetime import date
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 from sqlmodel import select
 
 from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
 from app.adapters.sqlalchemy.orm_models import AuditRow, MembershipRow, UserRow
+from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
-from app.domain.models import AuditEntry, MemberRole, SplitType
+from app.domain.models import AuditEntry, MemberRole, RecurringFrequency, SplitType
 
 # Dummy actor_id used in tests where the audit entry content is not under test.
 _ACTOR = 1
@@ -341,3 +345,171 @@ class TestAuditAdapterContract:
 
         assert type(entry).__name__ == "AuditEntry"
         assert not isinstance(entry, AuditRow)
+
+
+class TestRecurringDefinitionAdapterContract:
+    """Contract tests for RecurringDefinition adapter round-trip mapping."""
+
+    def _make_adapter(self, session: Session) -> SqlAlchemyRecurringDefinitionAdapter:
+        audit = SqlAlchemyAuditAdapter(session)
+        return SqlAlchemyRecurringDefinitionAdapter(session, audit)
+
+    def _make_group_and_payer(self, session: Session):
+        """Create a test group and user for use as payer_id/group_id."""
+        from tests.conftest import create_test_group, create_test_user
+
+        user = create_test_user(session, "auth0|contract_recurring", "recurring@example.com")
+        group = create_test_group(session, user.id)
+        return group, user
+
+    def test_save_and_retrieve_by_id(self, db_session: Session):
+        """RecurringDefinition can be saved and retrieved by ID with all fields preserved."""
+        from app.domain.models import RecurringDefinitionPublic
+
+        group, user = self._make_group_and_payer(db_session)
+        adapter = self._make_adapter(db_session)
+
+        defn = adapter.save(
+            RecurringDefinitionPublic.model_construct(
+                id=0,
+                group_id=group.id,
+                name="Netflix",
+                amount=Decimal("14.99"),
+                frequency=RecurringFrequency.MONTHLY,
+                next_due_date=date(2026, 4, 1),
+                payer_id=user.id,
+                split_type=SplitType.EVEN,
+                currency="EUR",
+            ),
+            actor_id=user.id,
+        )
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(defn.id)
+
+        assert retrieved is not None
+        assert retrieved.id == defn.id
+        assert retrieved.name == "Netflix"
+        assert retrieved.amount == Decimal("14.99")
+        assert retrieved.frequency == RecurringFrequency.MONTHLY
+        assert retrieved.next_due_date == date(2026, 4, 1)
+        assert retrieved.split_type == SplitType.EVEN
+        assert retrieved.currency == "EUR"
+        assert retrieved.deleted_at is None
+        assert retrieved.created_at is not None
+        assert retrieved.updated_at is not None
+
+    def test_save_with_split_config_round_trip(self, db_session: Session):
+        """split_config dict is persisted and retrieved without data loss."""
+        from app.domain.models import RecurringDefinitionPublic
+
+        group, user = self._make_group_and_payer(db_session)
+        adapter = self._make_adapter(db_session)
+
+        split_config = {"1": "60", "2": "40"}
+        defn = adapter.save(
+            RecurringDefinitionPublic.model_construct(
+                id=0,
+                group_id=group.id,
+                name="Electricity",
+                amount=Decimal("75.00"),
+                frequency=RecurringFrequency.MONTHLY,
+                next_due_date=date(2026, 4, 28),
+                payer_id=user.id,
+                split_type=SplitType.PERCENTAGE,
+                split_config=split_config,
+                currency="EUR",
+            ),
+            actor_id=user.id,
+        )
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(defn.id)
+
+        assert retrieved is not None
+        assert retrieved.split_config == split_config
+
+    def test_save_every_n_months_round_trip(self, db_session: Session):
+        """EVERY_N_MONTHS frequency with interval_months is preserved."""
+        from app.domain.models import RecurringDefinitionPublic
+
+        group, user = self._make_group_and_payer(db_session)
+        adapter = self._make_adapter(db_session)
+
+        defn = adapter.save(
+            RecurringDefinitionPublic.model_construct(
+                id=0,
+                group_id=group.id,
+                name="Car Insurance",
+                amount=Decimal("340.00"),
+                frequency=RecurringFrequency.EVERY_N_MONTHS,
+                interval_months=6,
+                next_due_date=date(2026, 4, 15),
+                payer_id=user.id,
+                split_type=SplitType.EVEN,
+                currency="EUR",
+            ),
+            actor_id=user.id,
+        )
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(defn.id)
+
+        assert retrieved is not None
+        assert retrieved.frequency == RecurringFrequency.EVERY_N_MONTHS
+        assert retrieved.interval_months == 6
+
+    def test_soft_delete_sets_deleted_at(self, db_session: Session):
+        """soft_delete() sets deleted_at; row is not removed from DB."""
+        from app.domain.models import RecurringDefinitionPublic
+
+        group, user = self._make_group_and_payer(db_session)
+        adapter = self._make_adapter(db_session)
+
+        defn = adapter.save(
+            RecurringDefinitionPublic.model_construct(
+                id=0,
+                group_id=group.id,
+                name="To Be Deleted",
+                amount=Decimal("9.99"),
+                frequency=RecurringFrequency.MONTHLY,
+                next_due_date=date(2026, 4, 1),
+                payer_id=user.id,
+                split_type=SplitType.EVEN,
+                currency="EUR",
+            ),
+            actor_id=user.id,
+        )
+        db_session.commit()
+
+        adapter.soft_delete(defn.id, actor_id=user.id)
+        db_session.commit()
+
+        retrieved = adapter.get_by_id(defn.id)
+        assert retrieved is not None
+        assert retrieved.deleted_at is not None
+
+    def test_row_never_leaves_adapter(self, db_session: Session):
+        """adapter returns RecurringDefinitionPublic, not RecurringDefinitionRow."""
+        from app.domain.models import RecurringDefinitionPublic
+
+        group, user = self._make_group_and_payer(db_session)
+        adapter = self._make_adapter(db_session)
+
+        defn = adapter.save(
+            RecurringDefinitionPublic.model_construct(
+                id=0,
+                group_id=group.id,
+                name="Boundary Test",
+                amount=Decimal("9.99"),
+                frequency=RecurringFrequency.MONTHLY,
+                next_due_date=date(2026, 4, 1),
+                payer_id=user.id,
+                split_type=SplitType.EVEN,
+                currency="EUR",
+            ),
+            actor_id=user.id,
+        )
+        db_session.commit()
+
+        assert type(defn).__name__ == "RecurringDefinitionPublic"

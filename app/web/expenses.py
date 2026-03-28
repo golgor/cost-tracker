@@ -14,6 +14,7 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import (
     calculate_balance,
     get_filtered_expenses,
     get_group_members,
+    get_recurring_definition_names,
     get_this_month_total,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
@@ -54,8 +55,15 @@ def _parse_date_filters(
     return date_from_parsed, date_to_parsed
 
 
-def _build_expense_count_message(expense_count: int) -> str:
+def _build_expense_count_message(expense_count: int, search_query: str | None = None) -> str:
     """Build human-readable expense count message."""
+    if search_query:
+        if expense_count == 0:
+            return f'No expenses match "{search_query}"'
+        elif expense_count == 1:
+            return f'Showing 1 result for "{search_query}"'
+        else:
+            return f'Showing {expense_count} results for "{search_query}"'
     if expense_count == 0:
         return "No expenses"
     elif expense_count == 1:
@@ -188,32 +196,16 @@ async def get_split_preview(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
+    amount_str: Annotated[str, Form(alias="amount")] = "0",
+    split_type: Annotated[str, Form()] = "even",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "{}",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
 ):
     """Calculate and return split preview HTML (HTMX endpoint).
 
     Receives form data via POST and returns calculated split amounts.
     Uses the same split strategies as the expense creation use case.
     """
-    # Parse form data (use cached form from CSRF middleware if available)
-    if hasattr(request.state, "_cached_form"):
-        form = request.state._cached_form
-    else:
-        form = await request.form()
-
-    amount_str = form.get("amount", "0")
-    split_type = form.get("split_type", "even")
-    split_config_json = form.get("split_config", "{}")
-    payer_id_str = form.get("payer_id", "")
-
-    # Validate form values are strings (not UploadFile)
-    if not isinstance(amount_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: amount")
-    if not isinstance(split_type, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: split_type")
-    if not isinstance(split_config_json, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: split_config")
-    if not isinstance(payer_id_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
 
     # Parse amount
     try:
@@ -338,13 +330,13 @@ async def create_expense_endpoint(
     request: Request,
     user_id: CurrentUserId,
     uow: UowDep,
-    amount: str = Form(...),
-    description: str = Form(""),
-    date_str: str = Form(..., alias="date"),
-    payer_id: int = Form(...),
-    currency: str = Form("EUR"),
-    split_type: str = Form("even"),
-    split_config_json: str = Form(""),
+    amount: Annotated[str, Form()],
+    date_str: Annotated[str, Form(alias="date")],
+    payer_id: Annotated[int, Form()],
+    description: Annotated[str, Form()] = "",
+    currency: Annotated[str, Form()] = "EUR",
+    split_type: Annotated[str, Form()] = "even",
+    split_config_json: Annotated[str, Form(alias="split_config")] = "",
 ):
     """Create new expense (HTMX endpoint for mobile/desktop)."""
 
@@ -522,6 +514,7 @@ async def expenses_list(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
 ):
     """Dedicated expenses list page with filtering.
 
@@ -547,6 +540,7 @@ async def expenses_list(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="PENDING",
+            search_query=search_query or None,
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
@@ -555,10 +549,19 @@ async def expenses_list(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="SETTLED",
+            search_query=search_query or None,
         )
 
-        # Get balance data
-        balance_data = calculate_balance(uow.session, group.id, user_id)
+        # Get balance data (filtered when filters are active)
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
 
         # Get this month total
         this_month_total = get_this_month_total(uow.session, group.id)
@@ -574,9 +577,17 @@ async def expenses_list(
             if user_obj:
                 users_by_id[uid] = user_obj
 
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
-    count_message = _build_expense_count_message(total_expenses)
+    active_search = search_query.strip() if search_query else None
+    count_message = _build_expense_count_message(total_expenses, active_search)
 
     # Check if any filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -599,6 +610,9 @@ async def expenses_list(
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
+            "recurring_names": recurring_names,
             # Filter values for form persistence
             "filter_date_from": date_from or "",
             "filter_date_to": date_to or "",
@@ -615,6 +629,7 @@ async def expenses_filtered(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
 ):
     """HTMX endpoint for filtered expense feed partial.
 
@@ -628,6 +643,7 @@ async def expenses_filtered(
 
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+        active_search = search_query.strip() if search_query else None
         unsettled_expenses = get_filtered_expenses(
             uow.session,
             group.id,
@@ -635,6 +651,7 @@ async def expenses_filtered(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="PENDING",
+            search_query=active_search,
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
@@ -643,6 +660,7 @@ async def expenses_filtered(
             date_to=date_to_parsed,
             payer_id=payer_id,
             status="SETTLED",
+            search_query=active_search,
         )
 
         # Get user details
@@ -653,9 +671,16 @@ async def expenses_filtered(
             if user_obj:
                 users_by_id[member.user_id] = user_obj
 
+        # Collect recurring definition IDs for name lookup
+        all_expenses = unsettled_expenses + settled_expenses
+        definition_ids = [
+            e.recurring_definition_id for e in all_expenses if e.recurring_definition_id is not None
+        ]
+        recurring_names = get_recurring_definition_names(uow.session, definition_ids)
+
     # Result count message
     total_expenses = len(unsettled_expenses) + len(settled_expenses)
-    count_message = _build_expense_count_message(total_expenses)
+    count_message = _build_expense_count_message(total_expenses, active_search)
 
     # Check if filters are active
     has_active_filters = _has_active_expense_filters(date_from, date_to, payer_id)
@@ -670,7 +695,60 @@ async def expenses_filtered(
             "current_user_id": user_id,
             "count_message": count_message,
             "has_active_filters": has_active_filters,
+            "has_active_search": bool(active_search),
+            "search_query": active_search or "",
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "recurring_names": recurring_names,
+        },
+    )
+
+
+@router.get("/expenses/balance", response_class=HTMLResponse)
+async def expenses_balance(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    payer_id: int | None = Query(None),
+    search_query: str | None = Query(None),
+):
+    """HTMX endpoint for filtered balance bar partial."""
+    with uow:
+        user = uow.users.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        group = uow.groups.get_by_user_id(user_id)
+        if not group:
+            raise HTTPException(status_code=404, detail="User has no group")
+
+        date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
+
+        balance_data = calculate_balance(
+            uow.session,
+            group.id,
+            user_id,
+            date_from=date_from_parsed,
+            date_to=date_to_parsed,
+            payer_id=payer_id,
+            search_query=search_query.strip() if search_query else None,
+        )
+
+        members = get_group_members(uow.session, group.id)
+        users_by_id = {}
+        for member in members:
+            user_obj = uow.users.get_by_id(member.user_id)
+            if user_obj:
+                users_by_id[member.user_id] = user_obj
+
+    return templates.TemplateResponse(
+        request,
+        "expenses/_balance_bar.html",
+        {
+            "balance": balance_data,
+            "user": user,
+            "users": users_by_id,
         },
     )
 
@@ -709,6 +787,19 @@ async def get_expense_detail(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
+    # Fetch actual split rows and build view-model list
+    raw_splits = uow.expenses.get_splits(expense.id)
+    splits_display = [
+        {
+            "display_name": users_dict[s.user_id].display_name
+            if s.user_id in users_dict
+            else f"User {s.user_id}",
+            "amount": s.amount,
+        }
+        for s in raw_splits
+    ]
+    split_type_label = expense.split_type.value.title()
+
     return templates.TemplateResponse(
         request,
         "expenses/_expense_card_expanded.html",
@@ -721,6 +812,8 @@ async def get_expense_detail(
             "current_user_id": user_id,
             "group": group,
             "is_settled": expense.status == "SETTLED",
+            "splits_display": splits_display,
+            "split_type_label": split_type_label,
         },
     )
 
@@ -798,6 +891,13 @@ async def edit_expense_page(
         if user_obj:
             users_dict[member.user_id] = user_obj
 
+    # Get current splits for pre-populating split config
+    current_splits = uow.expenses.get_splits(expense.id)
+    split_config_dict = {}
+    for s in current_splits:
+        if s.share_value is not None:
+            split_config_dict[s.user_id] = str(s.share_value)
+
     return templates.TemplateResponse(
         request,
         "expenses/_edit_modal.html",
@@ -810,6 +910,7 @@ async def edit_expense_page(
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
             "currency_symbol": _get_currency_symbol(group.default_currency),
+            "split_config": split_config_dict,
         },
     )
 
@@ -822,6 +923,7 @@ class UpdateExpenseForm(BaseModel):
     date: date
     payer_id: int
     currency: str = Field(max_length=3)
+    split_type: str = Field(default="even")
 
 
 @router.post("/expenses/{expense_id}/update", response_class=HTMLResponse)
@@ -830,32 +932,15 @@ async def update_expense_endpoint(
     expense_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    amount: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    date_str: Annotated[str, Form(alias="date")] = "",
+    payer_id_str: Annotated[str, Form(alias="payer_id")] = "",
+    currency: Annotated[str, Form()] = "",
+    split_type_str: Annotated[str, Form(alias="split_type")] = "even",
+    split_config_raw: Annotated[str, Form(alias="split_config")] = "",
 ):
     """Update expense (form submission)."""
-    # Parse form data (use cached form from CSRF middleware if available)
-    if hasattr(request.state, "_cached_form"):
-        form = request.state._cached_form
-    else:
-        form = await request.form()
-
-    amount = form.get("amount", "")
-    description = form.get("description", "")
-    date_str = form.get("date", "")
-    payer_id_str = form.get("payer_id", "")
-    currency = form.get("currency", "")
-
-    # Validate form values are strings (not UploadFile)
-    if not isinstance(amount, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: amount")
-    if not isinstance(description, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: description")
-    if not isinstance(date_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: date")
-    if not isinstance(payer_id_str, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: payer_id")
-    if not isinstance(currency, str):
-        raise HTTPException(status_code=400, detail="Invalid form field: currency")
-
     # Convert payer_id to int
     try:
         payer_id = int(payer_id_str) if payer_id_str else None
@@ -916,12 +1001,23 @@ async def update_expense_endpoint(
                 date=expense_date,
                 payer_id=payer_id,
                 currency=currency,
+                split_type=split_type_str if isinstance(split_type_str, str) else "even",
             )
     except ValidationError as e:
         for error in e.errors():
             field = str(error["loc"][0])
             errors[field] = error["msg"]
         form_data = None
+
+    # Parse split_config from JSON
+    split_config: dict[int, Decimal] | None = None
+    if isinstance(split_type_str, str) and split_type_str.upper() != "EVEN" and split_config_raw:
+        try:
+            config_str = split_config_raw if isinstance(split_config_raw, str) else ""
+            config_data = json.loads(config_str) if config_str else {}
+            split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
+        except json.JSONDecodeError, ValueError:
+            errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors
     if errors or form_data is None:
@@ -947,6 +1043,7 @@ async def update_expense_endpoint(
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
                 "currency_symbol": _get_currency_symbol(group.default_currency),
+                "split_config": {},
             },
             status_code=400,
         )
@@ -955,6 +1052,11 @@ async def update_expense_endpoint(
     from app.domain.use_cases.expenses import update_expense
 
     with uow:
+        # Get member IDs for split recalculation
+        group = uow.groups.get_by_user_id(user_id)
+        group_members = get_group_members(uow.session, group.id) if group else []
+        member_ids = [m.user_id for m in group_members]
+
         update_expense(
             uow=uow,
             expense_id=expense_id,
@@ -964,6 +1066,9 @@ async def update_expense_endpoint(
             payer_id=form_data.payer_id,
             currency=form_data.currency,
             actor_id=user_id,
+            split_type=form_data.split_type,
+            split_config=split_config,
+            member_ids=member_ids,
         )
 
     # Redirect to expense list with success message
@@ -1065,14 +1170,13 @@ async def add_expense_note(
     expense_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    content: Annotated[str, Form()] = "",
 ):
     """Add a note to an expense (HTMX endpoint).
 
     Returns updated notes section HTML.
     """
-    # Get form data
-    form_data = await request.form()
-    content = str(form_data.get("content", "")).strip()
+    content = content.strip()
 
     if not content:
         return HTMLResponse(
@@ -1165,15 +1269,14 @@ async def edit_expense_note(
     note_id: int,
     user_id: CurrentUserId,
     uow: UowDep,
+    content: Annotated[str, Form()] = "",
 ):
     """Edit an expense note (HTMX endpoint).
 
     Only the author can edit their own notes.
     Returns updated notes section HTML.
     """
-    # Get form data
-    form_data = await request.form()
-    content = str(form_data.get("content", "")).strip()
+    content = content.strip()
 
     if not content:
         return HTMLResponse(
