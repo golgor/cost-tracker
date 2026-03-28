@@ -425,25 +425,96 @@ Architecture tests run with all tests, but could be a separate fast job that cat
 
 ---
 
+### F-33: Duplicate query in `save_splits` — result discarded
+
+**File:** `app/adapters/sqlalchemy/expense_adapter.py:161`
+
+```python
+self._session.exec(select(ExpenseSplitRow).where(...))  # line 161 — result discarded
+existing = self._session.exec(                           # line 162 — same query, kept
+    select(ExpenseSplitRow).where(...)
+).all()
+```
+
+The first `exec()` on line 161 runs the query and throws away the result. This is a bug — it should be removed.
+
+---
+
+### F-34: Redundant filter condition in `_filtered_expense_ids_subquery`
+
+**File:** `app/adapters/sqlalchemy/queries/dashboard_queries.py:134-135`
+
+```python
+ExpenseRow.status == ExpenseStatus.PENDING,
+ExpenseRow.status != ExpenseStatus.GIFT,    # redundant — already excluded by PENDING check
+```
+
+The second condition is dead code since `status == PENDING` already excludes GIFT.
+
+---
+
+### F-35: No deactivated-user check in AuthMiddleware
+
+**File:** `app/auth/middleware.py`
+
+`AuthMiddleware` validates the session cookie and extracts `user_id`, but never checks if the user is still active. A deactivated user with a valid (non-expired) session cookie can continue using the app until the cookie expires.
+
+The deactivation check only happens during OIDC login callback (`provision_user`), not on subsequent requests.
+
+**Fix:** Add an active-user check in middleware (with caching to avoid per-request DB lookups), or invalidate sessions on deactivation.
+
+---
+
+### F-36: Duplicate `_calculate_splits` function in web layer
+
+**Files:** `app/domain/use_cases/expenses.py` (~line 132), `app/web/expenses.py` (~line 285)
+
+The split calculation logic (strategy selection, share computation) exists in both the use case layer and the web handler layer (for split preview). These are structurally identical and should be consolidated.
+
+**Fix:** Use the domain function from the web handler, or extract a shared helper in the domain layer.
+
+---
+
+### F-37: `expenses.py` is 1353 lines — too large for single module
+
+**File:** `app/web/expenses.py`
+
+Contains: expense list, creation (mobile + desktop forms), detail/edit, deletion, note CRUD, split preview, balance bar, feed filtering. This makes the file hard to navigate and review.
+
+**Fix:** Split into sub-modules: `expense_crud.py`, `expense_partials.py`, `expense_notes.py`.
+
+---
+
+### F-38: Note CRUD methods missing from `ExpensePort` protocol
+
+**Files:** `app/domain/ports.py`, `app/adapters/sqlalchemy/expense_adapter.py`
+
+`SqlAlchemyExpenseAdapter` has methods `save_note`, `update_note`, `delete_note`, `list_notes_by_expense` that are NOT declared in `ExpensePort`. The web layer calls these through the concrete adapter type, bypassing the port abstraction.
+
+**Fix:** Either add note methods to `ExpensePort`, or create a separate `ExpenseNotePort`.
+
+---
+
 ## Priority Matrix
 
 | Priority | Count | Action |
 |----------|-------|--------|
-| P1 | 6 | Must fix before deployment |
-| P2 | 18 | Should fix for maintainability |
+| P1 | 8 | Must fix before deployment |
+| P2 | 22 | Should fix for maintainability |
 | P3 | 8 | Nice to have |
 
 ## Suggested Implementation Order
 
 1. **F-01, F-24** — Fix Python 2 exception syntax (immediate, all files affected)
-2. **F-02** — Add timing-safe comparisons (security)
-3. **F-03** — Fix incomplete mappings.py (data correctness)
+2. **F-02, F-35** — Add timing-safe comparisons + deactivated user check (security)
+3. **F-03, F-33** — Fix incomplete mappings.py + duplicate query bug (data correctness)
 4. **F-06** — Dockerfile non-root user (security)
 5. **F-05** — Fix audit snapshot logic (data integrity)
-6. **F-04** — Fix count query (minor efficiency)
+6. **F-04, F-34** — Fix count query + redundant filter (correctness)
 7. **F-07** — Squash migrations (clean slate opportunity)
 8. **F-08, F-09** — Decide on ENUM strategy (architectural)
 9. **F-19** — Add missing indexes (performance)
-10. **F-10, F-11** — Fix port interface types (maintainability)
-11. Remaining P2 items grouped by affected area
-12. P3 items as time permits
+10. **F-10, F-11, F-38** — Fix port interface types + note methods (maintainability)
+11. **F-36, F-37** — Consolidate duplicated code + split large file
+12. Remaining P2 items grouped by affected area
+13. P3 items as time permits
