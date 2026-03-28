@@ -126,12 +126,8 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn_active = adapter.save(
-            _make_definition(group.id, user.id, name="Active")
-        )
-        defn_to_delete = adapter.save(
-            _make_definition(group.id, user.id, name="ToDelete")
-        )
+        defn_active = adapter.save(_make_definition(group.id, user.id, name="Active"))
+        defn_to_delete = adapter.save(_make_definition(group.id, user.id, name="ToDelete"))
         db_session.commit()
 
         adapter.soft_delete(defn_to_delete.id)
@@ -151,9 +147,7 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(
-            _make_definition(group.id, user.id, name="WillDelete")
-        )
+        defn = adapter.save(_make_definition(group.id, user.id, name="WillDelete"))
         db_session.commit()
 
         adapter.soft_delete(defn.id)

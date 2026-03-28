@@ -20,9 +20,7 @@ class SqlAlchemyRecurringDefinitionAdapter:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def save(
-        self, definition: RecurringDefinitionPublic
-    ) -> RecurringDefinitionPublic:
+    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         row = RecurringDefinitionRow(
             group_id=definition.group_id,

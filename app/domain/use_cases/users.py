@@ -9,9 +9,7 @@ from app.domain.models import UserPublic, UserRole
 from app.domain.ports import UnitOfWorkPort
 
 
-def provision_user(
-    uow: UnitOfWorkPort, oidc_sub: str, email: str, display_name: str
-) -> UserPublic:
+def provision_user(uow: UnitOfWorkPort, oidc_sub: str, email: str, display_name: str) -> UserPublic:
     """Provision a user - create if new, update if exists. Enforces deactivation block.
 
     Returns the provisioned user if active, raises DeactivatedUserAccessDenied if deactivated.
@@ -31,9 +29,7 @@ def provision_user(
     return user
 
 
-def bootstrap_first_admin(
-    uow: UnitOfWorkPort, user_id: int
-) -> tuple[UserPublic, bool]:
+def bootstrap_first_admin(uow: UnitOfWorkPort, user_id: int) -> tuple[UserPublic, bool]:
     """Promote the first user to admin if no active admin exists.
 
     Returns tuple of (user, was_promoted) where was_promoted is True if this user

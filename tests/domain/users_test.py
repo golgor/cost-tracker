@@ -166,9 +166,7 @@ class TestBootstrapFirstAdmin:
             )
 
         with uow:
-            promoted_user, was_promoted = user_use_cases.bootstrap_first_admin(
-                uow, user.id
-            )
+            promoted_user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id)
 
         assert was_promoted is True
         assert promoted_user.role == UserRole.ADMIN
@@ -191,9 +189,7 @@ class TestBootstrapFirstAdmin:
 
         # Bootstrap second user - should not be promoted
         with uow:
-            result_user, was_promoted = user_use_cases.bootstrap_first_admin(
-                uow, second.id
-            )
+            result_user, was_promoted = user_use_cases.bootstrap_first_admin(uow, second.id)
 
         assert was_promoted is False
         assert result_user.role == UserRole.USER

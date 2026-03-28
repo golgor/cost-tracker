@@ -189,9 +189,7 @@ class TestUpdateRecurringDefinition:
         defn = _create(uow, group.id, user.id, name="Old Name")
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, name="New Name"
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, name="New Name")
         uow.session.commit()
 
         assert updated.name == "New Name"
@@ -207,9 +205,7 @@ class TestUpdateRecurringDefinition:
         defn = _create(uow, group.id, user.id, amount=Decimal("14.99"))
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, amount=Decimal("19.99")
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, amount=Decimal("19.99"))
         uow.session.commit()
 
         assert updated.amount == Decimal("19.99")
@@ -273,9 +269,7 @@ class TestUpdateRecurringDefinition:
         )
         uow.session.commit()
 
-        updated = update_recurring_definition(
-            uow, definition_id=defn.id, name="Netflix Plus"
-        )
+        updated = update_recurring_definition(uow, definition_id=defn.id, name="Netflix Plus")
         uow.session.commit()
 
         assert updated.amount == Decimal("14.99")

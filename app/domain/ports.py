@@ -209,9 +209,7 @@ class SettlementPort(Protocol):
 class RecurringDefinitionPort(Protocol):
     """Port for RecurringDefinition persistence operations."""
 
-    def save(
-        self, definition: RecurringDefinitionPublic
-    ) -> RecurringDefinitionPublic:
+    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         ...
 

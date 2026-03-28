@@ -283,5 +283,3 @@ class TestUserProfileViewModel:
         vm = UserProfileViewModel.from_domain(regular_user)
 
         assert vm.is_admin is False
-
-

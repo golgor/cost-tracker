@@ -114,5 +114,3 @@ def test_create_expense_group_not_found():
             payer_id=2,
             member_ids=[1, 2],
         )
-
-

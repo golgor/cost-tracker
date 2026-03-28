@@ -233,9 +233,7 @@ def generate_pending_expenses(
 
     created: list[ExpensePublic] = []
     for definition in definitions:
-        expense = create_expense_from_definition(
-            uow, definition, is_auto_generated=True
-        )
+        expense = create_expense_from_definition(uow, definition, is_auto_generated=True)
         created.append(expense)
     return created
 

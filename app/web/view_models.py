@@ -89,5 +89,3 @@ class UserProfileViewModel(BaseModel):
             avatar_initial=user.display_name[0].upper() if user.display_name else "U",
             is_admin=user.role == UserRole.ADMIN,
         )
-
-
