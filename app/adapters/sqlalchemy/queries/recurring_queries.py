@@ -44,10 +44,15 @@ def _build_definition_view(
     payer_display_name = payer.display_name if payer else "Unknown"
     payer_initials = _initials(payer_display_name) if payer else "?"
 
-    monthly_cost = normalized_monthly_cost(row.amount, row.frequency, row.interval_months)
+    frequency = (
+        row.frequency
+        if isinstance(row.frequency, RecurringFrequency)
+        else RecurringFrequency(row.frequency)
+    )
+    monthly_cost = normalized_monthly_cost(row.amount, frequency, row.interval_months)
 
-    frequency_label = _FREQUENCY_LABELS.get(row.frequency, row.frequency.value.lower())
-    if row.frequency == RecurringFrequency.EVERY_N_MONTHS and row.interval_months:
+    frequency_label = _FREQUENCY_LABELS.get(frequency, frequency.value.lower())
+    if frequency == RecurringFrequency.EVERY_N_MONTHS and row.interval_months:
         frequency_label = f"every {row.interval_months} months"
 
     return {
@@ -157,7 +162,8 @@ def get_registry_summary(
 
     active_count = len(rows)
     total = sum(
-        normalized_monthly_cost(row.amount, row.frequency, row.interval_months) for row in rows
+        normalized_monthly_cost(row.amount, RecurringFrequency(row.frequency), row.interval_months)
+        for row in rows
     )
 
     return {

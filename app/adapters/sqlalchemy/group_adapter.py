@@ -147,7 +147,9 @@ class SqlAlchemyGroupAdapter:
             MembershipRow.group_id == group_id,
         )
         role = self._session.exec(statement).first()
-        return role if isinstance(role, MemberRole) else None
+        if role is None:
+            return None
+        return MemberRole(role) if not isinstance(role, MemberRole) else role
 
     def _to_public(self, row: GroupRow) -> GroupPublic:
         """Convert ORM row to public domain model. Row never leaves adapter."""
