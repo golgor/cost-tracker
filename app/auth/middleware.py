@@ -119,7 +119,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 await request.body()
                 form = await request.form()
                 form_token = form.get(CSRF_FORM_FIELD)
-                if form_token and hmac.compare_digest(form_token, expected_token):
+                if isinstance(form_token, str) and hmac.compare_digest(form_token, expected_token):
                     return True
             except Exception:
                 pass
