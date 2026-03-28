@@ -34,10 +34,12 @@ echo 'except (InvalidOperation, ValueError):' | ruff format
 
 **Impact:** These modules cannot be imported. The application will crash on startup with `SyntaxError: multiple exception types must be parenthesized`.
 
+**Why ruff check doesn't catch it:** ruff uses its own Rust-based parser that accepts `except X, Y:` as valid syntax. ruff also removed the `E999` (SyntaxError) rule. So neither `ruff format` nor `ruff check` will detect the problem — only CPython's parser rejects it.
+
 **Fix:**
 1. Restore parentheses in all 9 locations: `except (InvalidOperation, ValueError):`
-2. File a bug against ruff (https://github.com/astral-sh/ruff)
-3. Consider pinning ruff to a version without this bug, or adding a post-format check
+2. Add `python -m compileall -q app/` to the lint pipeline (catches any SyntaxError ruff misses)
+3. File a bug against ruff (https://github.com/astral-sh/ruff) — format should not strip required except-clause parentheses
 
 ---
 
