@@ -20,9 +20,8 @@ def admin_user(uow: UnitOfWork):
             oidc_sub="admin@test.com",
             email="admin@test.com",
             display_name="Admin User",
-            actor_id=1,
         )
-        admin = uow.users.promote_to_admin(user.id, actor_id=user.id)
+        admin = uow.users.promote_to_admin(user.id)
     return admin
 
 
@@ -34,7 +33,6 @@ def regular_user(uow: UnitOfWork):
             oidc_sub="user@test.com",
             email="user@test.com",
             display_name="Regular User",
-            actor_id=2,
         )
     return user
 
@@ -50,7 +48,7 @@ class TestPromoteUserPersistence:
 
         # Call use case within context manager (simulating endpoint behavior)
         with uow:
-            user_use_cases.promote_user_to_admin(uow, regular_user.id, actor_id=admin_user.id)
+            user_use_cases.promote_user_to_admin(uow, regular_user.id)
 
         # Fresh lookup to verify persisted
         user_after = uow.users.get_by_id(regular_user.id)
@@ -68,9 +66,8 @@ class TestDemoteUserPersistence:
                 oidc_sub="admin2@test.com",
                 email="admin2@test.com",
                 display_name="Second Admin",
-                actor_id=99,
             )
-            second_admin = uow.users.promote_to_admin(second_admin.id, actor_id=second_admin.id)
+            second_admin = uow.users.promote_to_admin(second_admin.id)
 
         # Verify admin before
         user_before = uow.users.get_by_id(second_admin.id)
@@ -78,7 +75,7 @@ class TestDemoteUserPersistence:
 
         # Call demote
         with uow:
-            user_use_cases.demote_user_to_regular(uow, second_admin.id, actor_id=admin_user.id)
+            user_use_cases.demote_user_to_regular(uow, second_admin.id)
 
         # Verify persisted to regular
         user_after = uow.users.get_by_id(second_admin.id)
@@ -96,7 +93,7 @@ class TestDeactivateUserPersistence:
 
         # Call deactivate
         with uow:
-            user_use_cases.deactivate_user(uow, regular_user.id, actor_id=admin_user.id)
+            user_use_cases.deactivate_user(uow, regular_user.id)
 
         # Verify persisted as inactive
         user_after = uow.users.get_by_id(regular_user.id)
@@ -110,7 +107,7 @@ class TestReactivateUserPersistence:
         """Reactivating user persists is_active=True to database."""
         # First deactivate
         with uow:
-            uow.users.deactivate(regular_user.id, actor_id=admin_user.id)
+            uow.users.deactivate(regular_user.id)
 
         # Verify inactive
         user_inactive = uow.users.get_by_id(regular_user.id)
@@ -118,7 +115,7 @@ class TestReactivateUserPersistence:
 
         # Call reactivate
         with uow:
-            user_use_cases.reactivate_user(uow, regular_user.id, actor_id=admin_user.id)
+            user_use_cases.reactivate_user(uow, regular_user.id)
 
         # Verify persisted as active
         user_after = uow.users.get_by_id(regular_user.id)

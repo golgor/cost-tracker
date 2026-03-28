@@ -1,7 +1,5 @@
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import snapshot_new
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
     SettlementExpenseRow,
@@ -14,19 +12,16 @@ from app.domain.models import ExpenseStatus, SettlementPublic, SettlementTransac
 class SqlAlchemySettlementAdapter:
     """SQLAlchemy adapter implementing SettlementPort."""
 
-    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._audit = audit
 
     def save(
         self,
         settlement: SettlementPublic,
         expense_ids: list[int],
         transactions: list[SettlementTransactionPublic],
-        *,
-        actor_id: int,
     ) -> SettlementPublic:
-        """Create a new settlement with linked expenses and transactions. Auto-audits."""
+        """Create a new settlement with linked expenses and transactions."""
         row = SettlementRow(
             group_id=settlement.group_id,
             reference_id=settlement.reference_id,
@@ -34,7 +29,6 @@ class SqlAlchemySettlementAdapter:
             settled_at=settlement.settled_at,
         )
 
-        changes = snapshot_new(row, exclude={"id", "created_at"})
         self._session.add(row)
         self._session.flush()
 
@@ -63,26 +57,6 @@ class SqlAlchemySettlementAdapter:
             expense_row.status = ExpenseStatus.SETTLED
 
         self._session.flush()
-
-        changes["expense_ids"] = {"old": None, "new": expense_ids}
-        changes["transactions"] = {
-            "old": None,
-            "new": [
-                {
-                    "from_user_id": tx.from_user_id,
-                    "to_user_id": tx.to_user_id,
-                    "amount": str(tx.amount),
-                }
-                for tx in transactions
-            ],
-        }
-        self._audit.log(
-            action="settlement_confirmed",
-            actor_id=actor_id,
-            entity_type="settlement",
-            entity_id=settlement_id,
-            changes=changes,
-        )
 
         return self._to_public(row)
 

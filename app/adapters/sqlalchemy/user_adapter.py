@@ -3,8 +3,6 @@ from datetime import UTC
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import UserRow
 from app.domain.errors import (
     UserAlreadyActive,
@@ -19,9 +17,8 @@ from app.domain.models import UserPublic, UserRole
 class SqlAlchemyUserAdapter:
     """SQLAlchemy adapter implementing UserPort."""
 
-    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._audit = audit
 
     def get_by_id(self, user_id: int) -> UserPublic | None:
         """Retrieve user by database ID."""
@@ -38,25 +35,15 @@ class SqlAlchemyUserAdapter:
             return None
         return self._to_public(row)
 
-    def save(self, oidc_sub: str, email: str, display_name: str, *, actor_id: int) -> UserPublic:
-        """Create or update a user. Returns the persisted user. Auto-audits."""
+    def save(self, oidc_sub: str, email: str, display_name: str) -> UserPublic:
+        """Create or update a user. Returns the persisted user."""
         existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).first()
 
         if existing:
             existing.email = email
             existing.display_name = display_name
-            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
-            if changes:
-                assert existing.id is not None  # guaranteed after flush
-                self._audit.log(
-                    action="user_updated",
-                    actor_id=actor_id,
-                    entity_type="user",
-                    entity_id=existing.id,
-                    changes=changes,
-                )
             return self._to_public(existing)
 
         row = UserRow(
@@ -64,7 +51,6 @@ class SqlAlchemyUserAdapter:
             email=email,
             display_name=display_name,
         )
-        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at"})
         self._session.add(row)
         try:
             self._session.flush()
@@ -75,32 +61,14 @@ class SqlAlchemyUserAdapter:
             existing = self._session.exec(select(UserRow).where(UserRow.oidc_sub == oidc_sub)).one()
             existing.email = email
             existing.display_name = display_name
-            changes = compute_changes(existing)
             self._session.add(existing)
             self._session.flush()
-            if changes:
-                assert existing.id is not None  # guaranteed after flush
-                self._audit.log(
-                    action="user_updated",
-                    actor_id=actor_id,
-                    entity_type="user",
-                    entity_id=existing.id,
-                    changes=changes,
-                )
             return self._to_public(existing)
 
-        assert row.id is not None  # guaranteed after flush
-        self._audit.log(
-            action="user_created",
-            actor_id=actor_id,
-            entity_type="user",
-            entity_id=row.id,
-            changes=changes,
-        )
         return self._to_public(row)
 
-    def promote_to_admin(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Promote user to admin role. Auto-audits."""
+    def promote_to_admin(self, user_id: int) -> UserPublic:
+        """Promote user to admin role."""
         row = self._session.get(UserRow, user_id)
         if row is None:
             raise UserNotFoundError(f"User {user_id} not found")
@@ -109,24 +77,13 @@ class SqlAlchemyUserAdapter:
             raise UserAlreadyAdminError(f"User {user_id} is already an admin")
 
         row.role = UserRole.ADMIN
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
 
-        if changes:
-            assert row.id is not None  # guaranteed — fetched by user_id
-            self._audit.log(
-                action="user_promoted",
-                actor_id=actor_id,
-                entity_type="user",
-                entity_id=row.id,
-                changes=changes,
-            )
-
         return self._to_public(row)
 
-    def demote_to_user(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Demote user to regular user role. Auto-audits."""
+    def demote_to_user(self, user_id: int) -> UserPublic:
+        """Demote user to regular user role."""
         row = self._session.get(UserRow, user_id)
         if row is None:
             raise UserNotFoundError(f"User {user_id} not found")
@@ -135,24 +92,13 @@ class SqlAlchemyUserAdapter:
             raise UserAlreadyRegularError(f"User {user_id} is already a regular user")
 
         row.role = UserRole.USER
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
 
-        if changes:
-            assert row.id is not None  # guaranteed — fetched by user_id
-            self._audit.log(
-                action="user_demoted",
-                actor_id=actor_id,
-                entity_type="user",
-                entity_id=row.id,
-                changes=changes,
-            )
-
         return self._to_public(row)
 
-    def deactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Deactivate a user. Auto-audits."""
+    def deactivate(self, user_id: int) -> UserPublic:
+        """Deactivate a user."""
         row = self._session.get(UserRow, user_id)
         if row is None:
             raise UserNotFoundError(f"User {user_id} not found")
@@ -164,26 +110,15 @@ class SqlAlchemyUserAdapter:
 
         row.is_active = False
         row.deactivated_at = datetime.now(UTC)
-        row.deactivated_by_user_id = actor_id
+        row.deactivated_by_user_id = None
 
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
 
-        if changes:
-            assert row.id is not None  # guaranteed — fetched by user_id
-            self._audit.log(
-                action="user_deactivated",
-                actor_id=actor_id,
-                entity_type="user",
-                entity_id=row.id,
-                changes=changes,
-            )
-
         return self._to_public(row)
 
-    def reactivate(self, user_id: int, *, actor_id: int) -> UserPublic:
-        """Reactivate a deactivated user. Auto-audits."""
+    def reactivate(self, user_id: int) -> UserPublic:
+        """Reactivate a deactivated user."""
         row = self._session.get(UserRow, user_id)
         if row is None:
             raise UserNotFoundError(f"User {user_id} not found")
@@ -195,19 +130,8 @@ class SqlAlchemyUserAdapter:
         row.deactivated_at = None
         row.deactivated_by_user_id = None
 
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
-
-        if changes:
-            assert row.id is not None  # guaranteed — fetched by user_id
-            self._audit.log(
-                action="user_reactivated",
-                actor_id=actor_id,
-                entity_type="user",
-                entity_id=row.id,
-                changes=changes,
-            )
 
         return self._to_public(row)
 

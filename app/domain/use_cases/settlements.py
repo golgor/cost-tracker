@@ -121,6 +121,6 @@ def confirm_settlement(
         created_at=datetime.now(UTC),
     )
 
-    saved = uow.settlements.save(settlement, expense_ids, tx_models, actor_id=settled_by_id)
+    saved = uow.settlements.save(settlement, expense_ids, tx_models)
 
     return saved

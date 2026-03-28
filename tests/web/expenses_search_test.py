@@ -19,7 +19,6 @@ def search_user(uow: UnitOfWork):
             oidc_sub="search_web_user@test.com",
             email="search_web_user@test.com",
             display_name="Search User",
-            actor_id=1,
         )
     return user
 

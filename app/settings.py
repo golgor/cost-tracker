@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
-    SYSTEM_ACTOR_ID: int = 0  # ID used for automated system-initiated actions
 
     @property
     def is_production(self) -> bool:

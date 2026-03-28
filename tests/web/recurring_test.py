@@ -22,7 +22,6 @@ def test_user(uow: UnitOfWork):
             oidc_sub="recurring_user@test.com",
             email="recurring_user@test.com",
             display_name="Recurring User",
-            actor_id=1,
         )
     return user
 

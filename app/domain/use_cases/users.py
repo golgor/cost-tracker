@@ -10,7 +10,7 @@ from app.domain.ports import UnitOfWorkPort
 
 
 def provision_user(
-    uow: UnitOfWorkPort, oidc_sub: str, email: str, display_name: str, *, actor_id: int
+    uow: UnitOfWorkPort, oidc_sub: str, email: str, display_name: str
 ) -> UserPublic:
     """Provision a user - create if new, update if exists. Enforces deactivation block.
 
@@ -21,7 +21,6 @@ def provision_user(
         oidc_sub=oidc_sub,
         email=email,
         display_name=display_name,
-        actor_id=actor_id,
     )
 
     if not user.is_active:
@@ -33,7 +32,7 @@ def provision_user(
 
 
 def bootstrap_first_admin(
-    uow: UnitOfWorkPort, user_id: int, *, actor_id: int
+    uow: UnitOfWorkPort, user_id: int
 ) -> tuple[UserPublic, bool]:
     """Promote the first user to admin if no active admin exists.
 
@@ -49,29 +48,29 @@ def bootstrap_first_admin(
         return user, False
 
     # First user - promote to admin
-    user = uow.users.promote_to_admin(user_id, actor_id=actor_id)
+    user = uow.users.promote_to_admin(user_id)
     return user, True
 
 
-def promote_user_to_admin(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> UserPublic:
+def promote_user_to_admin(uow: UnitOfWorkPort, user_id: int) -> UserPublic:
     """Promote a regular user to admin role.
 
     Transaction must be committed by caller using `with uow:`.
     """
-    user = uow.users.promote_to_admin(user_id, actor_id=actor_id)
+    user = uow.users.promote_to_admin(user_id)
     return user
 
 
-def demote_user_to_regular(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> UserPublic:
+def demote_user_to_regular(uow: UnitOfWorkPort, user_id: int) -> UserPublic:
     """Demote an admin to regular user role.
 
     Transaction must be committed by caller using `with uow:`.
     """
-    user = uow.users.demote_to_user(user_id, actor_id=actor_id)
+    user = uow.users.demote_to_user(user_id)
     return user
 
 
-def deactivate_user(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> UserPublic:
+def deactivate_user(uow: UnitOfWorkPort, user_id: int) -> UserPublic:
     """Deactivate a user. Enforces that the last active admin cannot be deactivated.
 
     Transaction must be committed by caller using `with uow:`.
@@ -86,14 +85,14 @@ def deactivate_user(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> User
         if active_admin_count <= 1:
             raise LastActiveAdminDeactivationForbidden("Cannot deactivate the last active admin")
 
-    user = uow.users.deactivate(user_id, actor_id=actor_id)
+    user = uow.users.deactivate(user_id)
     return user
 
 
-def reactivate_user(uow: UnitOfWorkPort, user_id: int, *, actor_id: int) -> UserPublic:
+def reactivate_user(uow: UnitOfWorkPort, user_id: int) -> UserPublic:
     """Reactivate a deactivated user.
 
     Transaction must be committed by caller using `with uow:`.
     """
-    user = uow.users.reactivate(user_id, actor_id=actor_id)
+    user = uow.users.reactivate(user_id)
     return user

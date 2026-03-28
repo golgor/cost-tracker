@@ -20,7 +20,6 @@ def new_user(uow: UnitOfWork):
             oidc_sub="setup_user@test.com",
             email="setup_user@test.com",
             display_name="Setup User",
-            actor_id=100,
         )
     return user
 

@@ -8,12 +8,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.queries import get_all_users
-from app.adapters.sqlalchemy.queries.admin_queries import get_recent_audit_entries
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
-from app.web.view_models import AuditEntryViewModel, UserProfileViewModel, UserRowViewModel
+from app.web.view_models import UserProfileViewModel, UserRowViewModel
 
 logger = logging.getLogger(__name__)
 
@@ -70,35 +69,6 @@ async def admin_users_page(
     )
 
 
-@router.get("/audit", response_class=HTMLResponse)
-async def admin_audit_log_page(
-    request: Request,
-    user_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Admin audit log page."""
-    _check_admin_access(user_id, uow)
-
-    user_domain = uow.users.get_by_id(user_id)
-    if user_domain is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    audit_entries_dicts = get_recent_audit_entries(uow.session, limit=100)
-
-    # Transform to view models
-    user_view = UserProfileViewModel.from_domain(user_domain)
-    audit_entries_view = [AuditEntryViewModel.from_dict(e) for e in audit_entries_dicts]
-
-    return templates.TemplateResponse(
-        request,
-        "admin/audit.html",
-        {
-            "user": user_view,
-            "audit_entries": audit_entries_view,
-            "csrf_token": getattr(request.state, "csrf_token", ""),
-        },
-    )
-
-
 # HTMX endpoints for user lifecycle actions
 
 
@@ -113,7 +83,7 @@ async def promote_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.promote_user_to_admin(uow, target_user_id)
         # Return updated row
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
@@ -138,7 +108,7 @@ async def demote_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.demote_user_to_regular(uow, target_user_id)
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -188,7 +158,7 @@ async def deactivate_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.deactivate_user(uow, target_user_id)
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -212,7 +182,7 @@ async def reactivate_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.reactivate_user(uow, target_user_id)
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

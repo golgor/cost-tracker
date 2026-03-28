@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
-
 import sqlalchemy as sa
 from sqlalchemy import DateTime, func
 from sqlmodel import Field, SQLModel
@@ -91,27 +89,6 @@ class GroupRow(GroupBase, table=True):
     updated_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-    )
-
-
-class AuditRow(SQLModel, table=True):
-    """ORM model for audit log entries."""
-
-    __tablename__ = "audit_logs"
-
-    id: int | None = Field(default=None, primary_key=True)
-    actor_id: int = Field(index=True)
-    action: str = Field(max_length=100, index=True)
-    entity_type: str = Field(max_length=100, index=True)
-    entity_id: int = Field(index=True)
-    occurred_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-        index=True,
-    )
-    changes: dict[str, Any] | None = Field(
-        default=None,
-        sa_column=sa.Column(sa.JSON, nullable=True),
     )
 
 
@@ -328,7 +305,6 @@ __all__ = [
     "UserRow",
     "GroupRow",
     "MembershipRow",
-    "AuditRow",
     "ExpenseRow",
     "ExpenseSplitRow",
     "SettlementRow",
