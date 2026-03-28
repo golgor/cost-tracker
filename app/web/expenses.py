@@ -256,7 +256,6 @@ async def get_split_preview(
     )
 
 
-
 @router.post("/expenses/create", response_class=HTMLResponse)
 async def create_expense_endpoint(
     request: Request,
