@@ -11,6 +11,7 @@
 The codebase is well-architected with clean hexagonal boundaries, comprehensive tests, and good patterns in many areas.
 
 **Post-review changes already applied:**
+
 - Audit system removed (~960 LOC, PR #24) — eliminates F-05, F-13, simplifies F-10/F-11/F-27
 
 **Remaining findings:** 4 P1 issues (security), 17 P2 issues (maintainability), 8 P3 issues (nice-to-haves).
@@ -114,6 +115,7 @@ USER appuser
 Since there's no production data, the 8 incremental migrations add unnecessary complexity. Migration 001 creates tables missing columns that 002 adds, 005 adds expense_splits that should have been in 003, etc.
 
 **Recommendation:** Squash into a single `001_initial_schema.py` that creates the complete schema. Benefits:
+
 - Simpler `alembic upgrade head` for fresh deployments
 - No intermediate states that could confuse future developers
 - Eliminates inconsistencies (some migrations use `sa.DateTime(timezone=True)`, others use `postgresql.TIMESTAMP(timezone=True)`)
@@ -259,6 +261,7 @@ transactions = minimize_transactions(balances)
 **Files:** `alembic/versions/003_add_expenses.py`, ORM models
 
 Missing indexes:
+
 - `expenses.payer_id` — used in filter queries and balance calculation
 - `expenses.creator_id` — used in queries
 - `expenses.status` — used in WHERE clauses (PENDING, SETTLED, GIFT)

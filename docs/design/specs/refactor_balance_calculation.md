@@ -9,6 +9,7 @@ Refactor the current hardcoded 2-person balance calculation into a generic N-per
 ## Current State
 
 The current implementation in `dashboard_queries.py`:
+
 - Hardcoded for exactly 2 people
 - Simple 50/50 split logic
 - No transaction optimization
@@ -29,6 +30,7 @@ def calculate_balance(session, group_id, user_id):
 ## Target State
 
 Generic N-person balance calculation with:
+
 - Pure domain functions (no infrastructure dependencies)
 - Money value object for type safety
 - Configurable rounding precision
@@ -45,12 +47,14 @@ Generic N-person balance calculation with:
 **Decision**: Implement as pure domain functions in `app/domain/balance.py`
 
 **Rationale**:
+
 - Balance calculation is pure math, no side effects
 - Easy to unit test without database
 - Reusable across use cases (dashboard, settlements, API)
 - Follows existing pattern in `settlements.py`
 
 **Files**:
+
 - `app/domain/balance.py` - Core calculation functions
 - `app/domain/value_objects.py` - Money class
 - `app/domain/splits/` - Split strategies
@@ -60,12 +64,14 @@ Generic N-person balance calculation with:
 **Decision**: Create `Money` class with Decimal + currency
 
 **Rationale**:
+
 - Prevents mixing currencies accidentally
 - Encapsulates rounding rules
 - Type-safe financial calculations
 - JSON serialization support
 
 **Implementation**:
+
 ```python
 @dataclass(frozen=True)
 class Money:
@@ -79,12 +85,14 @@ class Money:
 **Decision**: Pass `BalanceConfig` as explicit parameter (NOT global state)
 
 **Rationale**:
+
 - No hidden dependencies
 - Easy to test different configurations
 - Follows hexagonal architecture
 - Supports per-group configuration in future
 
 **Implementation**:
+
 ```python
 def calculate_balances(
     expenses: list[ExpensePublic],
@@ -98,12 +106,14 @@ def calculate_balances(
 **Decision**: Use Strategy pattern even with only EvenSplitStrategy initially
 
 **Rationale**:
+
 - Epic 4 (uneven splits) becomes trivial to implement
 - Documents the extension point
 - Clean separation of concerns
 - Minimal overhead (one ABC + one class)
 
 **Implementation**:
+
 ```python
 class SplitStrategy(ABC):
     @abstractmethod
@@ -118,12 +128,14 @@ class EvenSplitStrategy(SplitStrategy):
 **Decision**: Largest balance absorbs the rounding error
 
 **Rationale**:
+
 - Simple and deterministic
 - Only affects one person's balance
 - Minimal impact on fairness
 - Tie-breaker: payer (first in input list) absorbs
 
 **Example**:
+
 ```
 €100 / 3 people = €33.33, €33.33, €33.34
 Payer gets €33.34 (absorbs the penny)
@@ -134,12 +146,14 @@ Payer gets €33.34 (absorbs the penny)
 **Decision**: Greedy algorithm (largest debtor pays largest creditor)
 
 **Rationale**:
+
 - Optimal for 2-person groups
 - Acceptable for N-person (produces ≤ N-1 transactions)
 - Simple to implement and understand
 - Can be replaced with better algorithm later if needed
 
 **Algorithm**:
+
 1. Separate debtors (negative balance) and creditors (positive)
 2. Sort both by absolute amount (descending)
 3. Match largest debtor with largest creditor
@@ -333,6 +347,7 @@ class CurrencyMismatchError(BalanceCalculationError):
 | **Currency** | Mixed currencies raise error, single currency OK |
 
 **Example Test**:
+
 ```python
 def test_three_person_split_100_euros():
     """100€ / 3 = 33.34 for payer, 33.33 for others."""
@@ -361,6 +376,7 @@ def test_three_person_split_100_euros():
 ### Current Code Updates
 
 **1. dashboard_queries.py**:
+
 ```python
 # Current
 from app.domain.balance import calculate_balances
@@ -382,6 +398,7 @@ def calculate_balance(session, group_id, user_id):
 ```
 
 **2. settlements.py**:
+
 ```python
 # Refactor to use minimize_transactions
 from app.domain.balance import calculate_balances, minimize_transactions
@@ -408,12 +425,14 @@ def calculate_settlement(expenses, user_display_names):
 ### Epic 4: Uneven Splits
 
 **Features**:
+
 - Custom percentage splits (60/40, 50/30/20)
 - Share-based splits (3 shares vs 2 shares)
 - Exact amount splits
 - Per-expense split configuration
 
 **Implementation**:
+
 - Add `PercentageSplitStrategy`, `ShareSplitStrategy`
 - New table `expense_splits` to persist share configuration
 - UI for configuring splits per expense
@@ -423,11 +442,13 @@ def calculate_settlement(expenses, user_display_names):
 ### Epic 5: Multi-Currency
 
 **Features**:
+
 - Expenses in different currencies
 - Currency conversion with exchange rates
 - Display balances in preferred currency
 
 **Implementation**:
+
 - `CurrencyConversionPort` for exchange rate service
 - Conversion in `calculate_balances()` before calculation
 - Exchange rate caching and updates
@@ -437,11 +458,13 @@ def calculate_settlement(expenses, user_display_names):
 ### Future: Advanced Optimization
 
 **Features**:
+
 - Optimal transaction routing (minimize total amount transferred)
 - Historical balance snapshots
 - Balance caching for performance
 
 **Implementation**:
+
 - `TransactionOptimizerPort` with multiple algorithms
 - `NetworkFlowOptimizer` for optimal routing
 - Balance cache invalidation on new expenses
@@ -469,18 +492,21 @@ def calculate_settlement(expenses, user_display_names):
 ## Implementation Timeline
 
 **Phase 1: Domain Layer** (2 hours)
+
 - Create `value_objects.py` (Money class)
 - Create `splits/` package (config, strategies)
 - Create `balance.py` (calculate_balances, minimize_transactions)
 - Add error types to `errors.py`
 
 **Phase 2: Tests** (2 hours)
+
 - Create comprehensive unit tests
 - 2-person, 3-person, 4+ person scenarios
 - Edge cases and rounding tests
 - Transaction optimization tests
 
 **Phase 3: Integration** (1 hour)
+
 - Refactor `dashboard_queries.py`
 - Refactor `settlements.py` (optional)
 - Update any existing tests
@@ -529,30 +555,35 @@ def calculate_settlement(expenses, user_display_names):
 Now that the core domain logic is complete, the following integration work remains:
 
 **1. Refactor `app/adapters/sqlalchemy/queries/dashboard_queries.py`**
-   - Replace hardcoded 2-person `calculate_balance()` function
-   - Use new `calculate_balances()` from `app/domain/balance`
-   - Pass `BalanceConfig` with appropriate settings
-   - Maintain backward-compatible return format initially
+
+- Replace hardcoded 2-person `calculate_balance()` function
+- Use new `calculate_balances()` from `app/domain/balance`
+- Pass `BalanceConfig` with appropriate settings
+- Maintain backward-compatible return format initially
 
 **2. Update `app/domain/use_cases/settlements.py`**
-   - Refactor `calculate_settlement()` to use `minimize_transactions()`
-   - Support N-person settlement transactions
-   - Handle multiple transactions (not just single payer/payee)
+
+- Refactor `calculate_settlement()` to use `minimize_transactions()`
+- Support N-person settlement transactions
+- Handle multiple transactions (not just single payer/payee)
 
 **3. Update UI/Templates**
-   - Modify balance bar display for N-person scenarios
-   - Update settlement review page for multiple transactions
-   - Handle new settlement transaction format
+
+- Modify balance bar display for N-person scenarios
+- Update settlement review page for multiple transactions
+- Handle new settlement transaction format
 
 **4. Migration Strategy**
-   - Gradual rollout: test with existing 2-person groups first
-   - Monitor for any discrepancies in balance calculations
-   - Full rollout once validated
+
+- Gradual rollout: test with existing 2-person groups first
+- Monitor for any discrepancies in balance calculations
+- Full rollout once validated
 
 **5. Documentation Updates**
-   - Update API documentation if balance endpoint changes
-   - Document new N-person support for users
-   - Update architecture docs to reflect completed refactoring
+
+- Update API documentation if balance endpoint changes
+- Document new N-person support for users
+- Update architecture docs to reflect completed refactoring
 
 ---
 
