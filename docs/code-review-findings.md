@@ -8,7 +8,12 @@
 
 ## Summary
 
-The codebase is well-architected with clean hexagonal boundaries, comprehensive tests, and good patterns in many areas. However, there are **6 P1 issues** (bugs/security), **18 P2 issues** (maintainability/consistency), and **8 P3 issues** (nice-to-haves) that should be addressed before going live.
+The codebase is well-architected with clean hexagonal boundaries, comprehensive tests, and good patterns in many areas.
+
+**Post-review changes already applied:**
+- Audit system removed (~960 LOC, PR #24) — eliminates F-05, F-13, simplifies F-10/F-11/F-27
+
+**Remaining findings:** 4 P1 issues (security), 17 P2 issues (maintainability), 8 P3 issues (nice-to-haves).
 
 ---
 
@@ -79,15 +84,9 @@ def count_active_admins(self) -> int:
 
 ---
 
-### F-05: `snapshot_new()` / `snapshot_deleted()` skip falsy values
+### ~~F-05~~ RESOLVED: Audit snapshot functions skip falsy values
 
-**File:** `app/adapters/sqlalchemy/changes.py`
-
-These functions filter `if value is not None` but will also skip legitimate values like `0`, `False`, `""`, empty list. For audit purposes this means:
-- Setting `is_active = False` won't be captured in audit log
-- Setting `tracking_threshold = 0` won't be captured
-
-**Fix:** Use `if value is not None` explicitly (it already does this) but also include `False`, `0` — change filter to `if key not in exclude` and let the serializer handle None.
+**Status:** Eliminated — audit system removed in PR #24.
 
 ---
 
@@ -164,10 +163,10 @@ Both `MemberRole` (group-level) and `UserRole` (app-level) map to the same `role
 
 ### F-11: `ExpensePort.update()` uses `Any` type for several parameters
 
-**File:** `app/domain/ports.py:163-174`
+**File:** `app/domain/ports.py:161-171`
 
 ```python
-def update(self, expense_id: int, *, actor_id: int,
+def update(self, expense_id: int, *,
            amount: Any | None = None, date: Any | None = None,
            split_type: Any | None = None) -> None:
 ```
@@ -188,16 +187,9 @@ def update(self, expense_id: int, *, actor_id: int,
 
 ---
 
-### F-13: Inconsistent audit logging patterns across adapters
+### ~~F-13~~ RESOLVED: Inconsistent audit logging patterns
 
-**Files:** All adapter files
-
-Three different patterns are used:
-1. `snapshot_new()` / `compute_changes()` / `snapshot_deleted()` from `changes.py` (user, expense save/update)
-2. Manual dict construction (expense splits, notes, settlement, soft-delete)
-3. No change details at all (some edge cases)
-
-**Fix:** Standardize on `changes.py` utilities for all audit logging. Add a `snapshot_partial_update()` helper if needed.
+**Status:** Eliminated — audit system removed in PR #24.
 
 ---
 
@@ -363,7 +355,7 @@ The well-designed `Money` value object is only used in `balance.py` and `splits/
 
 **File:** `app/web/view_models.py`
 
-`UserRowViewModel`, `UserProfileViewModel`, and `AuditEntryViewModel` are excellent patterns — but only admin endpoints use them. Expenses, settlements, and recurring handlers pass raw dicts to templates.
+`UserRowViewModel` and `UserProfileViewModel` are excellent patterns — but only admin endpoints use them. Expenses, settlements, and recurring handlers pass raw dicts to templates.
 
 **Recommendation:** Create view models for all template data.
 
@@ -487,23 +479,22 @@ Contains: expense list, creation (mobile + desktop forms), detail/edit, deletion
 
 ## Priority Matrix
 
-| Priority | Count | Action |
+| Priority | Count | Status |
 |----------|-------|--------|
-| P1 | 6 | Must fix before deployment |
-| P2 | 22 | Should fix for maintainability |
-| P3 | 10 | Nice to have (includes retracted F-01, F-24 as style) |
+| ~~P1~~ | ~~8~~ → 4 | 2 retracted (F-01, F-24), 2 resolved (F-05, F-13 — audit removed) |
+| ~~P2~~ | ~~22~~ → 17 | F-13 resolved (audit removed) |
+| P3 | 10 | Includes retracted F-01, F-24 as style preferences |
 
 ## Suggested Implementation Order
 
 1. **F-02, F-35** — Add timing-safe comparisons + deactivated user check (security)
-3. **F-03, F-33** — Fix incomplete mappings.py + duplicate query bug (data correctness)
-4. **F-06** — Dockerfile non-root user (security)
-5. **F-05** — Fix audit snapshot logic (data integrity)
-6. **F-04, F-34** — Fix count query + redundant filter (correctness)
-7. **F-07** — Squash migrations (clean slate opportunity)
-8. **F-08, F-09** — Decide on ENUM strategy (architectural)
-9. **F-19** — Add missing indexes (performance)
-10. **F-10, F-11, F-38** — Fix port interface types + note methods (maintainability)
-11. **F-36, F-37** — Consolidate duplicated code + split large file
-12. Remaining P2 items grouped by affected area
-13. P3 items as time permits
+2. **F-03, F-33** — Fix incomplete mappings.py + duplicate query bug (data correctness)
+3. **F-06** — Dockerfile non-root user (security)
+4. **F-04, F-34** — Fix count query + redundant filter (correctness)
+5. **F-07** — Squash migrations (clean slate opportunity)
+6. **F-08, F-09** — Decide on ENUM strategy (architectural)
+7. **F-19** — Add missing indexes (performance)
+8. **F-10, F-11, F-38** — Fix port interface types + note methods (maintainability)
+9. **F-36, F-37** — Consolidate duplicated code + split large file
+10. Remaining P2 items grouped by affected area
+11. P3 items as time permits
