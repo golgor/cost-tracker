@@ -150,11 +150,10 @@ class SqlAlchemyUserAdapter:
         statement = (
             select(func.count())
             .select_from(UserRow)
-            .where(
-                (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
-            )
+            .where((UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True))  # noqa: E712
         )
-        return self._session.exec(statement).one()
+        result = self._session.exec(statement).first()
+        return result or 0
 
     def get_active_admins(self) -> list[UserPublic]:
         """Get list of all active admin users."""
