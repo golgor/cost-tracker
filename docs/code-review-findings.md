@@ -14,32 +14,19 @@ The codebase is well-architected with clean hexagonal boundaries, comprehensive 
 
 ## P1 — Must Fix (Bugs, Data Integrity, Security)
 
-### F-01: `ruff format` strips required parentheses from multi-exception `except` clauses → SyntaxError
+### ~~F-01~~ RETRACTED: `except X, Y:` without parentheses
+
+**Status:** Not a bug. Downgraded from P1 to P3 (style preference).
 
 **Files:** `app/web/expenses.py:213,220,358,402,969,1019`, `app/web/recurring.py:685,733`, `alembic/env.py:44`
 
-Nine locations have `except X, Y:` without parentheses:
+Nine locations have `except X, Y:` without parentheses. **Python 3.14 re-introduced this syntax** — it is now equivalent to `except (X, Y):`, catching both exception types with no name shadowing. Since this project targets `requires-python = ">=3.14"`, the code is correct.
 
-```python
-except InvalidOperation, ValueError:  # SyntaxError in Python 3
-```
+`ruff format` strips the parentheses because they are genuinely optional in 3.14+.
 
-**Root cause:** `ruff format` (v0.15.1) has a bug that removes the parentheses from `except (X, Y):`, treating them as redundant. But in Python 3, the parentheses are syntactically required — `except X, Y:` was Python 2 syntax and is a hard `SyntaxError` in Python 3.
+**Note:** This was a `SyntaxError` in Python 3.0–3.13. Adding parentheses is still recommended for readability and backward compatibility, but it's a style choice, not a bug.
 
-**Reproduction:**
-```bash
-echo 'except (InvalidOperation, ValueError):' | ruff format
-# Output: except InvalidOperation, ValueError:  ← SyntaxError!
-```
-
-**Impact:** These modules cannot be imported. The application will crash on startup with `SyntaxError: multiple exception types must be parenthesized`.
-
-**Why ruff check doesn't catch it:** ruff uses its own Rust-based parser that accepts `except X, Y:` as valid syntax. ruff also removed the `E999` (SyntaxError) rule. So neither `ruff format` nor `ruff check` will detect the problem — only CPython's parser rejects it.
-
-**Fix:**
-1. Restore parentheses in all 9 locations: `except (InvalidOperation, ValueError):`
-2. Add `python -m compileall -q app/` to the lint pipeline (catches any SyntaxError ruff misses)
-3. File a bug against ruff (https://github.com/astral-sh/ruff) — format should not strip required except-clause parentheses
+See `tests/proof_except_syntax.py` for a proof script demonstrating the behavior.
 
 ---
 
@@ -342,15 +329,11 @@ No maximum iteration limit. If many settlements exist with the same month, this 
 
 ---
 
-### F-24: `alembic/env.py` has Python 2 except syntax
+### ~~F-24~~ RETRACTED: `alembic/env.py` except without parentheses
 
 **File:** `alembic/env.py:44`
 
-```python
-except ValueError, TypeError:
-```
-
-Same issue as F-01 but in the migration tooling. Will cause migration generation to break if a `TypeError` is raised.
+Same as F-01 — valid in Python 3.14. Style preference only.
 
 ---
 
@@ -506,14 +489,13 @@ Contains: expense list, creation (mobile + desktop forms), detail/edit, deletion
 
 | Priority | Count | Action |
 |----------|-------|--------|
-| P1 | 8 | Must fix before deployment |
+| P1 | 6 | Must fix before deployment |
 | P2 | 22 | Should fix for maintainability |
-| P3 | 8 | Nice to have |
+| P3 | 10 | Nice to have (includes retracted F-01, F-24 as style) |
 
 ## Suggested Implementation Order
 
-1. **F-01, F-24** — Fix Python 2 exception syntax (immediate, all files affected)
-2. **F-02, F-35** — Add timing-safe comparisons + deactivated user check (security)
+1. **F-02, F-35** — Add timing-safe comparisons + deactivated user check (security)
 3. **F-03, F-33** — Fix incomplete mappings.py + duplicate query bug (data correctness)
 4. **F-06** — Dockerfile non-root user (security)
 5. **F-05** — Fix audit snapshot logic (data integrity)
