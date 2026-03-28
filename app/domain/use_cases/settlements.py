@@ -2,7 +2,12 @@
 
 from datetime import UTC, datetime
 
-from app.domain.balance import SettlementTransaction, calculate_balances, minimize_transactions
+from app.domain.balance import (
+    MemberBalance,
+    SettlementTransaction,
+    calculate_balances,
+    minimize_transactions,
+)
 from app.domain.errors import EmptySettlementError, SettlementError, StaleExpenseError
 from app.domain.models import (
     ExpensePublic,
@@ -60,6 +65,42 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
             )
 
     return f"{base} ({counter})"
+
+
+def preview_settlement(
+    uow: UnitOfWorkPort,
+    expense_ids: list[int],
+    member_ids: list[int],
+) -> tuple[list[SettlementTransaction], dict[int, MemberBalance]]:
+    """Calculate settlement preview without persisting anything.
+
+    Loads and validates expenses, computes balances, and minimizes transactions.
+
+    Args:
+        uow: Unit of work for reading expenses
+        expense_ids: IDs of expenses to include in the preview
+        member_ids: All member user IDs in the group
+
+    Returns:
+        Tuple of (transactions, balances) for display
+
+    Raises:
+        SettlementError: If an expense doesn't exist
+        StaleExpenseError: If an expense is already settled
+    """
+    expenses: list[ExpensePublic] = []
+    for expense_id in expense_ids:
+        expense = uow.expenses.get_by_id(expense_id)
+        if expense is None:
+            raise SettlementError(f"Expense {expense_id} no longer exists")
+        if expense.status == ExpenseStatus.SETTLED:
+            raise StaleExpenseError(expense_id)
+        expenses.append(expense)
+
+    config = BalanceConfig()
+    balances = calculate_balances(expenses, member_ids, config)
+    transactions = minimize_transactions(balances)
+    return transactions, balances
 
 
 def confirm_settlement(

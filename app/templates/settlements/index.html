@@ -33,28 +33,28 @@
   <!-- Settlement List -->
   <div class="space-y-4">
     {% for item in settlements %}
-    <a href="/settlements/{{ item.settlement.id }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 p-4 hover:shadow-md hover:border-terracotta-200 transition-all">
+    <a href="/settlements/{{ item.id }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 p-4 hover:shadow-md hover:border-terracotta-200 transition-all">
       <div class="flex items-center justify-between">
         <div class="grow">
           <!-- Date & Reference -->
           <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm text-stone-500">{{ item.settlement.settled_at.strftime('%b %d, %Y') }}</span>
+            <span class="text-sm text-stone-500">{{ item.settled_at }}</span>
             <span class="text-stone-300">|</span>
             <code class="text-xs font-mono bg-amber-50 px-2 py-1 rounded text-stone-700">
-              {{ item.settlement.reference_id }}
+              {{ item.reference_id }}
             </code>
           </div>
 
           <!-- Transfer Direction -->
-          {% if item.transactions|length == 0 %}
+          {% if item.transaction_summaries|length == 0 %}
           <div class="text-stone-600">No payment needed</div>
-          {% elif item.transactions|length == 1 %}
+          {% elif item.transaction_summaries|length == 1 %}
           <div class="flex items-center gap-2 text-stone-800">
-            <span class="font-medium">{{ item.transactions[0].from_name }}</span>
+            <span class="font-medium">{{ item.transaction_summaries[0].from_name }}</span>
             <svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
-            <span class="font-medium">{{ item.transactions[0].to_name }}</span>
+            <span class="font-medium">{{ item.transaction_summaries[0].to_name }}</span>
           </div>
           {% else %}
           <div class="text-stone-600">{{ item.transaction_count }} transfers</div>

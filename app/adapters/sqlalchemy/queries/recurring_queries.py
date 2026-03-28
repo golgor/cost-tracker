@@ -4,93 +4,55 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow, UserRow
-from app.domain.models import RecurringFrequency
+from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
+from app.domain.models import RecurringDefinitionPublic, RecurringFrequency
 from app.domain.recurring import normalized_monthly_cost
 
-_FREQUENCY_LABELS: dict[RecurringFrequency, str] = {
-    RecurringFrequency.MONTHLY: "monthly",
-    RecurringFrequency.QUARTERLY: "quarterly",
-    RecurringFrequency.SEMI_ANNUALLY: "semi-annually",
-    RecurringFrequency.YEARLY: "yearly",
-    RecurringFrequency.EVERY_N_MONTHS: "every N months",
-}
 
-
-def _get_payer_map(session: Session, payer_ids: set[int]) -> dict[int, UserRow]:
-    """Fetch user rows for the given payer IDs."""
-    if not payer_ids:
-        return {}
-    rows = session.exec(select(UserRow).where(UserRow.id.in_(payer_ids))).all()  # type: ignore[union-attr]
-    return {row.id: row for row in rows if row.id is not None}
-
-
-def _initials(display_name: str) -> str:
-    """Extract up to two uppercase initials from a display name."""
-    parts = display_name.strip().split()
-    if not parts:
-        return "?"
-    if len(parts) == 1:
-        return parts[0][0].upper()
-    return (parts[0][0] + parts[-1][0]).upper()
-
-
-def _build_definition_view(
-    row: RecurringDefinitionRow,
-    payer_map: dict[int, UserRow],
-) -> dict[str, Any]:
-    """Build a precomputed view model dict for a single recurring definition row."""
-    payer = payer_map.get(row.payer_id)
-    payer_display_name = payer.display_name if payer else "Unknown"
-    payer_initials = _initials(payer_display_name) if payer else "?"
+def _row_to_public(row: RecurringDefinitionRow) -> RecurringDefinitionPublic:
+    """Convert ORM row to public domain model (same pattern as adapter)."""
+    if row.id is None:
+        raise RuntimeError("Row ID must not be None for persisted rows")
 
     frequency = (
         row.frequency
         if isinstance(row.frequency, RecurringFrequency)
         else RecurringFrequency(row.frequency)
     )
-    monthly_cost = normalized_monthly_cost(row.amount, frequency, row.interval_months)
+    from app.domain.models import SplitType
 
-    frequency_label = _FREQUENCY_LABELS.get(frequency, frequency.value.lower())
-    if frequency == RecurringFrequency.EVERY_N_MONTHS and row.interval_months:
-        frequency_label = f"every {row.interval_months} months"
+    split_type = (
+        row.split_type if isinstance(row.split_type, SplitType) else SplitType(row.split_type)
+    )
 
-    return {
-        "id": row.id,
-        "name": row.name,
-        "amount": row.amount,
-        "frequency": row.frequency,
-        "frequency_label": frequency_label,
-        "interval_months": row.interval_months,
-        "next_due_date": row.next_due_date,
-        "payer_id": row.payer_id,
-        "payer_display_name": payer_display_name,
-        "payer_initials": payer_initials,
-        "split_type": row.split_type,
-        "split_config": row.split_config,
-        "category": row.category,
-        "auto_generate": row.auto_generate,
-        "is_active": row.is_active,
-        "currency": row.currency,
-        "created_at": row.created_at,
-        "updated_at": row.updated_at,
-        "deleted_at": row.deleted_at,
-        # Precomputed boolean flags for template visibility (no comparisons in templates)
-        "is_auto_generate": row.auto_generate,
-        "is_manual_mode": not row.auto_generate,
-        # Pre-formatted normalized monthly cost string
-        "normalized_monthly_cost": str(monthly_cost),
-    }
+    return RecurringDefinitionPublic(
+        id=row.id,
+        group_id=row.group_id,
+        name=row.name,
+        amount=row.amount,
+        frequency=frequency,
+        interval_months=row.interval_months,
+        next_due_date=row.next_due_date,
+        payer_id=row.payer_id,
+        split_type=split_type,
+        split_config=row.split_config,
+        category=row.category,
+        auto_generate=row.auto_generate,
+        is_active=row.is_active,
+        currency=row.currency,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        deleted_at=row.deleted_at,
+    )
 
 
 def get_active_definitions(
     session: Session,
     group_id: int,
-) -> list[dict[str, Any]]:
+) -> list[RecurringDefinitionPublic]:
     """Fetch active (not paused, not deleted) recurring definitions for the registry.
 
-    Returns view model dicts with precomputed display fields.
-    Sorted by next_due_date ascending (soonest first).
+    Returns domain models sorted by next_due_date ascending (soonest first).
     """
     statement = (
         select(RecurringDefinitionRow)
@@ -102,20 +64,16 @@ def get_active_definitions(
         .order_by(RecurringDefinitionRow.next_due_date)  # type: ignore[arg-type]
     )
     rows = session.exec(statement).all()
-
-    payer_ids = {row.payer_id for row in rows}
-    payer_map = _get_payer_map(session, payer_ids)
-
-    return [_build_definition_view(row, payer_map) for row in rows]
+    return [_row_to_public(row) for row in rows]
 
 
 def get_paused_definitions(
     session: Session,
     group_id: int,
-) -> list[dict[str, Any]]:
+) -> list[RecurringDefinitionPublic]:
     """Fetch paused (is_active=False, not deleted) recurring definitions.
 
-    Returns view model dicts with precomputed display fields.
+    Returns domain models sorted by name.
     """
     statement = (
         select(RecurringDefinitionRow)
@@ -127,11 +85,7 @@ def get_paused_definitions(
         .order_by(RecurringDefinitionRow.name)  # type: ignore[arg-type]
     )
     rows = session.exec(statement).all()
-
-    payer_ids = {row.payer_id for row in rows}
-    payer_map = _get_payer_map(session, payer_ids)
-
-    return [_build_definition_view(row, payer_map) for row in rows]
+    return [_row_to_public(row) for row in rows]
 
 
 def get_registry_summary(
