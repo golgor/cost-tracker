@@ -22,6 +22,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+
 from sqlmodel import Field, SQLModel  # noqa: F401
 
 

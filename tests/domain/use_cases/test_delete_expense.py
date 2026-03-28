@@ -46,7 +46,7 @@ def test_delete_expense_success(uow):
 
 def test_delete_expense_not_found(uow):
     """Test deletion of non-existent expense raises error."""
-    user1 = create_test_user(uow.session, oidc_sub="user1@test", email="user1@test.com")
+    create_test_user(uow.session, oidc_sub="user1@test", email="user1@test.com")
 
     # Attempt to delete non-existent expense
     with pytest.raises(DomainError, match="Expense 99999 not found"), uow:
