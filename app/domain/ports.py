@@ -6,14 +6,19 @@ from decimal import Decimal
 from typing import Any, Protocol
 
 from app.domain.models import (
+    ExpenseBase,
+    ExpenseNotePublic,
     ExpensePublic,
     ExpenseSplitPublic,
     GroupPublic,
     MemberRole,
     MembershipPublic,
+    RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
+    SettlementBase,
     SettlementPublic,
+    SettlementTransactionBase,
     SettlementTransactionPublic,
     SplitType,
     UserPublic,
@@ -125,7 +130,7 @@ class ExpensePort(Protocol):
 
     def save(
         self,
-        expense: ExpensePublic,
+        expense: ExpenseBase,
     ) -> ExpensePublic:
         """Create a new expense. Returns the persisted expense."""
         ...
@@ -168,15 +173,35 @@ class ExpensePort(Protocol):
         """Get all split rows for an expense."""
         ...
 
+    def save_note(self, note: ExpenseNotePublic) -> ExpenseNotePublic:
+        """Create a new note for an expense."""
+        ...
+
+    def update_note(self, note_id: int, content: str) -> ExpenseNotePublic:
+        """Update note content."""
+        ...
+
+    def delete_note(self, note_id: int) -> None:
+        """Delete a note."""
+        ...
+
+    def get_note_by_id(self, note_id: int) -> ExpenseNotePublic | None:
+        """Retrieve note by database ID."""
+        ...
+
+    def list_notes_by_expense(self, expense_id: int) -> list[ExpenseNotePublic]:
+        """List all notes for an expense, oldest first."""
+        ...
+
 
 class SettlementPort(Protocol):
     """Port for settlement persistence operations."""
 
     def save(
         self,
-        settlement: SettlementPublic,
+        settlement: SettlementBase,
         expense_ids: list[int],
-        transactions: list[SettlementTransactionPublic],
+        transactions: list[SettlementTransactionBase],
     ) -> SettlementPublic:
         """Create a new settlement with linked expenses and transactions."""
         ...
@@ -209,7 +234,7 @@ class SettlementPort(Protocol):
 class RecurringDefinitionPort(Protocol):
     """Port for RecurringDefinition persistence operations."""
 
-    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
+    def save(self, definition: RecurringDefinitionBase) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         ...
 

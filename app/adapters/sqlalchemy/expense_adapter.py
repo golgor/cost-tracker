@@ -6,7 +6,13 @@ from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow, ExpenseSplitRow
 from app.domain.errors import DuplicateBillingPeriodError
-from app.domain.models import ExpenseNotePublic, ExpensePublic, ExpenseSplitPublic, SplitType
+from app.domain.models import (
+    ExpenseBase,
+    ExpenseNotePublic,
+    ExpensePublic,
+    ExpenseSplitPublic,
+    SplitType,
+)
 
 
 class SqlAlchemyExpenseAdapter:
@@ -17,7 +23,7 @@ class SqlAlchemyExpenseAdapter:
 
     def save(
         self,
-        expense: ExpensePublic,
+        expense: ExpenseBase,
     ) -> ExpensePublic:
         """Create a new expense. Returns the persisted expense."""
         row = ExpenseRow(

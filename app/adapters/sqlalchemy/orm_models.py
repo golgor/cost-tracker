@@ -40,7 +40,7 @@ class MembershipRow(SQLModel, table=True):
     group_id: int = Field(foreign_key="groups.id", primary_key=True)
     role: MemberRole = Field(
         default=MemberRole.USER,
-        sa_type=sa.Enum(MemberRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
     joined_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -53,10 +53,10 @@ class UserRow(UserBase, table=True):
 
     __tablename__ = "users"
 
-    # Override role field to use PostgreSQL ENUM
+    # Override role field to use VARCHAR + CHECK constraint
     role: UserRole = Field(
         default=UserRole.USER,
-        sa_type=sa.Enum(UserRole, name="roletype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -75,10 +75,10 @@ class GroupRow(GroupBase, table=True):
 
     __tablename__ = "groups"
 
-    # Override default_split_type to use PostgreSQL ENUM
+    # Override default_split_type to use VARCHAR + CHECK constraint
     default_split_type: SplitType = Field(
         default=SplitType.EVEN,
-        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -98,16 +98,16 @@ class ExpenseRow(ExpenseBase, table=True):
 
     __tablename__ = "expenses"
 
-    # Override status to use PostgreSQL ENUM
+    # Override status to use VARCHAR + CHECK constraint
     status: ExpenseStatus = Field(
         default=ExpenseStatus.PENDING,
-        sa_type=sa.Enum(ExpenseStatus, name="expensestatus", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
-    # Override split_type to use PostgreSQL ENUM
+    # Override split_type to use VARCHAR + CHECK constraint
     split_type: SplitType = Field(
         default=SplitType.EVEN,
-        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -247,8 +247,21 @@ class SettlementExpenseRow(SQLModel, table=True):
 
     __tablename__ = "settlement_expenses"
 
-    settlement_id: int = Field(foreign_key="settlements.id", primary_key=True)
-    expense_id: int = Field(foreign_key="expenses.id", primary_key=True)
+    settlement_id: int = Field(primary_key=True)
+    expense_id: int = Field(primary_key=True)
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["settlement_id"],
+            ["settlements.id"],
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["expense_id"],
+            ["expenses.id"],
+            ondelete="CASCADE",
+        ),
+    )
 
 
 class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
@@ -256,15 +269,15 @@ class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
 
     __tablename__ = "recurring_definitions"
 
-    # Override frequency to use PostgreSQL ENUM
+    # Override frequency to use VARCHAR + CHECK constraint
     frequency: RecurringFrequency = Field(
-        sa_type=sa.Enum(RecurringFrequency, name="recurringfrequency", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
-    # Override split_type to reuse existing PostgreSQL ENUM
+    # Override split_type to use VARCHAR + CHECK constraint
     split_type: SplitType = Field(
         default=SplitType.EVEN,
-        sa_type=sa.Enum(SplitType, name="splittype", native_enum=True),  # type: ignore[arg-type]
+        sa_type=sa.String(length=20),  # type: ignore[arg-type]
     )
 
     # Override amount to use exact numeric type

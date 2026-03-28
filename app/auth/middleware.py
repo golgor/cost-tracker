@@ -1,6 +1,7 @@
 import hmac
 import secrets
 
+from sqlmodel import Session, select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -49,10 +50,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not session_data:
             return self._redirect_to_login(request)
 
+        # Verify user is still active
+        user_id = session_data["user_id"]
+        if not self._is_user_active(user_id):
+            return self._redirect_to_login(request)
+
         # Store user_id in request state for dependencies
-        request.state.user_id = session_data["user_id"]
+        request.state.user_id = user_id
 
         return await call_next(request)
+
+    @staticmethod
+    def _is_user_active(user_id: int) -> bool:
+        """Check if user is still active. Lightweight DB query per request."""
+        from app.adapters.sqlalchemy.orm_models import UserRow
+        from app.dependencies import engine
+
+        with Session(engine) as session:
+            row = session.exec(select(UserRow.is_active).where(UserRow.id == user_id)).first()
+            return row is True
 
     def _redirect_to_login(self, request: Request) -> Response:
         """Redirect to login, handling HTMX requests specially."""

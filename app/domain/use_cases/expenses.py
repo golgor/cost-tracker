@@ -10,7 +10,13 @@ from app.domain.errors import (
     InvalidShareError,
     RecurringExpenseDescriptionError,
 )
-from app.domain.models import ExpensePublic, ExpenseSplitPublic, ExpenseStatus, SplitType
+from app.domain.models import (
+    ExpenseBase,
+    ExpensePublic,
+    ExpenseSplitPublic,
+    ExpenseStatus,
+    SplitType,
+)
 from app.domain.ports import UnitOfWorkPort
 from app.domain.splits import (
     EvenSplitStrategy,
@@ -75,9 +81,8 @@ def create_expense(
     # Normalize split_type to enum
     split_type_enum = SplitType(split_type.upper())
 
-    # Calculate expense splits
-    expense_model = ExpensePublic.model_construct(
-        id=0,  # Placeholder ID
+    # Build expense base model
+    expense = ExpenseBase(
         group_id=group_id,
         amount=amount,
         description=description,
@@ -89,25 +94,16 @@ def create_expense(
         status=ExpenseStatus.PENDING,
     )
 
-    # Calculate splits based on type
+    # Calculate splits based on type (needs ExpensePublic-like object for strategies)
+    expense_for_splits = ExpensePublic.model_construct(
+        id=0,
+        **expense.model_dump(),
+    )
     splits = _calculate_splits(
-        expense=expense_model,
+        expense=expense_for_splits,
         member_ids=member_ids,
         split_type=split_type_enum,
         split_config=split_config,
-    )
-
-    # Create expense with computed split_type
-    expense = ExpensePublic.model_construct(
-        group_id=group_id,
-        amount=amount,
-        description=description,
-        date=effective_date,
-        creator_id=creator_id,
-        payer_id=payer_id,
-        currency=effective_currency,
-        split_type=split_type_enum,
-        status=ExpenseStatus.PENDING,
     )
 
     # Persist expense

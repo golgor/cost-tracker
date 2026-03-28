@@ -6,7 +6,13 @@ from app.adapters.sqlalchemy.orm_models import (
     SettlementRow,
     SettlementTransactionRow,
 )
-from app.domain.models import ExpenseStatus, SettlementPublic, SettlementTransactionPublic
+from app.domain.models import (
+    ExpenseStatus,
+    SettlementBase,
+    SettlementPublic,
+    SettlementTransactionBase,
+    SettlementTransactionPublic,
+)
 
 
 class SqlAlchemySettlementAdapter:
@@ -17,9 +23,9 @@ class SqlAlchemySettlementAdapter:
 
     def save(
         self,
-        settlement: SettlementPublic,
+        settlement: SettlementBase,
         expense_ids: list[int],
-        transactions: list[SettlementTransactionPublic],
+        transactions: list[SettlementTransactionBase],
     ) -> SettlementPublic:
         """Create a new settlement with linked expenses and transactions."""
         row = SettlementRow(

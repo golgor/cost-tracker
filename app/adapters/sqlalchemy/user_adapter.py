@@ -139,8 +139,12 @@ class SqlAlchemyUserAdapter:
         """Count the number of active admin users."""
         from sqlalchemy import func
 
-        statement = select(func.count()).select_from(UserRow).where(
-            (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
+        statement = (
+            select(func.count())
+            .select_from(UserRow)
+            .where(
+                (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
+            )
         )
         return self._session.exec(statement).one()
 

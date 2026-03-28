@@ -10,8 +10,10 @@ from app.domain.errors import (
     RecurringDefinitionNotFoundError,
 )
 from app.domain.models import (
+    ExpenseBase,
     ExpensePublic,
     ExpenseStatus,
+    RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
     SplitType,
@@ -67,8 +69,7 @@ def create_recurring_definition(
 
     effective_currency = currency or group.default_currency
 
-    definition = RecurringDefinitionPublic.model_construct(
-        id=0,
+    definition = RecurringDefinitionBase(
         group_id=group_id,
         name=name,
         amount=amount,
@@ -175,8 +176,7 @@ def create_expense_from_definition(
     billing_period = billing_period_for(definition.next_due_date)
     description = format_expense_description(definition.name, billing_period)
 
-    expense = ExpensePublic.model_construct(
-        id=0,
+    expense = ExpenseBase(
         group_id=definition.group_id,
         amount=definition.amount,
         description=description,
@@ -189,8 +189,6 @@ def create_expense_from_definition(
         recurring_definition_id=definition.id,
         billing_period=billing_period,
         is_auto_generated=is_auto_generated,
-        created_at=None,  # type: ignore[arg-type]
-        updated_at=None,  # type: ignore[arg-type]
     )
 
     expense_pub = uow.expenses.save(expense)
