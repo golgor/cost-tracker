@@ -21,27 +21,70 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.indexes
     - navigation.top
     - search.suggest
     - search.highlight
+    - toc.integrate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+
+plugins:
+  - search
 
 nav:
+  - Home: index.md
+  - User Guide:
+    - user-guide/index.md
+    - Getting Started: user-guide/getting-started.md
+    - Features: user-guide/features.md
+    - FAQ: user-guide/faq.md
+  - Operations:
+    - operations/index.md
+    - Installation: operations/installation.md
+    - Configuration: operations/configuration.md
+    - Deployment: operations/deployment.md
+    - Authentication: operations/authentication.md
+    - Database: operations/database.md
+    - Upgrading: operations/upgrading.md
+    - Troubleshooting: operations/troubleshooting.md
+  - Development:
+    - development/index.md
+    - Local Setup: development/setup.md
+    - Conventions: development/conventions.md
+    - Testing: development/testing.md
+    - How-To Guides:
+      - Add a Domain Entity: development/how-to/add-domain-entity.md
+      - Add a Route: development/how-to/add-route.md
+      - Add a Migration: development/how-to/add-migration.md
   - Architecture:
-    - Overview: architecture/index.md
+    - architecture/index.md
     - Core Decisions: architecture/core-architectural-decisions.md
     - Project Structure: architecture/project-structure-boundaries.md
     - Implementation Patterns: architecture/implementation-patterns-consistency-rules.md
-    - Starter Template Evaluation: architecture/starter-template-evaluation.md
-    - Architecture Validation: architecture/architecture-validation-results.md
-    - Project Context Analysis: architecture/project-context-analysis.md
-  - UX Design:
-    - Overview: ux-design/index.md
-    - Executive Summary: ux-design/executive-summary.md
-    - Core User Experience: ux-design/core-user-experience.md
-    - Defining Core Experience: ux-design/defining-core-experience.md
-    - Desired Emotional Response: ux-design/desired-emotional-response.md
-    - Design Direction: ux-design/design-direction-decision.md
-    - Design System Foundation: ux-design/design-system-foundation.md
-    - Visual Design Foundation: ux-design/visual-design-foundation.md
-    - User Journey Flows: ux-design/user-journey-flows.md
-    - UX Pattern Analysis: ux-design/ux-pattern-analysis-inspiration.md
+    - Settlement Patterns: architecture/settlement-patterns.md
+    - Project Context: architecture/project-context-analysis.md
+  - Design Records:
+    - design/index.md
+    - UX Design:
+      - design/ux/executive-summary.md
+      - design/ux/core-user-experience.md
+      - design/ux/defining-core-experience.md
+      - design/ux/desired-emotional-response.md
+      - design/ux/design-direction-decision.md
+      - design/ux/design-system-foundation.md
+      - design/ux/visual-design-foundation.md
+      - design/ux/user-journey-flows.md
+      - design/ux/ux-pattern-analysis-inspiration.md
+      - design/ux/filter-bar-date-picker.md
+      - design/ux/admin-interface.md
+    - Architecture Evaluations:
+      - design/architecture/starter-template-evaluation.md
+      - design/architecture/architecture-validation-results.md
+    - Implementation Specs:
+      - design/specs/refactor_balance_calculation.md
