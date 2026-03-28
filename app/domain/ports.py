@@ -32,6 +32,10 @@ class UserPort(Protocol):
         """Retrieve user by database ID."""
         ...
 
+    def get_by_ids(self, user_ids: list[int]) -> list[UserPublic]:
+        """Retrieve multiple users by their database IDs."""
+        ...
+
     def get_by_oidc_sub(self, oidc_sub: str) -> UserPublic | None:
         """Retrieve user by OIDC subject identifier."""
         ...

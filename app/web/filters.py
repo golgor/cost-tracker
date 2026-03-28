@@ -20,8 +20,16 @@ def strftime_filter(value, format_string):
     return ""
 
 
-def currency_symbol_filter(currency_code: str) -> str:
-    """Convert a currency code to its symbol.
+CURRENCY_SYMBOLS: dict[str, str] = {
+    "EUR": "€",
+    "USD": "$",
+    "GBP": "£",
+    "SEK": "kr",
+}
+
+
+def get_currency_symbol(currency_code: str) -> str:
+    """Get currency symbol for a given currency code.
 
     Args:
         currency_code: ISO 4217 currency code (e.g., 'EUR', 'USD')
@@ -31,11 +39,16 @@ def currency_symbol_filter(currency_code: str) -> str:
     """
     if not currency_code:
         return ""
+    return CURRENCY_SYMBOLS.get(currency_code.upper(), currency_code)
 
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-    return currency_symbols.get(currency_code.upper(), currency_code)
+
+def currency_symbol_filter(currency_code: str) -> str:
+    """Jinja2 filter: convert a currency code to its symbol.
+
+    Args:
+        currency_code: ISO 4217 currency code (e.g., 'EUR', 'USD')
+
+    Returns:
+        Currency symbol (e.g., '€', '$') or the code itself if unknown
+    """
+    return get_currency_symbol(currency_code)
