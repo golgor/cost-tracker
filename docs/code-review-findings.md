@@ -14,25 +14,30 @@ The codebase is well-architected with clean hexagonal boundaries, comprehensive 
 
 ## P1 — Must Fix (Bugs, Data Integrity, Security)
 
-### F-01: Python 2 exception syntax causes silent bugs
+### F-01: `ruff format` strips required parentheses from multi-exception `except` clauses → SyntaxError
 
 **Files:** `app/web/expenses.py:213,220,358,402,969,1019`, `app/web/recurring.py:685,733`, `alembic/env.py:44`
 
-Six locations use Python 2 `except` syntax:
+Nine locations have `except X, Y:` without parentheses:
 
 ```python
-except InvalidOperation, ValueError:  # WRONG — catches InvalidOperation, binds to name ValueError
+except InvalidOperation, ValueError:  # SyntaxError in Python 3
 ```
 
-In Python 3, `except X, Y:` catches `X` and binds the exception to variable `Y`. This means `ValueError` is silently rebound to the caught exception object, and actual `ValueError` exceptions are **not caught**. The correct syntax is:
+**Root cause:** `ruff format` (v0.15.1) has a bug that removes the parentheses from `except (X, Y):`, treating them as redundant. But in Python 3, the parentheses are syntactically required — `except X, Y:` was Python 2 syntax and is a hard `SyntaxError` in Python 3.
 
-```python
-except (InvalidOperation, ValueError):  # CORRECT — catches both
+**Reproduction:**
+```bash
+echo 'except (InvalidOperation, ValueError):' | ruff format
+# Output: except InvalidOperation, ValueError:  ← SyntaxError!
 ```
 
-**Impact:** Runtime bugs when `ValueError` is raised — it propagates instead of being caught. Also corrupts the `ValueError` name in scope.
+**Impact:** These modules cannot be imported. The application will crash on startup with `SyntaxError: multiple exception types must be parenthesized`.
 
-**Fix:** Replace all 9 occurrences with tuple syntax.
+**Fix:**
+1. Restore parentheses in all 9 locations: `except (InvalidOperation, ValueError):`
+2. File a bug against ruff (https://github.com/astral-sh/ruff)
+3. Consider pinning ruff to a version without this bug, or adding a post-format check
 
 ---
 
