@@ -34,6 +34,7 @@ from app.domain.errors import (
     UserHasActiveGroupMembershipError,
     UserNotFoundError,
 )
+from app.api.v1.router import router as api_v1_router
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
 from app.web.router import router as web_router
@@ -86,6 +87,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Routers
 app.include_router(web_router)
+app.include_router(api_v1_router)
 
 
 @app.exception_handler(RequestValidationError)

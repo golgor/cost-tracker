@@ -6,6 +6,7 @@ _INSECURE_SECRETS = {
     "change-me",
     "test-secret-key-not-for-production",
     "change-me-webhook-secret",
+    "change-me-glance-api-key",
 }
 
 
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
+    GLANCE_API_KEY: str = "change-me-glance-api-key"
     SYSTEM_ACTOR_ID: int = 0  # ID used for automated system-initiated actions
 
     @property
@@ -45,6 +47,10 @@ class Settings(BaseSettings):
             if self.INTERNAL_WEBHOOK_SECRET in _INSECURE_SECRETS:
                 raise ValueError(
                     "INTERNAL_WEBHOOK_SECRET must be set to a secure value in production"
+                )
+            if self.GLANCE_API_KEY in _INSECURE_SECRETS:
+                raise ValueError(
+                    "GLANCE_API_KEY must be set to a secure value in production"
                 )
         return self
 
