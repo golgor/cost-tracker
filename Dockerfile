@@ -57,6 +57,9 @@ COPY --from=builder /app/alembic.ini /app/alembic.ini
 # Copy compiled CSS (no Node.js or Tailwind at runtime)
 COPY --from=builder /app/app/static/css/output.css /app/app/static/css/output.css
 
+RUN adduser --system --no-create-home appuser
+USER appuser
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

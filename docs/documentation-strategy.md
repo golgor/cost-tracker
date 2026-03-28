@@ -169,9 +169,6 @@ docs/
    as human-readable developer docs. Key content should be extracted (not duplicated — CLAUDE.md
    remains the source of truth for AI agents, developer docs reference it).
 
-5. **`refactor_balance_calculation.md`** moves to `backlog/` or a `design/specs/` folder — it's a
-   one-time implementation spec, not ongoing documentation.
-
 ---
 
 ## 5. Migration Plan for Existing Docs
@@ -183,7 +180,6 @@ docs/
 | `docs/architecture/architecture-validation-results.md` | Move | `docs/design/architecture/` |
 | `docs/ux-design/*.md` (11 files) | Move | `docs/design/ux/` |
 | `docs/backlog/*.md` | Keep in place | `docs/backlog/` |
-| `docs/refactor_balance_calculation.md` | Move | `docs/design/specs/` |
 | `CLAUDE.md` | Keep as-is (AI agent config) | Root |
 | `AGENTS.md` | Keep as-is (AI agent config) | Root |
 | `steps.md` | Remove or move to backlog | `docs/backlog/` or delete |

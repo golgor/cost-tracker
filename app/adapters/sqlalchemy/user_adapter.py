@@ -24,6 +24,14 @@ class SqlAlchemyUserAdapter:
             return None
         return self._to_public(row)
 
+    def get_by_ids(self, user_ids: list[int]) -> list[UserPublic]:
+        """Retrieve multiple users by their database IDs."""
+        if not user_ids:
+            return []
+        statement = select(UserRow).where(UserRow.id.in_(user_ids))
+        rows = self._session.exec(statement).all()
+        return [self._to_public(row) for row in rows]
+
     def get_by_oidc_sub(self, oidc_sub: str) -> UserPublic | None:
         """Retrieve user by OIDC subject identifier."""
         statement = select(UserRow).where(UserRow.oidc_sub == oidc_sub)

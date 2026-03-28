@@ -18,6 +18,7 @@ from app.domain.errors import EmptySettlementError, StaleExpenseError
 from app.domain.models import ExpensePublic, ExpenseStatus
 from app.domain.splits import BalanceConfig
 from app.domain.use_cases.settlements import confirm_settlement, format_transfer_message
+from app.web.filters import get_currency_symbol
 from app.web.templates import setup_templates
 
 router = APIRouter(tags=["settlements"])
@@ -27,27 +28,16 @@ CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 
 
-def _get_currency_symbol(default_currency: str) -> str:
-    """Get currency symbol for a given currency code."""
-    currency_symbols = {
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-        "SEK": "kr",
-    }
-    return currency_symbols.get(default_currency, default_currency)
-
-
 def _get_user_display_names(uow: UnitOfWork, group_id: int) -> dict[int, str]:
     """Get mapping of user IDs to display names."""
     members = get_group_members(uow.session, group_id)
-    display_names = {}
-    for member in members:
-        user = uow.users.get_by_id(member.user_id)
-        if user:
-            display_names[member.user_id] = user.display_name
-        else:
-            display_names[member.user_id] = f"User {member.user_id}"
+    member_ids = [member.user_id for member in members]
+    users = uow.users.get_by_ids(member_ids)
+    display_names = {u.id: u.display_name for u in users}
+    # Fill in any missing members with fallback names
+    for member_id in member_ids:
+        if member_id not in display_names:
+            display_names[member_id] = f"User {member_id}"
     return display_names
 
 
@@ -74,7 +64,7 @@ async def settlement_review_page(
             "grouped_expenses": grouped_expenses,
             "total_unsettled": total_unsettled,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "total_amount": Decimal("0.00"),
             "transfer_message": "Select expenses to see total",
             "expense_count": 0,
@@ -124,7 +114,7 @@ async def calculate_settlement_total(
             "total_amount": total_amount,
             "transfer_message": transfer_message,
             "expense_count": len(expenses),
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -172,7 +162,7 @@ async def settlement_confirm_page(
                 "grouped_expenses": grouped_expenses,
                 "total_unsettled": sum(len(e) for e in grouped_expenses.values()),
                 "display_names": display_names,
-                "currency_symbol": _get_currency_symbol(group.default_currency),
+                "currency_symbol": get_currency_symbol(group.default_currency),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
             },
         )
@@ -206,7 +196,7 @@ async def settlement_confirm_page(
             "transactions": transactions,
             "expense_ids": expense_ids,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -256,7 +246,7 @@ async def create_settlement(
                 "grouped_expenses": grouped_expenses,
                 "total_unsettled": sum(len(e) for e in grouped_expenses.values()),
                 "display_names": display_names,
-                "currency_symbol": _get_currency_symbol(group.default_currency),
+                "currency_symbol": get_currency_symbol(group.default_currency),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
             },
         )
@@ -302,7 +292,7 @@ async def settlement_success_page(
             "expense_count": len(expense_ids),
             "transactions": transaction_views,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -355,7 +345,7 @@ async def settlement_history_page(
         {
             "settlements": settlement_view_models,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -402,7 +392,7 @@ async def settlement_detail_page(
             "expenses": expenses,
             "transactions": transaction_views,
             "display_names": display_names,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": get_currency_symbol(group.default_currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )

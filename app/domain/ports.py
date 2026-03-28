@@ -6,14 +6,19 @@ from decimal import Decimal
 from typing import Any, Protocol
 
 from app.domain.models import (
+    ExpenseBase,
+    ExpenseNotePublic,
     ExpensePublic,
     ExpenseSplitPublic,
     GroupPublic,
     MemberRole,
     MembershipPublic,
+    RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
+    SettlementBase,
     SettlementPublic,
+    SettlementTransactionBase,
     SettlementTransactionPublic,
     SplitType,
     UserPublic,
@@ -25,6 +30,10 @@ class UserPort(Protocol):
 
     def get_by_id(self, user_id: int) -> UserPublic | None:
         """Retrieve user by database ID."""
+        ...
+
+    def get_by_ids(self, user_ids: list[int]) -> list[UserPublic]:
+        """Retrieve multiple users by their database IDs."""
         ...
 
     def get_by_oidc_sub(self, oidc_sub: str) -> UserPublic | None:
@@ -117,7 +126,7 @@ class ExpensePort(Protocol):
 
     def save(
         self,
-        expense: ExpensePublic,
+        expense: ExpenseBase,
     ) -> ExpensePublic:
         """Create a new expense. Returns the persisted expense."""
         ...
@@ -134,12 +143,12 @@ class ExpensePort(Protocol):
         self,
         expense_id: int,
         *,
-        amount: Any | None = None,
+        amount: Decimal | None = None,
         description: str | None = None,
-        date: Any | None = None,
+        date: date | None = None,
         payer_id: int | None = None,
         currency: str | None = None,
-        split_type: Any | None = None,
+        split_type: SplitType | None = None,
     ) -> None:
         """Update expense fields. Only provided fields are updated."""
         ...
@@ -160,15 +169,35 @@ class ExpensePort(Protocol):
         """Get all split rows for an expense."""
         ...
 
+    def save_note(self, note: ExpenseNotePublic) -> ExpenseNotePublic:
+        """Create a new note for an expense."""
+        ...
+
+    def update_note(self, note_id: int, content: str) -> ExpenseNotePublic:
+        """Update note content."""
+        ...
+
+    def delete_note(self, note_id: int) -> None:
+        """Delete a note."""
+        ...
+
+    def get_note_by_id(self, note_id: int) -> ExpenseNotePublic | None:
+        """Retrieve note by database ID."""
+        ...
+
+    def list_notes_by_expense(self, expense_id: int) -> list[ExpenseNotePublic]:
+        """List all notes for an expense, oldest first."""
+        ...
+
 
 class SettlementPort(Protocol):
     """Port for settlement persistence operations."""
 
     def save(
         self,
-        settlement: SettlementPublic,
+        settlement: SettlementBase,
         expense_ids: list[int],
-        transactions: list[SettlementTransactionPublic],
+        transactions: list[SettlementTransactionBase],
     ) -> SettlementPublic:
         """Create a new settlement with linked expenses and transactions."""
         ...
@@ -201,7 +230,7 @@ class SettlementPort(Protocol):
 class RecurringDefinitionPort(Protocol):
     """Port for RecurringDefinition persistence operations."""
 
-    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
+    def save(self, definition: RecurringDefinitionBase) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         ...
 

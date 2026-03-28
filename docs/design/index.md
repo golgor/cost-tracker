@@ -39,6 +39,3 @@ One-time architecture evaluation documents from the design phase.
 ## Implementation Specs
 
 Detailed implementation specifications for specific features.
-
-- [Balance Calculation Refactor](specs/refactor_balance_calculation.md) — N-person balance
-  calculation design

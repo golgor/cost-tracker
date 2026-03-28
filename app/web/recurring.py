@@ -2,7 +2,7 @@
 
 import json
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -39,6 +39,7 @@ from app.domain.use_cases.recurring import (
     reactivate_definition,
     update_recurring_definition,
 )
+from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
 
 router = APIRouter(tags=["recurring"])
@@ -109,12 +110,9 @@ def _build_users_dict(
     members: list,
     uow: UnitOfWork,
 ) -> dict[int, UserPublic]:
-    users_dict: dict[int, UserPublic] = {}
-    for member in members:
-        u = uow.users.get_by_id(member.user_id)
-        if u:
-            users_dict[member.user_id] = u
-    return users_dict
+    member_ids = [member.user_id for member in members]
+    users = uow.users.get_by_ids(member_ids)
+    return {u.id: u for u in users}
 
 
 @router.get("/recurring", response_class=HTMLResponse)
@@ -675,22 +673,24 @@ def _parse_form(
 
     # Parse amount
     amount_str = form_data.get("amount", "")
-    try:
-        amount = Decimal(str(amount_str).replace(",", "."))
-        if amount <= 0:
-            errors["amount"] = "Amount must be greater than zero"
-        parsed["amount"] = amount
-    except InvalidOperation, ValueError:
+    amount = parse_amount(str(amount_str))
+    if amount is None:
         errors["amount"] = "Invalid amount format"
         parsed["amount"] = Decimal("0")
+    elif amount <= 0:
+        errors["amount"] = "Amount must be greater than zero"
+        parsed["amount"] = amount
+    else:
+        parsed["amount"] = amount
 
     # Parse next_due_date
     next_due_date_str = form_data.get("next_due_date", "")
-    try:
-        parsed["next_due_date"] = date.fromisoformat(str(next_due_date_str))
-    except ValueError:
+    parsed_date = parse_date(str(next_due_date_str))
+    if parsed_date is None:
         errors["next_due_date"] = "Invalid date format"
         parsed["next_due_date"] = date.today()
+    else:
+        parsed["next_due_date"] = parsed_date
 
     # Parse interval_months
     interval_str = str(form_data.get("interval_months", "")).strip()
@@ -725,11 +725,11 @@ def _parse_form(
     parsed["split_config"] = None
     split_config_json = form_data.get("split_config", "")
     if parsed["split_enum"] != SplitType.EVEN and split_config_json:
-        try:
-            raw = json.loads(str(split_config_json))
-            parsed["split_config"] = {int(k): str(Decimal(str(v))) for k, v in raw.items()}
-        except json.JSONDecodeError, ValueError, KeyError:
+        config = parse_split_config(str(split_config_json))
+        if config is None:
             errors["split_type"] = "Invalid split configuration"
+        else:
+            parsed["split_config"] = {k: str(v) for k, v in config.items()}
 
     # Validate EVERY_N_MONTHS constraint
     if (

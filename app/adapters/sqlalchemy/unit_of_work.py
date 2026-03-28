@@ -16,10 +16,16 @@ class UnitOfWork:
     """Shared SQLAlchemy Session across adapters with context manager support.
 
     Usage:
+        # Mutations: use context manager for commit/rollback
         with uow:
-            user = uow.users.save(...)
-            group = uow.groups.save(...)
+            uow.users.save(...)
+            uow.groups.save(...)
         # Automatically commits on success, rolls back on exception
+
+        # Read-only: no context manager needed (session lifecycle managed by DI)
+        # The get_db_session() dependency manages session open/close,
+        # so reads can call adapter methods directly without ``with uow:``.
+        user = uow.users.get_by_id(user_id)
 
     Note: UnitOfWork context managers cannot be nested.
     """

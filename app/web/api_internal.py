@@ -5,6 +5,7 @@ in the Authorization header instead. The path /api/internal/... is in
 EXACT_PUBLIC_PATHS so AuthMiddleware and CSRFMiddleware skip them.
 """
 
+import hmac
 import logging
 from datetime import date
 from typing import Annotated
@@ -28,7 +29,7 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 def _verify_webhook_secret(authorization: str | None) -> None:
     """Validate Authorization: Bearer <secret> header."""
     expected = f"Bearer {settings.INTERNAL_WEBHOOK_SECRET}"
-    if authorization != expected:
+    if not authorization or not hmac.compare_digest(authorization, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing webhook secret",

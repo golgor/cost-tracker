@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
 from app.domain.errors import RecurringDefinitionNotFoundError
 from app.domain.models import (
+    RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
     SplitType,
@@ -20,7 +21,7 @@ class SqlAlchemyRecurringDefinitionAdapter:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def save(self, definition: RecurringDefinitionPublic) -> RecurringDefinitionPublic:
+    def save(self, definition: RecurringDefinitionBase) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         row = RecurringDefinitionRow(
             group_id=definition.group_id,

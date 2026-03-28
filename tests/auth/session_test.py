@@ -3,8 +3,6 @@
 import time
 from unittest.mock import patch
 
-import pytest
-
 from app.auth.session import decode_session, encode_session
 
 
@@ -47,14 +45,12 @@ class TestSessionDecoding:
         result = decode_session(tampered, max_age=3600)
         assert result is None
 
-    @pytest.mark.skip(reason="Timing-dependent test - expiry works in production")
     def test_decode_expired_session_returns_none(self):
         """Expired session cookie returns None."""
         token = encode_session(user_id=123)
-        # Decode with very short max_age after a brief delay
-        # itsdangerous requires at least 1 second for expiry detection
-        time.sleep(1.1)
-        result = decode_session(token, max_age=1)
+        # Fast-forward time by 2 seconds so itsdangerous sees the token as expired
+        with patch("time.time", return_value=time.time() + 2):
+            result = decode_session(token, max_age=1)
         assert result is None
 
     def test_decode_empty_string_returns_none(self):

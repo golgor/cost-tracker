@@ -108,16 +108,39 @@ All state-changing requests (POST, PUT, DELETE, PATCH) are protected by CSRF tok
 
 This is handled automatically by the middleware — no manual configuration needed.
 
-## First User Bootstrap
+## User Lifecycle
+
+User access is managed entirely by the OIDC provider. The app does not maintain its own
+active/inactive state — if a user exists in the OIDC provider and can authenticate, they
+can use the app.
+
+### First User Bootstrap
 
 The first user to log in is automatically promoted to **app admin**. This user can then:
 
-- Manage other users (promote, demote, deactivate)
-- View audit logs
+- Manage other users' roles (promote to admin, demote to regular)
 - The setup wizard creates the initial household group
 
 Subsequent users who log in via OIDC are automatically provisioned as regular users and
 added to the default group.
+
+### Removing a User
+
+To remove a user's access, remove or disable them in the OIDC provider (e.g., Authentik).
+
+!!! warning "Session cookie grants access until expiry"
+
+  After removing a user from the OIDC provider, they retain access to the app
+  until their session cookie expires (default: 24 hours, configurable via
+  `SESSION_MAX_AGE`). The app does not contact the OIDC provider on every
+  request — it only validates the signed cookie.
+
+  Once the cookie expires, the user is redirected to the OIDC provider for
+  re-authentication, which will be rejected.
+
+  If immediate revocation is required, rotate the `SECRET_KEY` environment
+  variable — this invalidates **all** active sessions (all users will need
+  to re-authenticate).
 
 ## Troubleshooting
 
@@ -131,11 +154,6 @@ added to the default group.
 
 - Usually caused by stale cookies — clear browser cookies and try again
 - The app handles this automatically by clearing cookies and restarting the flow
-
-### User is deactivated
-
-- Deactivated users see a 403 error page on login
-- An admin must reactivate the user via the admin panel
 
 ### CSRF validation fails
 

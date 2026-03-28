@@ -7,8 +7,9 @@ from app.domain.errors import EmptySettlementError, SettlementError, StaleExpens
 from app.domain.models import (
     ExpensePublic,
     ExpenseStatus,
+    SettlementBase,
     SettlementPublic,
-    SettlementTransactionPublic,
+    SettlementTransactionBase,
 )
 from app.domain.ports import UnitOfWorkPort
 from app.domain.splits import BalanceConfig
@@ -50,8 +51,13 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
         return base
 
     counter = 2
+    max_attempts = 100
     while uow.settlements.reference_exists(group_id, f"{base} ({counter})"):
         counter += 1
+        if counter > max_attempts:
+            raise SettlementError(
+                f"Could not generate unique reference ID after {max_attempts} attempts"
+            )
 
     return f"{base} ({counter})"
 
@@ -98,10 +104,9 @@ def confirm_settlement(
     balances = calculate_balances(expenses, member_ids, config)
     domain_transactions = minimize_transactions(balances)
 
-    tx_models: list[SettlementTransactionPublic] = [
-        SettlementTransactionPublic(
-            id=-1,
-            settlement_id=-1,
+    tx_models: list[SettlementTransactionBase] = [
+        SettlementTransactionBase(
+            settlement_id=0,
             from_user_id=tx.from_user_id,
             to_user_id=tx.to_user_id,
             amount=tx.amount.amount,
@@ -112,13 +117,11 @@ def confirm_settlement(
     if reference_id is None:
         reference_id = generate_reference_id(uow, group_id)
 
-    settlement = SettlementPublic(
-        id=-1,
+    settlement = SettlementBase(
         group_id=group_id,
         reference_id=reference_id,
         settled_by_id=settled_by_id,
         settled_at=datetime.now(UTC),
-        created_at=datetime.now(UTC),
     )
 
     saved = uow.settlements.save(settlement, expense_ids, tx_models)
