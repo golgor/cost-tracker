@@ -165,7 +165,6 @@ async def expenses_list(
             "has_active_filters": has_active_filters,
             "has_active_search": bool(active_search),
             "search_query": active_search or "",
-            "recurring_names": recurring_names,
             # Filter values for form persistence
             "filter_date_from": date_from or "",
             "filter_date_to": date_to or "",
@@ -229,8 +228,17 @@ async def expenses_filtered(
         ]
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
+    # Transform to view models
+    currency_symbol = _get_currency_symbol(group.default_currency)
+    unsettled_vms = _to_card_view_models(
+        unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
+    )
+    settled_vms = _to_card_view_models(
+        settled_expenses, users_by_id, currency_symbol, user_id, recurring_names
+    )
+
     # Result count message
-    total_expenses = len(unsettled_expenses) + len(settled_expenses)
+    total_expenses = len(unsettled_vms) + len(settled_vms)
     count_message = _build_expense_count_message(total_expenses, active_search)
 
     # Check if filters are active
@@ -240,16 +248,15 @@ async def expenses_filtered(
         request,
         "expenses/_expense_feed.html",
         {
-            "unsettled_expenses": unsettled_expenses,
-            "settled_expenses": settled_expenses,
+            "unsettled_expenses": unsettled_vms,
+            "settled_expenses": settled_vms,
             "users": users_by_id,
             "current_user_id": user_id,
             "count_message": count_message,
             "has_active_filters": has_active_filters,
             "has_active_search": bool(active_search),
             "search_query": active_search or "",
-            "currency_symbol": _get_currency_symbol(group.default_currency),
-            "recurring_names": recurring_names,
+            "currency_symbol": currency_symbol,
         },
     )
 

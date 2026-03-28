@@ -181,6 +181,7 @@ class ExpenseCardViewModel(BaseModel):
     is_recurring: bool
     is_auto_generated: bool
     recurring_definition_id: int | None
+    recurring_name: str | None
     show_edit_button: bool
     show_delete_button: bool
 
@@ -221,6 +222,8 @@ class ExpenseCardViewModel(BaseModel):
             is_recurring=expense.recurring_definition_id is not None,
             is_auto_generated=expense.is_auto_generated,
             recurring_definition_id=expense.recurring_definition_id,
+            recurring_name=recurring_name
+            or ("Recurring" if expense.recurring_definition_id else None),
             show_edit_button=not is_settled,
             show_delete_button=not is_settled,
         )

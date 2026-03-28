@@ -5,13 +5,17 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import (
+    get_group_members,
+    get_recurring_definition_names,
+)
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
     _get_currency_symbol,
     templates,
 )
+from app.web.view_models import ExpenseCardViewModel
 
 router = APIRouter(tags=["expenses"])
 
@@ -105,11 +109,35 @@ async def collapse_expense_detail(
     users_list = uow.users.get_by_ids(member_ids)
     users_dict = {u.id: u for u in users_list}
 
+    # Look up recurring definition name if applicable
+    recurring_names: dict[int, str] = {}
+    if expense.recurring_definition_id is not None:
+        recurring_names = get_recurring_definition_names(
+            uow.session, [expense.recurring_definition_id]
+        )
+
+    # Transform to view model for template
+    payer = users_dict.get(expense.payer_id)
+    payer_name = payer.display_name if payer else "Unknown User"
+    currency_symbol = _get_currency_symbol(group.default_currency)
+    rec_name = (
+        recurring_names.get(expense.recurring_definition_id)
+        if expense.recurring_definition_id
+        else None
+    )
+    expense_vm = ExpenseCardViewModel.from_domain(
+        expense=expense,
+        payer_name=payer_name,
+        currency_symbol=currency_symbol,
+        current_user_id=user_id,
+        recurring_name=rec_name,
+    )
+
     return templates.TemplateResponse(
         request,
         "expenses/_expense_card.html",
         {
-            "expense": expense,
+            "expense": expense_vm,
             "users": users_dict,
             "current_user_id": user_id,
             "is_new": False,

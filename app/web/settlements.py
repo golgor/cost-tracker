@@ -21,6 +21,7 @@ from app.domain.use_cases.settlements import (
 )
 from app.web.filters import get_currency_symbol
 from app.web.templates import setup_templates
+from app.web.view_models import SettlementHistoryViewModel
 
 router = APIRouter(tags=["settlements"])
 templates = setup_templates("app/templates")
@@ -302,26 +303,13 @@ async def settlement_history_page(
         expense_ids = uow.settlements.get_expense_ids(settlement.id)
         transactions = uow.settlements.get_transactions(settlement.id)
 
-        total_amount = sum(tx.amount for tx in transactions)
-
-        transaction_summaries = []
-        for tx in transactions:
-            transaction_summaries.append(
-                {
-                    "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
-                    "to_name": display_names.get(tx.to_user_id, f"User {tx.to_user_id}"),
-                }
-            )
-
         settlement_view_models.append(
-            {
-                "settlement": settlement,
-                "expense_count": len(expense_ids),
-                "total_amount": total_amount,
-                "transactions": transaction_summaries,
-                "transaction_count": len(transactions),
-                "has_amount": total_amount > 0,
-            }
+            SettlementHistoryViewModel.from_domain(
+                settlement=settlement,
+                expense_count=len(expense_ids),
+                transactions=transactions,
+                display_names=display_names,
+            )
         )
 
     return templates.TemplateResponse(

@@ -26,7 +26,7 @@
                 {% if expense.is_recurring %}
                     &nbsp;&middot;&nbsp;
                     <a href="/recurring" class="text-primary-600 hover:underline" onclick="event.stopPropagation()">
-                        &#x21bb; {{ (recurring_names or {}).get(expense.recurring_definition_id, 'Recurring') }}
+                        &#x21bb; {{ expense.recurring_name }}
                     </a>
                 {% endif %}
             </p>
