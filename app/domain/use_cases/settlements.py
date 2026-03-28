@@ -50,8 +50,13 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
         return base
 
     counter = 2
+    max_attempts = 100
     while uow.settlements.reference_exists(group_id, f"{base} ({counter})"):
         counter += 1
+        if counter > max_attempts:
+            raise SettlementError(
+                f"Could not generate unique reference ID after {max_attempts} attempts"
+            )
 
     return f"{base} ({counter})"
 

@@ -39,7 +39,8 @@ class SqlAlchemyExpenseAdapter:
             self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
-            if "uq_expenses_definition_billing_period" in str(exc.orig):
+            diag = getattr(exc.orig, "diag", None)
+            if diag and diag.constraint_name == "uq_expenses_definition_billing_period":
                 raise DuplicateBillingPeriodError(
                     definition_id=expense.recurring_definition_id or 0,
                     billing_period=expense.billing_period or "",

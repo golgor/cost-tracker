@@ -1,3 +1,4 @@
+import hmac
 import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -102,7 +103,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """Validate CSRF token from header or form field."""
         # Check header first (for HTMX requests)
         header_token = request.headers.get(CSRF_HEADER)
-        if header_token == expected_token:
+        if header_token and hmac.compare_digest(header_token, expected_token):
             return True
 
         # Check form field for regular form submissions
@@ -118,7 +119,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 await request.body()
                 form = await request.form()
                 form_token = form.get(CSRF_FORM_FIELD)
-                if form_token == expected_token:
+                if form_token and hmac.compare_digest(form_token, expected_token):
                     return True
             except Exception:
                 pass

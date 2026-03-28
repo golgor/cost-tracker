@@ -28,6 +28,9 @@ def expense_row_to_public(row: ExpenseRow) -> ExpensePublic:
         currency=row.currency,
         split_type=row.split_type,
         status=row.status,
+        recurring_definition_id=row.recurring_definition_id,
+        billing_period=row.billing_period,
+        is_auto_generated=row.is_auto_generated,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

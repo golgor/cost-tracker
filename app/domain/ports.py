@@ -142,12 +142,12 @@ class ExpensePort(Protocol):
         self,
         expense_id: int,
         *,
-        amount: Any | None = None,
+        amount: Decimal | None = None,
         description: str | None = None,
-        date: Any | None = None,
+        date: date | None = None,
         payer_id: int | None = None,
         currency: str | None = None,
-        split_type: Any | None = None,
+        split_type: SplitType | None = None,
     ) -> None:
         """Update expense fields. Only provided fields are updated."""
         ...

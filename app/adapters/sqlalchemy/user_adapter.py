@@ -137,11 +137,12 @@ class SqlAlchemyUserAdapter:
 
     def count_active_admins(self) -> int:
         """Count the number of active admin users."""
-        statement = select(UserRow).where(
+        from sqlalchemy import func
+
+        statement = select(func.count()).select_from(UserRow).where(
             (UserRow.role == UserRole.ADMIN) & (UserRow.is_active == True)  # noqa: E712
         )
-        result = self._session.exec(statement).all()
-        return len(result)
+        return self._session.exec(statement).one()
 
     def get_active_admins(self) -> list[UserPublic]:
         """Get list of all active admin users."""

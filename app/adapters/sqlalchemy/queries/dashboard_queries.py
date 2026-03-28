@@ -132,7 +132,6 @@ def _filtered_expense_ids_subquery(
     stmt = select(ExpenseRow.id).where(  # type: ignore[arg-type]
         ExpenseRow.group_id == group_id,
         ExpenseRow.status == ExpenseStatus.PENDING,
-        ExpenseRow.status != ExpenseStatus.GIFT,
     )
     if date_from:
         stmt = stmt.where(ExpenseRow.date >= date_from)
