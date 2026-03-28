@@ -1,7 +1,7 @@
-# Deferred Code Review Findings
+# Code Review Findings — Architecture Improvements
 
-Remaining findings from the production readiness code review (PR #22).
-These are P2/P3 architecture improvements — not bugs or security issues.
+Architecture improvements from the production readiness code review (PR #22).
+All four findings have been implemented (PR #27).
 
 ## F-12: Recurring queries return template-ready dicts instead of domain models
 
