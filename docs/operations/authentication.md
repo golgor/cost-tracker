@@ -130,17 +130,17 @@ To remove a user's access, remove or disable them in the OIDC provider (e.g., Au
 
 !!! warning "Session cookie grants access until expiry"
 
-    After removing a user from the OIDC provider, they retain access to the app
-    until their session cookie expires (default: 24 hours, configurable via
-    `SESSION_MAX_AGE`). The app does not contact the OIDC provider on every
-    request — it only validates the signed cookie.
+  After removing a user from the OIDC provider, they retain access to the app
+  until their session cookie expires (default: 24 hours, configurable via
+  `SESSION_MAX_AGE`). The app does not contact the OIDC provider on every
+  request — it only validates the signed cookie.
 
-    Once the cookie expires, the user is redirected to the OIDC provider for
-    re-authentication, which will be rejected.
+  Once the cookie expires, the user is redirected to the OIDC provider for
+  re-authentication, which will be rejected.
 
-    If immediate revocation is required, rotate the `SECRET_KEY` environment
-    variable — this invalidates **all** active sessions (all users will need
-    to re-authenticate).
+  If immediate revocation is required, rotate the `SECRET_KEY` environment
+  variable — this invalidates **all** active sessions (all users will need
+  to re-authenticate).
 
 ## Troubleshooting
 

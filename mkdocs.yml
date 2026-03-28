@@ -37,6 +37,10 @@ markdown_extensions:
 plugins:
   - search
 
+not_in_nav: |
+  documentation-strategy.md
+  backlog/admin-user-management-ux.md
+
 nav:
   - Home: index.md
   - User Guide:
