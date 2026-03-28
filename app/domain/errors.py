@@ -22,18 +22,6 @@ class UnauthorizedGroupActionError(DomainError):
     """Raised when user lacks permission for a group-level action."""
 
 
-class LastActiveAdminDeactivationForbidden(DomainError):
-    """Raised when attempting to deactivate the last active admin."""
-
-
-class UserHasActiveGroupMembershipError(DomainError):
-    """Raised when user cannot be deactivated due to active group membership."""
-
-
-class DeactivatedUserAccessDenied(DomainError):
-    """Raised when a deactivated user attempts to access the app."""
-
-
 class UserNotFoundError(DomainError):
     """Raised when a user cannot be found."""
 
@@ -46,20 +34,12 @@ class UserAlreadyRegularError(DomainError):
     """Raised when attempting to demote a user who is already a regular user."""
 
 
-class UserAlreadyDeactivated(DomainError):
-    """Raised when attempting to deactivate an already deactivated user."""
-
-
 class CannotEditSettledExpenseError(DomainError):
     """Raised when attempting to edit a settled expense (immutable)."""
 
     def __init__(self, expense_id: int):
         super().__init__(f"Cannot edit expense {expense_id}: expense is settled and immutable")
         self.expense_id = expense_id
-
-
-class UserAlreadyActive(DomainError):
-    """Raised when attempting to activate an already active user."""
 
 
 class SettlementError(DomainError):

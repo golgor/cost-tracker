@@ -160,8 +160,6 @@ class TestUserRowViewModel:
         assert "primary-500" in vm.role_badge_color
         assert vm.show_promote is False
         assert vm.show_demote is True  # Default: demote allowed
-        assert vm.show_deactivate is True
-        assert vm.show_reactivate is False
 
     def test_regular_user_row_view_model(self, regular_user):
         """Regular user has correct role label, color, and button visibility."""
@@ -174,33 +172,13 @@ class TestUserRowViewModel:
         assert "stone-200" in vm.role_badge_color
         assert vm.show_promote is True
         assert vm.show_demote is False
-        assert vm.show_deactivate is True
-        assert vm.show_reactivate is False
-
-    def test_inactive_user_row_view_model(self, admin_user, uow):
-        """Inactive user shows reactivate button, hides others."""
-        from app.web.view_models import UserRowViewModel
-
-        # Deactivate the user
-        with uow:
-            uow.users.deactivate(admin_user.id)
-        deactivated_user = uow.users.get_by_id(admin_user.id)
-
-        vm = UserRowViewModel.from_domain(deactivated_user)
-
-        assert vm.status_label == "Deactivated"
-        assert "red-700" in vm.status_badge_color
-        assert vm.show_promote is False
-        assert vm.show_demote is False
-        assert vm.show_deactivate is False
-        assert vm.show_reactivate is True
 
     def test_demote_button_disabled_when_last_admin(self, admin_user):
         """Demote button disabled when only 1 active admin exists."""
         from app.web.view_models import UserRowViewModel
 
         # Test with 1 active admin (the only admin)
-        vm = UserRowViewModel.from_domain(admin_user, active_admin_count=1)
+        vm = UserRowViewModel.from_domain(admin_user, admin_count=1)
 
         assert vm.show_demote is False
 
@@ -209,54 +187,9 @@ class TestUserRowViewModel:
         from app.web.view_models import UserRowViewModel
 
         # Test with 2 active admins
-        vm = UserRowViewModel.from_domain(admin_user, active_admin_count=2)
+        vm = UserRowViewModel.from_domain(admin_user, admin_count=2)
 
         assert vm.show_demote is True
-
-    def test_deactivate_button_disabled_when_last_admin(self, admin_user):
-        """Deactivate button disabled when only 1 active admin exists."""
-        from app.web.view_models import UserRowViewModel
-
-        # Test with 1 active admin (the only admin) — can't deactivate
-        vm = UserRowViewModel.from_domain(admin_user, active_admin_count=1)
-
-        assert vm.show_deactivate is False
-
-    def test_deactivate_button_enabled_when_multiple_admins(self, admin_user):
-        """Deactivate button enabled when multiple active admins exist."""
-        from app.web.view_models import UserRowViewModel
-
-        # Test with 2 active admins — last admin can still be deactivated
-        vm = UserRowViewModel.from_domain(admin_user, active_admin_count=2)
-
-        assert vm.show_deactivate is True
-
-    def test_deactivate_button_enabled_for_regular_users(self, regular_user):
-        """Deactivate button enabled for regular users regardless of admin count."""
-        from app.web.view_models import UserRowViewModel
-
-        # Regular users can always be deactivated (don't affect admin count)
-        vm = UserRowViewModel.from_domain(regular_user, active_admin_count=1)
-
-        assert vm.show_deactivate is True
-
-    def test_status_filter_active(self, admin_user):
-        """Active users have status_filter='active'."""
-        from app.web.view_models import UserRowViewModel
-
-        vm = UserRowViewModel.from_domain(admin_user)
-        assert vm.status_filter == "active"
-
-    def test_status_filter_deactivated(self, regular_user, uow):
-        """Deactivated users have status_filter='deactivated'."""
-        from app.web.view_models import UserRowViewModel
-
-        with uow:
-            uow.users.deactivate(regular_user.id)
-        deactivated = uow.users.get_by_id(regular_user.id)
-
-        vm = UserRowViewModel.from_domain(deactivated)
-        assert vm.status_filter == "deactivated"
 
 
 class TestUserProfileViewModel:

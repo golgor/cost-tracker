@@ -137,7 +137,6 @@ def create_test_user(session, oidc_sub: str, email: str, display_name: str | Non
         email=email,
         display_name=display_name or email.split("@")[0],
         role=UserRole.USER,
-        is_active=True,
     )
     session.add(user)
     session.flush()

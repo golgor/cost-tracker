@@ -18,9 +18,6 @@ def get_all_users(session: Session) -> list[UserPublic]:
             email=row.email,
             display_name=row.display_name,
             role=row.role,
-            is_active=row.is_active,
-            deactivated_at=row.deactivated_at,
-            deactivated_by_user_id=row.deactivated_by_user_id,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
