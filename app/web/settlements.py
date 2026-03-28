@@ -97,7 +97,7 @@ async def calculate_settlement_total(
             transactions, _balances = preview_settlement(uow, expense_ids, member_ids)
             total_amount = sum(tx.amount.amount for tx in transactions)
             transfer_message = format_transfer_message(transactions, display_names)
-        except (SettlementError, StaleExpenseError):
+        except SettlementError, StaleExpenseError:
             total_amount = Decimal("0.00")
             transfer_message = "Some expenses are no longer available"
     else:
