@@ -260,7 +260,7 @@ class SettlementHistoryViewModel(BaseModel):
             transactions: List of settlement transactions
             display_names: Mapping of user IDs to display names
         """
-        total_amount = sum(tx.amount for tx in transactions)
+        total_amount = sum((tx.amount for tx in transactions), Decimal("0"))
         summaries = [
             {
                 "from_name": display_names.get(tx.from_user_id, f"User {tx.from_user_id}"),
