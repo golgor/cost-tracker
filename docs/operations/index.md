@@ -14,7 +14,3 @@ Guides for installing, configuring, deploying, and maintaining a Cost Tracker in
 - [Database](database.md) — PostgreSQL setup, migrations, and backups
 - [Upgrading](upgrading.md) — Version upgrade procedures
 - [Troubleshooting](troubleshooting.md) — Common issues and solutions
-
-!!! note "Work in progress"
-    Operations documentation is being built out. Configuration reference is available now;
-    other guides are coming soon.
