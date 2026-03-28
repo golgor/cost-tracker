@@ -479,24 +479,57 @@ Contains: expense list, creation (mobile + desktop forms), detail/edit, deletion
 
 ---
 
-## Priority Matrix
+## Resolution Status
 
-| Priority | Count | Status |
-|----------|-------|--------|
-| ~~P1~~ | ~~8~~ → 4 | 2 retracted (F-01, F-24), 2 resolved (F-05, F-13 — audit removed) |
-| ~~P2~~ | ~~22~~ → 17 | F-13 resolved (audit removed) |
-| P3 | 10 | Includes retracted F-01, F-24 as style preferences |
+### Implemented (this PR)
 
-## Suggested Implementation Order
+| Finding | Status | Description |
+|---------|--------|-------------|
+| F-02 | **Done** | Timing-safe `hmac.compare_digest()` for CSRF and webhook tokens |
+| F-03 | **Done** | Added 3 missing fields to `expense_row_to_public()` |
+| F-04 | **Done** | `count_active_admins()` uses `SELECT COUNT(*)` |
+| F-06 | **Done** | Dockerfile runs as non-root `appuser` |
+| F-07 | **Done** | 8 migrations squashed into 1 |
+| F-08 | **Done** | Native ENUMs replaced with VARCHAR + CHECK constraints |
+| F-09 | **Done** | `MemberRole` and `UserRole` now have separate CHECK constraints |
+| F-10 | **Done** | Port `save()` methods accept `*Base` instead of `*Public` |
+| F-11 | **Done** | `ExpensePort.update()` uses proper types instead of `Any` |
+| F-14 | **Done** | `UserPort.get_by_ids()` batch query, N+1 loops replaced |
+| F-15 | **Done** | UoW docstring documents read-only convention |
+| F-16 | **Done** | `CURRENCY_SYMBOLS` centralized in `filters.py` |
+| F-17 | **Done** | Shared form parsing helpers in `app/web/form_parsing.py` |
+| F-19 | **Done** | Missing indexes added (payer_id, creator_id, status, recurring_definition_id) |
+| F-20 | **Done** | Consistent `sa.DateTime(timezone=True)` in squashed migration |
+| F-21 | **Done** | `settlement_expenses` FK constraints have `ondelete="CASCADE"` |
+| F-22 | **Done** | Uses `psycopg2.diag.constraint_name` instead of string parsing |
+| F-23 | **Done** | `generate_reference_id()` bounded to 100 attempts |
+| F-28 | **Done** | Explicit `pool_size=5, max_overflow=5` on engine |
+| F-29 | **Done** | Redundant `ix_expenses_group_id` removed in squashed migration |
+| F-31 | **Done** | Skipped tests un-skipped (session expiry fixed with time mock) |
+| F-33 | **Done** | Duplicate query in `save_splits` removed (audit removal PR) |
+| F-34 | **Done** | Redundant `status != GIFT` filter removed |
+| F-35 | **Done** | AuthMiddleware checks `is_active` on every request |
+| F-36 | **Done** | `calculate_splits` extracted as public domain function |
+| F-38 | **Done** | Note CRUD methods added to `ExpensePort` protocol |
 
-1. **F-02, F-35** — Add timing-safe comparisons + deactivated user check (security)
-2. **F-03, F-33** — Fix incomplete mappings.py + duplicate query bug (data correctness)
-3. **F-06** — Dockerfile non-root user (security)
-4. **F-04, F-34** — Fix count query + redundant filter (correctness)
-5. **F-07** — Squash migrations (clean slate opportunity)
-6. **F-08, F-09** — Decide on ENUM strategy (architectural)
-7. **F-19** — Add missing indexes (performance)
-8. **F-10, F-11, F-38** — Fix port interface types + note methods (maintainability)
-9. **F-36, F-37** — Consolidate duplicated code + split large file
-10. Remaining P2 items grouped by affected area
-11. P3 items as time permits
+### Previously resolved
+
+| Finding | Status | Description |
+|---------|--------|-------------|
+| F-01 | Retracted | Valid Python 3.14 syntax |
+| F-05 | Resolved | Audit system removed (PR #24) |
+| F-13 | Resolved | Audit system removed (PR #24) |
+| F-24 | Retracted | Valid Python 3.14 syntax |
+
+### Deferred (future PRs)
+
+| Finding | Priority | Description |
+|---------|----------|-------------|
+| F-12 | P2 | Recurring queries return template-ready dicts — should return domain models + view models |
+| F-18 | P2 | Balance calculation / transaction minimization in handlers — extract to use case |
+| F-27 | P3 | View models only used in admin — create for expenses, settlements, recurring |
+| F-37 | P3 | `expenses.py` at 1300+ lines — split into sub-modules |
+| F-25 | P3 | Split strategies don't use `BalanceConfig` for rounding |
+| F-26 | P3 | Money value object underutilized |
+| F-30 | P3 | Missing `__all__` exports |
+| F-32 | P3 | CI architecture tests as separate job |

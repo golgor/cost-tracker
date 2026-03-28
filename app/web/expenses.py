@@ -1,9 +1,8 @@
 """Expense creation routes for mobile and desktop."""
 
 import contextlib
-import json
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -683,17 +682,14 @@ async def get_expense_detail(
     if not group or group.id != expense.group_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get creator and payer names
-    creator = uow.users.get_by_id(expense.creator_id)
-    payer = uow.users.get_by_id(expense.payer_id)
     group_members = get_group_members(uow.session, group.id)
 
-    # Get all users for display
-    users_dict = {}
-    for member in group_members:
-        user_obj = uow.users.get_by_id(member.user_id)
-        if user_obj:
-            users_dict[member.user_id] = user_obj
+    # Get all users for display (batch query)
+    member_ids = [m.user_id for m in group_members]
+    users_list = uow.users.get_by_ids(member_ids)
+    users_dict = {u.id: u for u in users_list}
+    creator = users_dict.get(expense.creator_id)
+    payer = users_dict.get(expense.payer_id)
 
     # Fetch actual split rows and build view-model list
     raw_splits = uow.expenses.get_splits(expense.id)
@@ -747,13 +743,11 @@ async def collapse_expense_detail(
     if not group or group.id != expense.group_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get user details for display
-    users_dict = {}
+    # Get user details for display (batch query)
     group_members = get_group_members(uow.session, group.id)
-    for member in group_members:
-        user_obj = uow.users.get_by_id(member.user_id)
-        if user_obj:
-            users_dict[member.user_id] = user_obj
+    member_ids = [m.user_id for m in group_members]
+    users_list = uow.users.get_by_ids(member_ids)
+    users_dict = {u.id: u for u in users_list}
 
     return templates.TemplateResponse(
         request,
@@ -792,12 +786,10 @@ async def edit_expense_page(
     # Get group members for paid-by selector
     group_members = get_group_members(uow.session, group.id)
 
-    # Get user details for display
-    users_dict = {}
-    for member in group_members:
-        user_obj = uow.users.get_by_id(member.user_id)
-        if user_obj:
-            users_dict[member.user_id] = user_obj
+    # Get user details for display (batch query)
+    member_ids = [m.user_id for m in group_members]
+    users_list = uow.users.get_by_ids(member_ids)
+    users_dict = {u.id: u for u in users_list}
 
     # Get current splits for pre-populating split config
     current_splits = uow.expenses.get_splits(expense.id)
@@ -872,18 +864,14 @@ async def update_expense_endpoint(
     errors = {}
     try:
         # Parse amount
-        try:
-            amount_decimal = Decimal(amount)
-        except InvalidOperation, ValueError:
+        amount_decimal = parse_amount(amount)
+        if amount_decimal is None:
             errors["amount"] = "Invalid amount format"
-            amount_decimal = None
 
         # Parse date
-        try:
-            expense_date = date.fromisoformat(date_str)
-        except ValueError:
+        expense_date = parse_date(date_str)
+        if expense_date is None:
             errors["date"] = "Invalid date format"
-            expense_date = None
 
         # Validate date is not in the future
         if expense_date and expense_date > date.today():
@@ -920,23 +908,18 @@ async def update_expense_endpoint(
     # Parse split_config from JSON
     split_config: dict[int, Decimal] | None = None
     if isinstance(split_type_str, str) and split_type_str.upper() != "EVEN" and split_config_raw:
-        try:
-            config_str = split_config_raw if isinstance(split_config_raw, str) else ""
-            config_data = json.loads(config_str) if config_str else {}
-            split_config = {int(k): Decimal(str(v)) for k, v in config_data.items()}
-        except json.JSONDecodeError, ValueError:
+        split_config = parse_split_config(split_config_raw)
+        if split_config is None:
             errors["split_type"] = "Invalid split configuration"
 
     # If validation errors, return form with errors
     if errors or form_data is None:
         group_members = get_group_members(uow.session, group.id)
 
-        # Get user details
-        users_dict = {}
-        for member in group_members:
-            user_obj = uow.users.get_by_id(member.user_id)
-            if user_obj:
-                users_dict[member.user_id] = user_obj
+        # Get user details (batch query)
+        member_ids = [member.user_id for member in group_members]
+        users_list = uow.users.get_by_ids(member_ids)
+        users_dict = {u.id: u for u in users_list}
 
         return templates.TemplateResponse(
             request,
