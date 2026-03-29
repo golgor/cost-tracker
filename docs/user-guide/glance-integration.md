@@ -9,7 +9,8 @@ whom, and upcoming recurring costs — without logging into Cost Tracker.
 ## Prerequisites
 
 - A running Glance instance
-- Access to Cost Tracker's `GLANCE_API_KEY` environment variable (set by your admin)
+- The value of the `GLANCE_API_KEY` environment variable (ask your Cost Tracker admin,
+  or set it yourself if you manage the instance)
 
 ## Set Up a Widget
 
@@ -86,7 +87,7 @@ Glance caches responses, so both widgets share a single HTTP request within the 
     {{ end }}
 ```
 
-## Further Reading
+## What's Next
 
 For the full API field reference and gjson accessor details, see
 [Glance Integration API Reference](../development/glance-integration.md).

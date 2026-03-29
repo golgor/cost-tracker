@@ -91,11 +91,11 @@ Dates are ISO 8601 date strings (`"YYYY-MM-DD"`) — not datetimes.
 
 ### `month.balance` object
 
-| Field        | Type   | Description                                                           |
-|--------------|--------|-----------------------------------------------------------------------|
-| `net_amount` | string | Absolute net amount owed between partners (e.g. `"50.00"`)           |
-| `direction`  | string | Human-readable direction: `"Alice owes Bob"` or `"All square"`       |
-| `members`    | array  | Per-member breakdown (see below)                                      |
+| Field               | Type   | Description                                                               |
+|---------------------|--------|---------------------------------------------------------------------------|
+| `net_amount`        | string | Net amount owed (e.g. `"50.00"`)                                          |
+| `direction`         | string | Direction: `"Alice owes Bob"` or `"All square"`                           |
+| `members`           | array  | Per-member breakdown (see below)                                          |
 
 ### `month.balance.members[]` items
 
@@ -115,22 +115,22 @@ Dates are ISO 8601 date strings (`"YYYY-MM-DD"`) — not datetimes.
 
 ### `recurring.upcoming[]` items
 
-| Field           | Type   | Description                                                |
-|-----------------|--------|------------------------------------------------------------|
-| `name`          | string | Name of the recurring cost (e.g. `"Netflix"`)              |
-| `amount`        | string | Amount per occurrence                                      |
-| `next_due_date` | string | Next scheduled date as `"YYYY-MM-DD"`                      |
-| `frequency`     | string | Human-readable frequency (e.g. `"monthly"`, `"yearly"`, `"every 3 months"`) |
-| `payer`         | string | Display name of the assigned payer                         |
+| Field               | Type   | Description                                                               |
+|---------------------|--------|---------------------------------------------------------------------------|
+| `name`              | string | Name (e.g. `"Netflix"`)                                                   |
+| `amount`            | string | Amount per occurrence                                                     |
+| `next_due_date`     | string | Next date as `"YYYY-MM-DD"`                                               |
+| `frequency`         | string | Frequency (e.g. `"monthly"`, `"yearly"`)                                  |
+| `payer`             | string | Display name of the assigned payer                                        |
 
 ## Edge Cases
 
-| Scenario                | Behavior                                                    |
-|-------------------------|-------------------------------------------------------------|
-| No group exists         | All values zero/empty, currency defaults to `"EUR"`         |
-| No expenses             | `total`: `"0.00"`, `expense_count`: 0, balance: All square  |
-| No recurring costs      | `active_count`: 0, `total_monthly_cost`: `"0.00"`, `upcoming`: `[]` |
-| Partners fully settled  | `balance.direction`: `"All square"`, `net_amount`: `"0.00"` |
+| Scenario               | Behavior                                                  |
+|------------------------|-----------------------------------------------------------|
+| No group exists        | All values zero/empty, currency defaults to `"EUR"`       |
+| No expenses            | `total`: `"0.00"`, `expense_count`: 0                     |
+| No recurring costs     | `active_count`: 0, `total_monthly_cost`: `"0.00"`         |
+| Partners fully settled | `balance.direction`: `"All square"`                       |
 
 ## gjson Accessor Cheat Sheet
 
