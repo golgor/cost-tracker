@@ -56,3 +56,7 @@ run = "uv run alembic upgrade head"
 [tasks.db]
 description = "Start local PostgreSQL container"
 run = "docker-compose up -d"
+
+[tasks.docs]
+description = "Set up a local documentation server"
+run = "uv run --with mkdocs --with mkdocs-material mkdocs serve --livereload"
