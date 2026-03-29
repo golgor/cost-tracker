@@ -308,3 +308,69 @@ class TestSummaryWithRecurring:
         today = date.today()
         expected_period = f"{today.year}-{today.month:02d}"
         assert data["month"]["period"] == expected_period
+
+
+class TestBalanceWithTodaysExpenses:
+    """Regression test: expenses dated today must contribute to balance.
+
+    Previously, a SQL join bug (session.exec with multi-entity select) caused
+    today's expenses to be silently excluded from the balance calculation.
+    """
+
+    def test_balance_correct_with_today_expenses(
+        self, api_client, test_group, user1, user2, db_session
+    ):
+        """Two expenses both dated today produce correct balance direction."""
+        # Alice (user1) pays €50, Bob (user2) pays €30 — both today
+        expense1 = ExpenseRow(
+            group_id=test_group.id,
+            amount=Decimal("50.00"),
+            description="Dinner",
+            date=date.today(),
+            creator_id=user1.id,
+            payer_id=user1.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        expense2 = ExpenseRow(
+            group_id=test_group.id,
+            amount=Decimal("30.00"),
+            description="Coffee",
+            date=date.today(),
+            creator_id=user2.id,
+            payer_id=user2.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        db_session.add(expense1)
+        db_session.add(expense2)
+        db_session.flush()
+
+        # Add splits (even split: each person owes half)
+        db_session.add(
+            ExpenseSplitRow(expense_id=expense1.id, user_id=user1.id, amount=Decimal("25.00"))
+        )
+        db_session.add(
+            ExpenseSplitRow(expense_id=expense1.id, user_id=user2.id, amount=Decimal("25.00"))
+        )
+        db_session.add(
+            ExpenseSplitRow(expense_id=expense2.id, user_id=user1.id, amount=Decimal("15.00"))
+        )
+        db_session.add(
+            ExpenseSplitRow(expense_id=expense2.id, user_id=user2.id, amount=Decimal("15.00"))
+        )
+        db_session.flush()
+
+        response = api_client.get(API_URL, headers={"Authorization": VALID_AUTH})
+        data = response.json()
+
+        balance = data["month"]["balance"]
+        # Alice paid €50 (owed €25), owes €15 for Bob's → net +€10
+        # Bob paid €30 (owed €15), owes €25 for Alice's → net -€10
+        assert balance["net_amount"] == "10.00"
+        assert "Bob" in balance["direction"]
+        assert "Alice" in balance["direction"]
+        # Bob owes Alice
+        assert balance["direction"] == "Bob owes Alice"
