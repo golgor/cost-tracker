@@ -31,9 +31,9 @@ balance between partners, recurring cost overview, and upcoming scheduled items.
 ## Response Schema
 
 All money values are **strings** (e.g. `"123.45"`), never floats.
-Dates are ISO 8601 strings (`"YYYY-MM-DD"`).
+Dates are ISO 8601 date strings (`"YYYY-MM-DD"`) — not datetimes.
 
-### Full example response
+### Full Example Response
 
 ```json
 {
@@ -120,7 +120,7 @@ Dates are ISO 8601 strings (`"YYYY-MM-DD"`).
 | `name`          | string | Name of the recurring cost (e.g. `"Netflix"`)              |
 | `amount`        | string | Amount per occurrence                                      |
 | `next_due_date` | string | Next scheduled date as `"YYYY-MM-DD"`                      |
-| `frequency`     | string | Frequency label (e.g. `"monthly"`, `"yearly"`, `"every 3 months"`) |
+| `frequency`     | string | Human-readable frequency (e.g. `"monthly"`, `"yearly"`, `"every 3 months"`) |
 | `payer`         | string | Display name of the assigned payer                         |
 
 ## Edge Cases
