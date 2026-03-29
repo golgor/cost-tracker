@@ -47,6 +47,7 @@ nav:
       - user-guide/index.md
       - Getting Started: user-guide/getting-started.md
       - Features: user-guide/features.md
+      - Glance Dashboard: user-guide/glance-integration.md
       - FAQ: user-guide/faq.md
   - Operations:
       - operations/index.md
@@ -66,6 +67,8 @@ nav:
           - Add a Domain Entity: development/how-to/add-domain-entity.md
           - Add a Route: development/how-to/add-route.md
           - Add a Migration: development/how-to/add-migration.md
+      - Integrations:
+          - Glance Dashboard: development/glance-integration.md
   - Architecture:
       - architecture/index.md
       - Core Decisions: architecture/core-architectural-decisions.md
