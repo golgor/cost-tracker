@@ -106,6 +106,7 @@ class TestSummaryEmptyState:
         assert data["month"]["balance"]["direction"] == "All square"
         assert data["month"]["balance"]["members"] == []
         assert data["recurring"]["active_count"] == 0
+        assert data["recurring"]["total_monthly_cost"] == "0.00"
         assert data["recurring"]["upcoming"] == []
 
     def test_group_no_expenses_returns_zeros(self, api_client, test_group):

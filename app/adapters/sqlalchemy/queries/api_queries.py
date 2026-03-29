@@ -80,14 +80,13 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
             "members": [{"name": names.get(uid, "Unknown"), "net": "0.00"} for uid in member_ids],
         }
 
-    # Sum splits for all pending (non-gift) expenses
+    # Sum splits for all pending expenses (PENDING excludes both GIFT and SETTLED)
     statement = (
         select(ExpenseSplitRow, ExpenseRow.payer_id)
         .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
-            ExpenseRow.status != ExpenseStatus.GIFT,
         )
     )
     results = session.exec(statement).all()
@@ -123,7 +122,6 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
         .where(
             ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
-            ExpenseRow.status != ExpenseStatus.GIFT,
         )
         .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))  # ty: ignore[unresolved-attribute]
     )

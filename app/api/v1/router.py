@@ -103,7 +103,10 @@ def get_summary(
 
 
 def _empty_summary() -> GlanceSummary:
-    """Return an empty summary when no group exists."""
+    """Return an empty summary when no group exists.
+
+    Uses EUR as fallback currency since there is no group to source it from.
+    """
     return GlanceSummary(
         month=MonthSummary(
             period=f"{date.today().year}-{date.today().month:02d}",
@@ -119,7 +122,7 @@ def _empty_summary() -> GlanceSummary:
         ),
         recurring=RecurringSummary(
             active_count=0,
-            total_monthly_cost="0",
+            total_monthly_cost="0.00",
             currency="EUR",
             upcoming=[],
         ),
