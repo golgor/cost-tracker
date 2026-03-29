@@ -1,6 +1,7 @@
 """Read-only queries for the external API (Glance Dashboard integration)."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlmodel import Session, func, select
@@ -100,10 +101,12 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
         direction = "All square"
         net = abs(balances[member_ids[0]].net_balance.amount)
 
+    two_dp = Decimal("0.01")
     return {
-        "net_amount": str(net),
+        "net_amount": str(net.quantize(two_dp)),
         "direction": direction,
         "members": [
-            {"name": names[uid], "net": str(balances[uid].net_balance.amount)} for uid in member_ids
+            {"name": names[uid], "net": str(balances[uid].net_balance.amount.quantize(two_dp))}
+            for uid in member_ids
         ],
     }
