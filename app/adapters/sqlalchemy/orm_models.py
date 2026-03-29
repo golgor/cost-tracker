@@ -12,15 +12,12 @@ from app.domain.models import (
     ExpenseNoteBase,
     ExpenseSplitBase,
     ExpenseStatus,
-    GroupBase,
-    MemberRole,
     RecurringDefinitionBase,
     RecurringFrequency,
     SettlementBase,
     SettlementTransactionBase,
     SplitType,
     UserBase,
-    UserRole,
 )
 
 # SQLModel.metadata serves as the declarative base for Alembic migrations.
@@ -31,58 +28,12 @@ from app.domain.models import (
 _TZ_DATETIME = DateTime(timezone=True)
 
 
-class MembershipRow(SQLModel, table=True):
-    """User-Group membership join table with role."""
-
-    __tablename__ = "group_memberships"
-
-    user_id: int = Field(foreign_key="users.id", primary_key=True)
-    group_id: int = Field(foreign_key="groups.id", primary_key=True)
-    role: MemberRole = Field(
-        default=MemberRole.USER,
-        sa_type=sa.String(length=20),  # type: ignore[arg-type]
-    )
-    joined_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-    )
-
-
 class UserRow(UserBase, table=True):
     """ORM model for User — inherits from domain base, adds DB fields."""
 
     __tablename__ = "users"
 
-    # Override role field to use VARCHAR + CHECK constraint
-    role: UserRole = Field(
-        default=UserRole.USER,
-        sa_type=sa.String(length=20),  # type: ignore[arg-type]
-    )
-
     id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now()},
-        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-    )
-    updated_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
-        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
-    )
-
-
-class GroupRow(GroupBase, table=True):
-    """ORM model for Group — inherits from domain base, adds DB fields."""
-
-    __tablename__ = "groups"
-
-    # Override default_split_type to use VARCHAR + CHECK constraint
-    default_split_type: SplitType = Field(
-        default=SplitType.EVEN,
-        sa_type=sa.String(length=20),  # type: ignore[arg-type]
-    )
-
-    id: int | None = Field(default=None, primary_key=True)
-    singleton_guard: bool = Field(default=True, unique=True, nullable=False)
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
         sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
@@ -125,7 +76,6 @@ class ExpenseRow(ExpenseBase, table=True):
 
     # Foreign key constraints
     __table_args__ = (
-        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["creator_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
         sa.ForeignKeyConstraint(
@@ -134,8 +84,7 @@ class ExpenseRow(ExpenseBase, table=True):
             ondelete="SET NULL",
             name="fk_expenses_recurring_definition_id",
         ),
-        sa.Index("ix_expenses_group_id_date", "group_id", "date"),
-        # Partial unique index enforced at migration level; declared here for documentation
+        sa.Index("ix_expenses_date", "date"),
     )
 
 
@@ -211,10 +160,9 @@ class SettlementRow(SettlementBase, table=True):
     )
 
     __table_args__ = (
-        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["settled_by_id"], ["users.id"]),
-        sa.Index("ix_settlements_group_id_settled_at", "group_id", "settled_at"),
-        sa.UniqueConstraint("group_id", "reference_id", name="uq_group_reference"),
+        sa.Index("ix_settlements_settled_at", "settled_at"),
+        sa.UniqueConstraint("reference_id", name="uq_reference"),
     )
 
 
@@ -306,9 +254,7 @@ class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
     )
 
     __table_args__ = (
-        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
-        sa.Index("ix_recurring_definitions_group_id", "group_id"),
         sa.Index("ix_recurring_definitions_next_due_date", "next_due_date"),
     )
 
@@ -317,8 +263,6 @@ class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
 __all__ = [
     "SQLModel",
     "UserRow",
-    "GroupRow",
-    "MembershipRow",
     "ExpenseRow",
     "ExpenseSplitRow",
     "SettlementRow",

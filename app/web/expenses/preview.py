@@ -7,10 +7,11 @@ from typing import Annotated
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.domain.errors import InvalidShareError
 from app.domain.models import ExpensePublic, SplitType
 from app.domain.use_cases.expenses import calculate_splits
+from app.settings import settings
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
@@ -29,21 +30,12 @@ async def get_mobile_capture_form(
     uow: UowDep,
 ):
     """Load mobile expense capture form into bottom sheet."""
-    # Get group for current user
     user = uow.users.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="User has no group")
-
-    group_members = get_group_members(uow.session, group.id)
-
-    # Get user details for display names (batch query)
-    member_ids = [member.user_id for member in group_members]
-    users = uow.users.get_by_ids(member_ids)
-    users_dict = {u.id: u for u in users}
+    all_users = get_all_users(uow.session)
+    users_dict = {u.id: u for u in all_users}
 
     # Pre-select current user as payer (simplify template logic)
     selected_payer_id = user_id
@@ -52,13 +44,13 @@ async def get_mobile_capture_form(
         request,
         "expenses/_capture_form_mobile.html",
         {
-            "group": group,
-            "group_members": group_members,
+            "users_list": all_users,
             "users": users_dict,
             "current_user_id": user_id,
             "selected_payer_id": selected_payer_id,
             "today": date.today().isoformat(),
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+            "default_currency": settings.DEFAULT_CURRENCY,
         },
     )
 
@@ -91,28 +83,20 @@ async def get_split_preview(
     except ValueError:
         payer_id = user_id
 
-    # Get group members
-    group = uow.groups.get_by_user_id(user_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="User has no group")
-
-    members = get_group_members(uow.session, group.id)
-    member_ids = [m.user_id for m in members]
-
-    # Get user details for display names (batch query)
-    users = uow.users.get_by_ids(member_ids)
-    users_dict = {u.id: u for u in users}
+    # Get all users
+    all_users = get_all_users(uow.session)
+    member_ids = [u.id for u in all_users]
+    users_dict = {u.id: u for u in all_users}
 
     # Create a mock expense for split calculation
     expense = ExpensePublic.model_construct(
         id=0,
-        group_id=group.id,
         amount=amount or Decimal("0"),
         description="",
         date=date.today(),
         creator_id=user_id,
         payer_id=payer_id,
-        currency=group.default_currency,
+        currency=settings.DEFAULT_CURRENCY,
         split_type=SplitType.EVEN,
         status="PENDING",
         created_at=date.today(),
@@ -139,6 +123,6 @@ async def get_split_preview(
             "splits": splits,
             "users": users_dict,
             "error_message": error_message,
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
         },
     )

@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import ExpenseStatus, UserPublic
@@ -80,23 +80,16 @@ def _render_expense_notes_section(
 ) -> HTMLResponse:
     """Render expense notes section HTML with context.
 
-    Fetches notes, builds users dict from note authors and group members,
+    Fetches notes, builds users dict from all users,
     and returns TemplateResponse with csrf_token for HTMX forms.
     """
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    group = uow.groups.get_by_id(expense.group_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
-
     notes = uow.expenses.list_notes_by_expense(expense_id)
 
-    group_members = get_group_members(uow.session, group.id)
-    all_user_ids = {member.user_id for member in group_members}
-    all_user_ids.update(note.author_id for note in notes)
-    users = uow.users.get_by_ids(list(all_user_ids))
+    users = get_all_users(uow.session)
     users_dict: dict[int, UserPublic] = {u.id: u for u in users}
 
     return templates.TemplateResponse(

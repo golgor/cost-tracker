@@ -8,14 +8,12 @@ from starlette.testclient import TestClient
 
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
-    GroupRow,
-    MembershipRow,
     UserRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import ExpenseStatus, MemberRole, SplitType, UserRole
+from app.domain.models import ExpenseStatus, SplitType
 from app.main import app
 
 
@@ -26,7 +24,6 @@ def user1(uow: UnitOfWork):
         oidc_sub="user1@test.com",
         email="user1@test.com",
         display_name="Alice",
-        role=UserRole.USER,
     )
     uow.session.add(user)
     uow.session.flush()
@@ -40,7 +37,6 @@ def user2(uow: UnitOfWork):
         oidc_sub="user2@test.com",
         email="user2@test.com",
         display_name="Bob",
-        role=UserRole.USER,
     )
     uow.session.add(user)
     uow.session.flush()
@@ -48,30 +44,9 @@ def user2(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow: UnitOfWork):
-    """Create a test group with two members using direct SQLAlchemy."""
-    # Create group directly using SQLAlchemy for test data setup
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-
-    # Add members
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-
-    return group
-
-
-@pytest.fixture
-def test_expense(user1, test_group, uow: UnitOfWork):
+def test_expense(user1, user2, uow: UnitOfWork):
     """Create a test expense directly via SQLAlchemy."""
     expense = ExpenseRow(
-        group_id=test_group.id,
         amount=Decimal("100.00"),
         description="Test expense",
         date=date.today(),
@@ -87,7 +62,7 @@ def test_expense(user1, test_group, uow: UnitOfWork):
 
 
 @pytest.fixture
-def authenticated_client(user1, test_group, uow):
+def authenticated_client(user1, uow):
     """Test client with session cookie for user1."""
     app.dependency_overrides[get_uow] = lambda: uow
 
@@ -103,7 +78,7 @@ class TestSettlementReviewPage:
     """Tests for settlement review page."""
 
     def test_review_page_loads_with_unsettled_expenses(
-        self, authenticated_client, user1, test_group, test_expense
+        self, authenticated_client, user1, test_expense
     ):
         """Test review page shows unsettled expenses."""
         response = authenticated_client.get("/settlements/review")
@@ -112,7 +87,7 @@ class TestSettlementReviewPage:
         assert b"Review Expenses for Settlement" in response.content
         assert b"Test expense" in response.content
 
-    def test_review_page_empty_state(self, authenticated_client, user1, test_group):
+    def test_review_page_empty_state(self, authenticated_client, user1):
         """Test review page shows empty state when no unsettled expenses."""
         response = authenticated_client.get("/settlements/review")
 
@@ -123,7 +98,7 @@ class TestSettlementReviewPage:
 class TestCalculateTotalEndpoint:
     """Tests for HTMX calculate total endpoint."""
 
-    def test_calculate_total_htmx(self, authenticated_client, user1, test_group, test_expense):
+    def test_calculate_total_htmx(self, authenticated_client, user1, test_expense):
         """Test HTMX endpoint returns updated total."""
         # Get CSRF token from review page
         get_response = authenticated_client.get("/settlements/review")
@@ -139,7 +114,7 @@ class TestCalculateTotalEndpoint:
 
         assert response.status_code == 200
 
-    def test_calculate_total_no_selection(self, authenticated_client, user1, test_group):
+    def test_calculate_total_no_selection(self, authenticated_client, user1):
         """Test HTMX endpoint with no selection."""
         # Get CSRF token from review page
         get_response = authenticated_client.get("/settlements/review")
@@ -156,7 +131,7 @@ class TestCalculateTotalEndpoint:
 class TestConfirmPage:
     """Tests for settlement confirmation page."""
 
-    def test_confirm_page_loads(self, authenticated_client, user1, test_group, test_expense):
+    def test_confirm_page_loads(self, authenticated_client, user1, test_expense):
         """Test confirm page with selected expenses."""
         review_response = authenticated_client.get("/settlements/review")
         csrf_token = review_response.cookies.get("csrf_token")
@@ -169,7 +144,7 @@ class TestConfirmPage:
         assert response.status_code == 200
         assert b"Confirm Settlement" in response.content
 
-    def test_confirm_page_validation_no_expenses(self, authenticated_client, user1, test_group):
+    def test_confirm_page_validation_no_expenses(self, authenticated_client, user1):
         """Test confirm page redirects when no expenses selected."""
         csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
         response = authenticated_client.post(
@@ -184,9 +159,7 @@ class TestConfirmPage:
 class TestCreateSettlement:
     """Tests for settlement creation endpoint."""
 
-    def test_create_settlement_success(
-        self, authenticated_client, uow, user1, test_group, test_expense
-    ):
+    def test_create_settlement_success(self, authenticated_client, uow, user1, test_expense):
         """Test creating a settlement marks expenses as settled."""
         # Get CSRF token from review page
         get_response = authenticated_client.get("/settlements/review")
@@ -212,7 +185,7 @@ class TestCreateSettlement:
 class TestSettlementHistory:
     """Tests for settlement history page."""
 
-    def test_history_page_empty_state(self, authenticated_client, user1, test_group):
+    def test_history_page_empty_state(self, authenticated_client, user1):
         """Test history page shows empty state."""
         response = authenticated_client.get("/settlements")
 
@@ -233,7 +206,7 @@ class TestSettlementDetail:
         assert response.status_code == 302
         assert response.headers.get("location") == "/auth/login"
 
-    def test_detail_page_not_found(self, authenticated_client, user1, test_group):
+    def test_detail_page_not_found(self, authenticated_client, user1):
         """Test detail page returns 404 for non-existent settlement."""
         response = authenticated_client.get("/settlements/99999")
 

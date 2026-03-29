@@ -3,12 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import UserRow
-from app.domain.errors import (
-    UserAlreadyAdminError,
-    UserAlreadyRegularError,
-    UserNotFoundError,
-)
-from app.domain.models import UserPublic, UserRole
+from app.domain.models import UserPublic
 
 
 class SqlAlchemyUserAdapter:
@@ -72,44 +67,14 @@ class SqlAlchemyUserAdapter:
 
         return self._to_public(row)
 
-    def promote_to_admin(self, user_id: int) -> UserPublic:
-        """Promote user to admin role."""
-        row = self._session.get(UserRow, user_id)
-        if row is None:
-            raise UserNotFoundError(f"User {user_id} not found")
-
-        if row.role == UserRole.ADMIN:
-            raise UserAlreadyAdminError(f"User {user_id} is already an admin")
-
-        row.role = UserRole.ADMIN
-        self._session.add(row)
-        self._session.flush()
-
-        return self._to_public(row)
-
-    def demote_to_user(self, user_id: int) -> UserPublic:
-        """Demote user to regular user role."""
-        row = self._session.get(UserRow, user_id)
-        if row is None:
-            raise UserNotFoundError(f"User {user_id} not found")
-
-        if row.role == UserRole.USER:
-            raise UserAlreadyRegularError(f"User {user_id} is already a regular user")
-
-        row.role = UserRole.USER
-        self._session.add(row)
-        self._session.flush()
-
-        return self._to_public(row)
-
-    def count_admins(self) -> int:
-        """Count the number of admin users."""
-        statement = select(func.count()).select_from(UserRow).where(UserRow.role == UserRole.ADMIN)
+    def count(self) -> int:
+        """Count the total number of users."""
+        statement = select(func.count()).select_from(UserRow)
         return self._session.exec(statement).first() or 0
 
-    def get_admins(self) -> list[UserPublic]:
-        """Get list of all admin users."""
-        statement = select(UserRow).where(UserRow.role == UserRole.ADMIN)
+    def get_all(self) -> list[UserPublic]:
+        """Get list of all users."""
+        statement = select(UserRow)
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
 
@@ -122,7 +87,6 @@ class SqlAlchemyUserAdapter:
             oidc_sub=row.oidc_sub,
             email=row.email,
             display_name=row.display_name,
-            role=row.role,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

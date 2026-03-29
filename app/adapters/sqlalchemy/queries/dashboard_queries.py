@@ -9,43 +9,40 @@ from app.adapters.sqlalchemy.orm_models import (
     ExpenseNoteRow,
     ExpenseRow,
     ExpenseSplitRow,
-    MembershipRow,
     RecurringDefinitionRow,
+    UserRow,
 )
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
-from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
+from app.domain.models import ExpensePublic, ExpenseStatus, UserPublic
 
 
-def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]:
-    """Fetch all members of a group with their roles.
+def get_all_users(session: Session) -> list[UserPublic]:
+    """Fetch all users.
 
-    Used for dashboard to display group member info (badges, names, etc).
+    Used for member lists, payer dropdowns, and split calculations.
     """
-    statement = select(MembershipRow).where(MembershipRow.group_id == group_id)
-    rows = session.exec(statement).all()
-
+    rows = session.exec(select(UserRow)).all()
     return [
-        MembershipPublic(
-            user_id=row.user_id,
-            group_id=row.group_id,
-            role=row.role,
-            joined_at=row.joined_at,
+        UserPublic(
+            id=row.id,
+            oidc_sub=row.oidc_sub,
+            email=row.email,
+            display_name=row.display_name,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
         for row in rows
+        if row.id is not None
     ]
 
 
-def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> list[ExpensePublic]:
-    """Fetch all unsettled expenses for a group, newest first.
+def get_all_expenses(session: Session, limit: int = 100) -> list[ExpensePublic]:
+    """Fetch all expenses, newest first.
 
     Used for dashboard expense feed. Sorted by date descending for feed display.
-
-    Note: In Epic 4 (Story 4.3), this will filter out gift-status expenses.
-    Epic 4 (Story 4.2) will switch to selecting from expense_splits table for split-mode support.
     """
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .order_by(
             ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
         )
@@ -58,7 +55,6 @@ def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> lis
 
 def get_filtered_expenses(
     session: Session,
-    group_id: int,
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
@@ -70,7 +66,6 @@ def get_filtered_expenses(
 
     Args:
         session: Database session
-        group_id: Group ID to fetch expenses for
         date_from: Optional start date (inclusive)
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
@@ -83,7 +78,7 @@ def get_filtered_expenses(
 
     Used by /expenses route for filtered expense list viewing.
     """
-    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id)
+    statement = select(ExpenseRow)
 
     # Apply optional filters
     if date_from:
@@ -118,7 +113,6 @@ def get_filtered_expenses(
 
 
 def _filtered_expense_ids_subquery(
-    group_id: int,
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
@@ -130,7 +124,6 @@ def _filtered_expense_ids_subquery(
     affecting split-sum calculations.
     """
     stmt = select(ExpenseRow.id).where(  # type: ignore[arg-type]
-        ExpenseRow.group_id == group_id,
         ExpenseRow.status == ExpenseStatus.PENDING,
     )
     if date_from:
@@ -157,14 +150,13 @@ def _filtered_expense_ids_subquery(
 
 def calculate_balance(
     session: Session,
-    group_id: int,
     user_id: int,
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
     search_query: str | None = None,
 ) -> dict:
-    """Calculate current balance for a group using actual split amounts from expense_splits.
+    """Calculate current balance using actual split amounts from expense_splits.
 
     Returns: {
         "current_user_is_owed": Decimal,  # positive = current user is owed, negative = owes
@@ -176,35 +168,31 @@ def calculate_balance(
     percentage, exact). Excludes GIFT status expenses from balance calculation.
     Optionally filters by date range, payer, and search query.
     """
-    # Get group members to identify partner
-    members = get_group_members(session, group_id)
-    if not members:
+    # Get all users to identify partner
+    users = get_all_users(session)
+    if not users:
         return {
             "current_user_is_owed": Decimal("0.00"),
             "partner_id": None,
             "formatted_message": "All square!",
         }
 
-    # Assumes 2 members; will be generalized in future epics
-    other_members = [m.user_id for m in members if m.user_id != user_id]
-    partner_id = other_members[0] if other_members else None
+    other_users = [u.id for u in users if u.id != user_id]
+    partner_id = other_users[0] if other_users else None
 
-    # Query all splits for pending expenses in this group
+    # Query all splits for pending expenses
     # Join with expenses to filter by status and get payer info
     has_filters = any([date_from, date_to, payer_id, search_query])
     statement = (
         select(ExpenseSplitRow, ExpenseRow.payer_id)
         .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
         .where(
-            ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
             ExpenseRow.status != ExpenseStatus.GIFT,
         )
     )
     if has_filters:
-        filtered_ids = _filtered_expense_ids_subquery(
-            group_id, date_from, date_to, payer_id, search_query
-        )
+        filtered_ids = _filtered_expense_ids_subquery(date_from, date_to, payer_id, search_query)
         statement = statement.where(ExpenseSplitRow.expense_id.in_(filtered_ids))  # type: ignore[union-attr]
     results = session.exec(statement).all()
 
@@ -216,18 +204,18 @@ def calculate_balance(
 
     # Group splits by expense_id
     expense_splits: dict[int, list[tuple[int, Decimal, int]]] = {}
-    for split_row, payer_id in results:
+    for split_row, expense_payer_id in results:
         eid = split_row.expense_id
         if eid not in expense_splits:
             expense_splits[eid] = []
-        expense_splits[eid].append((split_row.user_id, split_row.amount, payer_id))
+        expense_splits[eid].append((split_row.user_id, split_row.amount, expense_payer_id))
 
     # Calculate balance for each expense that has splits
     for _eid, splits in expense_splits.items():
         # Find payer for this expense
-        payer_id = splits[0][2] if splits else None
+        expense_payer_id = splits[0][2] if splits else None
 
-        if payer_id == user_id:
+        if expense_payer_id == user_id:
             # Current user paid → add amounts owed by others
             for member_id, amount, _ in splits:
                 if member_id != user_id:
@@ -243,7 +231,6 @@ def calculate_balance(
     expenses_without_splits = (
         select(ExpenseRow)
         .where(
-            ExpenseRow.group_id == group_id,
             ExpenseRow.status == ExpenseStatus.PENDING,
             ExpenseRow.status != ExpenseStatus.GIFT,
         )
@@ -296,12 +283,10 @@ def get_recurring_definition_names(session: Session, definition_ids: list[int]) 
     return {row.id: row.name for row in rows if row.id is not None}
 
 
-def get_this_month_total(session: Session, group_id: int) -> Decimal:
-    """Sum all expenses in the current calendar month for a group.
+def get_this_month_total(session: Session) -> Decimal:
+    """Sum all expenses in the current calendar month.
 
     Used for "This Month" widget display.
-
-    In Epic 4 (Story 4.3), this will exclude GIFT status expenses.
     """
     today = date.today()
     first_of_month = date(today.year, today.month, 1)
@@ -314,7 +299,6 @@ def get_this_month_total(session: Session, group_id: int) -> Decimal:
 
     statement = (
         select(func.sum(ExpenseRow.amount))
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.date >= first_of_month)
         .where(ExpenseRow.date <= last_of_month)
     )

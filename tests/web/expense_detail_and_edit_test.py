@@ -5,11 +5,10 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import ExpenseStatus, MemberRole, SplitType
+from app.domain.models import ExpenseStatus
 from app.main import app
 
 
@@ -38,44 +37,25 @@ def user2(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow: UnitOfWork):
-    """Create a test group with two members."""
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-    uow.session.commit()
-
-    return group
-
-
-@pytest.fixture
-def test_expense(user1, user2, test_group, uow: UnitOfWork):
+def test_expense(user1, user2, uow: UnitOfWork):
     """Create a test expense."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test expense",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
     return expense
 
 
 @pytest.fixture
-def authenticated_client(user1, test_group, uow):
+def authenticated_client(user1, user2, uow):
     """Test client with session cookie for user1."""
     app.dependency_overrides[get_uow] = lambda: uow
 

@@ -4,7 +4,6 @@ from typing import Any
 from sqlmodel import Session
 
 from app.adapters.sqlalchemy.expense_adapter import SqlAlchemyExpenseAdapter
-from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
 from app.adapters.sqlalchemy.settlement_adapter import SqlAlchemySettlementAdapter
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
@@ -19,7 +18,7 @@ class UnitOfWork:
         # Mutations: use context manager for commit/rollback
         with uow:
             uow.users.save(...)
-            uow.groups.save(...)
+            uow.expenses.save(...)
         # Automatically commits on success, rolls back on exception
 
         # Read-only: no context manager needed (session lifecycle managed by DI)
@@ -33,7 +32,6 @@ class UnitOfWork:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.users = SqlAlchemyUserAdapter(session)
-        self.groups = SqlAlchemyGroupAdapter(session)
         self.expenses = SqlAlchemyExpenseAdapter(session)
         self.settlements = SqlAlchemySettlementAdapter(session)
         self.recurring = SqlAlchemyRecurringDefinitionAdapter(session)

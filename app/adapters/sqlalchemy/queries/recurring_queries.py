@@ -27,7 +27,6 @@ def _row_to_public(row: RecurringDefinitionRow) -> RecurringDefinitionPublic:
 
     return RecurringDefinitionPublic(
         id=row.id,
-        group_id=row.group_id,
         name=row.name,
         amount=row.amount,
         frequency=frequency,
@@ -48,7 +47,6 @@ def _row_to_public(row: RecurringDefinitionRow) -> RecurringDefinitionPublic:
 
 def get_active_definitions(
     session: Session,
-    group_id: int,
 ) -> list[RecurringDefinitionPublic]:
     """Fetch active (not paused, not deleted) recurring definitions for the registry.
 
@@ -57,7 +55,6 @@ def get_active_definitions(
     statement = (
         select(RecurringDefinitionRow)
         .where(
-            RecurringDefinitionRow.group_id == group_id,
             RecurringDefinitionRow.deleted_at.is_(None),  # type: ignore[union-attr]
             RecurringDefinitionRow.is_active.is_(True),  # type: ignore[union-attr]
         )
@@ -69,7 +66,6 @@ def get_active_definitions(
 
 def get_paused_definitions(
     session: Session,
-    group_id: int,
 ) -> list[RecurringDefinitionPublic]:
     """Fetch paused (is_active=False, not deleted) recurring definitions.
 
@@ -78,7 +74,6 @@ def get_paused_definitions(
     statement = (
         select(RecurringDefinitionRow)
         .where(
-            RecurringDefinitionRow.group_id == group_id,
             RecurringDefinitionRow.deleted_at.is_(None),  # type: ignore[union-attr]
             RecurringDefinitionRow.is_active.is_(False),  # type: ignore[union-attr]
         )
@@ -90,7 +85,6 @@ def get_paused_definitions(
 
 def get_registry_summary(
     session: Session,
-    group_id: int,
 ) -> dict[str, Any]:
     """Compute the summary bar data for the registry view.
 
@@ -100,15 +94,13 @@ def get_registry_summary(
         - has_active_definitions (bool) — for template visibility check
         - active_plural (str) — "" or "s" for pluralization
         - total_monthly_cost (str, formatted Decimal)
-        - currency (str) — currency code of the group's recurring definitions
+        - currency (str) — currency code from app settings
     """
-    from app.adapters.sqlalchemy.orm_models import GroupRow
+    from app.settings import settings
 
-    group_row = session.get(GroupRow, group_id)
-    currency = group_row.default_currency if group_row else "EUR"
+    currency = settings.DEFAULT_CURRENCY
 
     statement = select(RecurringDefinitionRow).where(
-        RecurringDefinitionRow.group_id == group_id,
         RecurringDefinitionRow.deleted_at.is_(None),  # type: ignore[union-attr]
         RecurringDefinitionRow.is_active.is_(True),  # type: ignore[union-attr]
     )

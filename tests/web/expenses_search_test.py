@@ -3,11 +3,10 @@
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, GroupRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import MemberRole, SplitType
 from app.main import app
 from tests.conftest import create_test_expense
 
@@ -24,26 +23,10 @@ def search_user(uow: UnitOfWork):
 
 
 @pytest.fixture
-def search_group(search_user, uow: UnitOfWork):
-    group = GroupRow(
-        name="Search Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-    uow.session.add(MembershipRow(group_id=group.id, user_id=search_user.id, role=MemberRole.ADMIN))
-    uow.session.commit()
-    return group
-
-
-@pytest.fixture
-def search_expenses(search_user, search_group, uow: UnitOfWork):
+def search_expenses(search_user, uow: UnitOfWork):
     """Create expenses: one matching 'coffee', one matching a note keyword."""
     coffee = create_test_expense(
         uow.session,
-        search_group.id,
         "4.50",
         search_user.id,
         search_user.id,
@@ -51,7 +34,6 @@ def search_expenses(search_user, search_group, uow: UnitOfWork):
     )
     grocery = create_test_expense(
         uow.session,
-        search_group.id,
         "40.00",
         search_user.id,
         search_user.id,
@@ -69,7 +51,7 @@ def search_expenses(search_user, search_group, uow: UnitOfWork):
 
 
 @pytest.fixture
-def client(search_user, search_group, uow):
+def client(search_user, uow):
     app.dependency_overrides[get_uow] = lambda: uow
     tc = TestClient(app, raise_server_exceptions=False)
     tc.cookies.set("cost_tracker_session", encode_session(search_user.id))

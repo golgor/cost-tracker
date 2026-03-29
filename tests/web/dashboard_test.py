@@ -6,11 +6,11 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, GroupRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import ExpenseStatus, MemberRole, SplitType
+from app.domain.models import ExpenseStatus, SplitType
 from app.main import app
 
 
@@ -39,28 +39,7 @@ def user2(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow: UnitOfWork):
-    """Create a test group with two members."""
-    # Create group directly using SQLAlchemy for test data setup
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-
-    # Add members
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-    uow.session.commit()
-
-    return group
-
-
-@pytest.fixture
-def authenticated_client(user1, test_group, uow):
+def authenticated_client(user1, user2, uow):
     """Test client with session cookie for user1."""
     app.dependency_overrides[get_uow] = lambda: uow
 
@@ -84,7 +63,7 @@ class TestDashboardAccess:
         assert response.headers.get("location") == "/auth/login"
 
     def test_authenticated_user_is_redirected_to_expenses(self, authenticated_client):
-        """Authenticated user with group is redirected from / to /expenses."""
+        """Authenticated user is redirected from / to /expenses."""
         response = authenticated_client.get("/", follow_redirects=False)
 
         assert response.status_code == 307
@@ -94,14 +73,11 @@ class TestDashboardAccess:
 class TestDashboardBalanceBar:
     """Test balance bar rendering with different balance states."""
 
-    def test_zero_balance_shows_all_square(
-        self, authenticated_client, user1, user2, test_group, uow
-    ):
+    def test_zero_balance_shows_all_square(self, authenticated_client, user1, user2, uow):
         """Dashboard shows 'All square!' when balance is zero."""
         # Create equal expenses
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("100.00"),
                 description="User1 expense",
                 date=date.today(),
@@ -114,7 +90,6 @@ class TestDashboardBalanceBar:
         )
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("100.00"),
                 description="User2 expense",
                 date=date.today(),
@@ -132,14 +107,11 @@ class TestDashboardBalanceBar:
         assert response.status_code == 200
         assert "All square!" in response.text
 
-    def test_positive_balance_shows_partner_owes_you(
-        self, authenticated_client, user1, user2, test_group, uow
-    ):
+    def test_positive_balance_shows_partner_owes_you(self, authenticated_client, user1, user2, uow):
         """Dashboard shows partner owes you when balance is positive."""
-        # User1 pays 100 → partner owes user1 €50
+        # User1 pays 100 -> partner owes user1 50
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("100.00"),
                 description="Groceries",
                 date=date.today(),
@@ -158,14 +130,11 @@ class TestDashboardBalanceBar:
         assert "owes you" in response.text
         assert "50.00" in response.text
 
-    def test_negative_balance_shows_you_owe_partner(
-        self, authenticated_client, user1, user2, test_group, uow
-    ):
+    def test_negative_balance_shows_you_owe_partner(self, authenticated_client, user1, user2, uow):
         """Dashboard shows you owe partner when balance is negative."""
-        # User2 pays 100 → user1 owes user2 €50
+        # User2 pays 100 -> user1 owes user2 50
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("100.00"),
                 description="Netflix",
                 date=date.today(),
@@ -188,13 +157,12 @@ class TestDashboardBalanceBar:
 class TestDashboardExpenseFeed:
     """Test expense feed display and ordering."""
 
-    def test_expense_feed_shows_newest_first(self, authenticated_client, user1, test_group, uow):
+    def test_expense_feed_shows_newest_first(self, authenticated_client, user1, uow):
         """Expenses are sorted newest first in the feed."""
         today = date.today()
 
         # Create expenses on different dates
         expense_old = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("30.00"),
             description="Old Expense",
             date=today - timedelta(days=3),
@@ -205,7 +173,6 @@ class TestDashboardExpenseFeed:
             status=ExpenseStatus.PENDING,
         )
         expense_recent = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Recent Expense",
             date=today - timedelta(days=1),
@@ -216,7 +183,6 @@ class TestDashboardExpenseFeed:
             status=ExpenseStatus.PENDING,
         )
         expense_today = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("75.00"),
             description="Today Expense",
             date=today,
@@ -244,13 +210,10 @@ class TestDashboardExpenseFeed:
 
         assert today_pos < recent_pos < old_pos, "Expenses should be sorted newest first"
 
-    def test_expense_feed_displays_amount_and_description(
-        self, authenticated_client, user1, test_group, uow
-    ):
+    def test_expense_feed_displays_amount_and_description(self, authenticated_client, user1, uow):
         """Expense cards show description and amount."""
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("42.50"),
                 description="Spar Groceries",
                 date=date.today(),
@@ -273,16 +236,13 @@ class TestDashboardExpenseFeed:
 class TestDashboardThisMonthWidget:
     """Test 'This Month' total widget display."""
 
-    def test_this_month_widget_shows_current_month_total(
-        self, authenticated_client, user1, test_group, uow
-    ):
+    def test_this_month_widget_shows_current_month_total(self, authenticated_client, user1, uow):
         """This Month widget displays sum of current month expenses."""
         today = date.today()
 
         # Create expense this month
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("150.00"),
                 description="This month",
                 date=today,
@@ -297,7 +257,6 @@ class TestDashboardThisMonthWidget:
         # Create expense last month (should not be included)
         uow.session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("200.00"),
                 description="Last month",
                 date=today - timedelta(days=35),
@@ -322,7 +281,7 @@ class TestDashboardThisMonthWidget:
 class TestDashboardEmptyState:
     """Test empty state when no expenses exist."""
 
-    def test_empty_state_shows_when_no_expenses(self, authenticated_client, user1, test_group):
+    def test_empty_state_shows_when_no_expenses(self, authenticated_client, user1):
         """Dashboard shows contextual empty state with no expenses."""
         response = authenticated_client.get("/")
 
@@ -340,15 +299,12 @@ class TestDashboardEmptyState:
 class TestDashboardPerformance:
     """Test dashboard performance requirements."""
 
-    def test_dashboard_renders_with_many_expenses(
-        self, authenticated_client, user1, test_group, uow
-    ):
+    def test_dashboard_renders_with_many_expenses(self, authenticated_client, user1, uow):
         """Dashboard handles ~50 expenses without errors (NFR3)."""
         # Create 50 expenses
         for i in range(50):
             uow.session.add(
                 ExpenseRow(
-                    group_id=test_group.id,
                     amount=Decimal("10.00"),
                     description=f"Expense {i}",
                     date=date.today() - timedelta(days=i % 30),

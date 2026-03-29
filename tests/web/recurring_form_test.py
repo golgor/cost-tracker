@@ -6,11 +6,11 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow, RecurringDefinitionRow
+from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import MemberRole, RecurringFrequency, SplitType
+from app.domain.models import RecurringFrequency, SplitType
 from app.main import app
 
 
@@ -27,23 +27,7 @@ def test_user(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(test_user, uow: UnitOfWork):
-    """Create a test group with the test user as admin."""
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-    uow.session.add(MembershipRow(group_id=group.id, user_id=test_user.id, role=MemberRole.ADMIN))
-    uow.session.commit()
-    return group
-
-
-@pytest.fixture
-def authenticated_client(test_user, test_group, uow):
+def authenticated_client(test_user, uow):
     """Test client authenticated as test_user."""
     app.dependency_overrides[get_uow] = lambda: uow
     client = TestClient(app, raise_server_exceptions=False)
@@ -53,9 +37,8 @@ def authenticated_client(test_user, test_group, uow):
     app.dependency_overrides.clear()
 
 
-def _add_definition(uow, group, user, name="Netflix", amount="14.99"):
+def _add_definition(uow, user, name="Netflix", amount="14.99"):
     row = RecurringDefinitionRow(
-        group_id=group.id,
         name=name,
         amount=Decimal(amount),
         frequency=RecurringFrequency.MONTHLY,
@@ -82,7 +65,7 @@ class TestNewRecurringFormPage:
         assert response.headers.get("location") == "/auth/login"
 
     def test_returns_200_for_authenticated_user(self, authenticated_client):
-        """Authenticated user with group gets 200 on the new form page."""
+        """Authenticated user gets 200 on the new form page."""
         response = authenticated_client.get("/recurring/new")
         assert response.status_code == 200
 
@@ -145,9 +128,7 @@ class TestCreateRecurring:
         assert response.status_code == 303
         assert response.headers.get("location") == "/recurring"
 
-    def test_definition_persisted_after_create(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_definition_persisted_after_create(self, authenticated_client, test_user, uow):
         """After a valid POST, the definition exists in the database."""
         from sqlmodel import select
 
@@ -309,26 +290,22 @@ class TestCreateRecurring:
 class TestEditRecurringFormPage:
     """Tests for GET /recurring/{id}/edit."""
 
-    def test_returns_200_for_existing_definition(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_returns_200_for_existing_definition(self, authenticated_client, test_user, uow):
         """Edit form page returns 200 for an existing definition."""
-        row = _add_definition(uow, test_group, test_user, name="Spotify")
+        row = _add_definition(uow, test_user, name="Spotify")
         response = authenticated_client.get(f"/recurring/{row.id}/edit")
         assert response.status_code == 200
 
-    def test_form_pre_populated_with_existing_values(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_form_pre_populated_with_existing_values(self, authenticated_client, test_user, uow):
         """Edit form pre-populates fields with the definition's current values."""
-        row = _add_definition(uow, test_group, test_user, name="Amazon Prime", amount="8.99")
+        row = _add_definition(uow, test_user, name="Amazon Prime", amount="8.99")
         response = authenticated_client.get(f"/recurring/{row.id}/edit")
         assert "Amazon Prime" in response.text
         assert "8.99" in response.text
 
-    def test_edit_banner_shown_in_edit_mode(self, authenticated_client, test_user, test_group, uow):
+    def test_edit_banner_shown_in_edit_mode(self, authenticated_client, test_user, uow):
         """Edit form shows the edit-forward info banner."""
-        row = _add_definition(uow, test_group, test_user)
+        row = _add_definition(uow, test_user)
         response = authenticated_client.get(f"/recurring/{row.id}/edit")
         assert "Changes apply to future expenses only" in response.text
 
@@ -337,9 +314,9 @@ class TestEditRecurringFormPage:
         response = authenticated_client.get("/recurring/99999/edit")
         assert response.status_code == 404
 
-    def test_shows_save_changes_button(self, authenticated_client, test_user, test_group, uow):
+    def test_shows_save_changes_button(self, authenticated_client, test_user, uow):
         """Edit form shows 'Save Changes' submit button."""
-        row = _add_definition(uow, test_group, test_user)
+        row = _add_definition(uow, test_user)
         response = authenticated_client.get(f"/recurring/{row.id}/edit")
         assert "Save Changes" in response.text
 
@@ -347,11 +324,9 @@ class TestEditRecurringFormPage:
 class TestUpdateRecurring:
     """Tests for POST /recurring/{id}."""
 
-    def test_valid_update_redirects_to_registry(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_valid_update_redirects_to_registry(self, authenticated_client, test_user, uow):
         """Valid update form submission redirects to /recurring."""
-        row = _add_definition(uow, test_group, test_user, name="Netflix")
+        row = _add_definition(uow, test_user, name="Netflix")
         csrf_token = authenticated_client.get(f"/recurring/{row.id}/edit").cookies.get("csrf_token")
         response = authenticated_client.post(
             f"/recurring/{row.id}",
@@ -373,11 +348,11 @@ class TestUpdateRecurring:
         assert response.status_code == 303
         assert response.headers.get("location") == "/recurring"
 
-    def test_name_updated_in_database(self, authenticated_client, test_user, test_group, uow):
+    def test_name_updated_in_database(self, authenticated_client, test_user, uow):
         """After valid update, the definition's name is changed in the database."""
         from sqlmodel import select
 
-        row = _add_definition(uow, test_group, test_user, name="Netflix")
+        row = _add_definition(uow, test_user, name="Netflix")
         csrf_token = authenticated_client.get(f"/recurring/{row.id}/edit").cookies.get("csrf_token")
         authenticated_client.post(
             f"/recurring/{row.id}",
@@ -404,9 +379,9 @@ class TestUpdateRecurring:
         assert updated is not None
         assert updated.name == "Netflix Premium"
 
-    def test_invalid_amount_returns_422(self, authenticated_client, test_user, test_group, uow):
+    def test_invalid_amount_returns_422(self, authenticated_client, test_user, uow):
         """Invalid amount returns 422 with error message."""
-        row = _add_definition(uow, test_group, test_user)
+        row = _add_definition(uow, test_user)
         csrf_token = authenticated_client.get(f"/recurring/{row.id}/edit").cookies.get("csrf_token")
         response = authenticated_client.post(
             f"/recurring/{row.id}",

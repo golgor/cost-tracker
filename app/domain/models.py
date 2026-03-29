@@ -45,27 +45,12 @@ class SplitType(StrEnum):
     EXACT = "EXACT"  # Exact amounts: must sum to expense total
 
 
-class MemberRole(StrEnum):
-    """User roles within a household group."""
-
-    ADMIN = "ADMIN"
-    USER = "USER"
-
-
-class UserRole(StrEnum):
-    """App-level user roles for admin/lifecycle management."""
-
-    ADMIN = "ADMIN"
-    USER = "USER"
-
-
 class UserBase(SQLModel):
     """Domain base for User — validation + business data. No table."""
 
     oidc_sub: str = Field(index=True, unique=True)
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
-    role: UserRole = Field(default=UserRole.USER)
 
 
 class UserPublic(UserBase):
@@ -74,37 +59,6 @@ class UserPublic(UserBase):
     id: int
     created_at: datetime
     updated_at: datetime
-
-    @property
-    def is_admin(self) -> bool:
-        """Pre-computed boolean flag for template visibility checks."""
-        return self.role == UserRole.ADMIN
-
-
-class GroupBase(SQLModel):
-    """Domain base for Group — validation + business data. No table."""
-
-    name: str = Field(max_length=100)
-    default_currency: str = Field(default="EUR", max_length=3)
-    default_split_type: SplitType = Field(default=SplitType.EVEN)
-    tracking_threshold: int = Field(default=30, ge=1, le=365)
-
-
-class GroupPublic(GroupBase):
-    """Output schema for Group — includes DB-generated fields."""
-
-    id: int
-    created_at: datetime
-    updated_at: datetime
-
-
-class MembershipPublic(SQLModel):
-    """Output schema for group membership."""
-
-    user_id: int
-    group_id: int
-    role: MemberRole
-    joined_at: datetime
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +89,6 @@ class ExpenseStatus(StrEnum):
 class ExpenseBase(SQLModel):
     """Domain base for Expense — validation + business data. No table."""
 
-    group_id: int
     amount: Decimal = Field(decimal_places=2, ge=0.01)
     description: str = Field(max_length=255)
     date: date
@@ -207,7 +160,6 @@ class SettlementTransactionPublic(SettlementTransactionBase):
 class SettlementBase(SQLModel):
     """Domain base for Settlement — validation + business data. No table."""
 
-    group_id: int
     reference_id: str = Field(max_length=100)
     settled_by_id: int
     settled_at: datetime
@@ -223,7 +175,6 @@ class SettlementPublic(SettlementBase):
 class RecurringDefinitionBase(SQLModel):
     """Domain base for RecurringDefinition — validation + business data. No table."""
 
-    group_id: int
     name: str = Field(max_length=255)
     amount: Decimal = Field(decimal_places=2, ge=0.01)
     frequency: RecurringFrequency

@@ -2,6 +2,8 @@
 
 Self-hosted household expense-sharing app for two partners. FastAPI + PostgreSQL + Jinja2 + HTMX + Tailwind CSS. Python 3.14, uv for package management.
 
+No group abstraction — the app is scoped to a single household of two partners. Household settings (currency, split type, threshold) are configured via environment variables. User limit is enforced at OIDC login via `MAX_USERS` setting (default 2). Both partners are equal — no admin/user role distinction.
+
 ## Architecture
 
 Hexagonal (ports & adapters). Domain is pure Python — no framework imports.
@@ -20,7 +22,7 @@ app/
 │   └── forms/       # Pydantic models for form validation (not domain models)
 ├── dependencies.py  # Composition root — only file that wires adapters to ports
 ├── main.py          # App factory, global exception handlers, middleware
-├── settings.py      # pydantic-settings
+├── settings.py      # pydantic-settings (includes DEFAULT_CURRENCY, MAX_USERS, etc.)
 └── logging.py       # structlog config
 ```
 

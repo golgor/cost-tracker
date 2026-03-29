@@ -6,11 +6,11 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, GroupRow, MembershipRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import ExpenseStatus, MemberRole, SplitType
+from app.domain.models import ExpenseStatus, SplitType
 from app.main import app
 
 
@@ -39,27 +39,7 @@ def user2(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow: UnitOfWork):
-    """Create a test group with two members."""
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-
-    # Add members
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-    uow.session.commit()
-
-    return group
-
-
-@pytest.fixture
-def authenticated_client(user1, test_group, uow):
+def authenticated_client(user1, user2, uow):
     """Test client with session cookie for user1."""
     app.dependency_overrides[get_uow] = lambda: uow
 
@@ -72,7 +52,7 @@ def authenticated_client(user1, test_group, uow):
 
 
 @pytest.fixture
-def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
+def expenses_list_setup(user1, user2, uow: UnitOfWork):
     """Set up test data for expenses list tests."""
     today = date.today()
     yesterday = today - timedelta(days=1)
@@ -81,7 +61,6 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
     # Create expenses using ORM directly
     uow.session.add(
         ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("25.50"),
             description="Groceries",
             date=today,
@@ -95,7 +74,6 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
 
     uow.session.add(
         ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("100.00"),
             description="Electricity bill",
             date=yesterday,
@@ -109,7 +87,6 @@ def expenses_list_setup(user1, user2, test_group, uow: UnitOfWork):
 
     uow.session.add(
         ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("45.75"),
             description="Restaurant",
             date=last_week,
@@ -139,7 +116,7 @@ class TestExpensesListRoute:
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200
 
-    def test_get_expenses_with_no_expense_shows_empty_state(self, authenticated_client, test_group):
+    def test_get_expenses_with_no_expense_shows_empty_state(self, authenticated_client):
         """Test that expenses list with zero expenses shows contextual empty state."""
         response = authenticated_client.get("/expenses")
         assert response.status_code == 200

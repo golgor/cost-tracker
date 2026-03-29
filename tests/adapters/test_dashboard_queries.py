@@ -5,56 +5,38 @@ from decimal import Decimal
 
 from sqlmodel import Session
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow, GroupRow, MembershipRow, UserRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, UserRow
 from app.adapters.sqlalchemy.queries.dashboard_queries import (
     calculate_balance,
-    get_group_expenses,
+    get_all_expenses,
     get_this_month_total,
 )
-from app.domain.models import ExpenseStatus, MemberRole, SplitType
+from app.domain.models import ExpenseStatus, SplitType
 
 
-class TestGetGroupExpenses:
-    """Verify get_group_expenses returns expenses sorted newest first."""
+class TestGetAllExpenses:
+    """Verify get_all_expenses returns expenses sorted newest first."""
 
-    def test_get_group_expenses_returns_all_expenses_sorted_newest_first(self, db_session: Session):
+    def test_get_all_expenses_returns_all_expenses_sorted_newest_first(self, db_session: Session):
         """Verify all expenses are returned, sorted by date descending."""
         # Create test users
         user1 = UserRow(
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         user2 = UserRow(
             oidc_sub="user2",
             email="user2@example.com",
             display_name="User Two",
-            role="USER",
         )
         db_session.add(user1)
         db_session.add(user2)
         db_session.flush()
 
-        # Create group
-        group = GroupRow(
-            name="Test Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add members
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-        db_session.flush()
-
         # Create expenses on different dates
         today = date.today()
         exp1 = ExpenseRow(
-            group_id=group.id,
             amount=Decimal("100.00"),
             description="Spar",
             date=today - timedelta(days=3),
@@ -65,7 +47,6 @@ class TestGetGroupExpenses:
             status=ExpenseStatus.PENDING,
         )
         exp2 = ExpenseRow(
-            group_id=group.id,
             amount=Decimal("50.00"),
             description="Netflix",
             date=today - timedelta(days=1),
@@ -76,7 +57,6 @@ class TestGetGroupExpenses:
             status=ExpenseStatus.PENDING,
         )
         exp3 = ExpenseRow(
-            group_id=group.id,
             amount=Decimal("75.00"),
             description="Groceries",
             date=today,
@@ -92,7 +72,7 @@ class TestGetGroupExpenses:
         db_session.commit()
 
         # Fetch
-        expenses = get_group_expenses(db_session, group.id)
+        expenses = get_all_expenses(db_session)
 
         # Verify order and count
         assert len(expenses) == 3
@@ -101,18 +81,9 @@ class TestGetGroupExpenses:
         assert expenses[2].id == exp1.id  # 3 days ago
         assert expenses[0].date > expenses[1].date > expenses[2].date
 
-    def test_get_group_expenses_empty_group(self, db_session: Session):
-        """Verify empty list for group with no expenses."""
-        group = GroupRow(
-            name="Empty Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.commit()
-
-        expenses = get_group_expenses(db_session, group.id)
+    def test_get_all_expenses_empty(self, db_session: Session):
+        """Verify empty list when no expenses exist."""
+        expenses = get_all_expenses(db_session)
         assert expenses == []
 
 
@@ -126,37 +97,19 @@ class TestCalculateBalance:
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         user2 = UserRow(
             oidc_sub="user2",
             email="user2@example.com",
             display_name="User Two",
-            role="USER",
         )
         db_session.add(user1)
         db_session.add(user2)
         db_session.flush()
 
-        # Create group
-        group = GroupRow(
-            name="Balanced Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add members
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-        db_session.flush()
-
         # Create equal expenses
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("100.00"),
                 description="Exp1",
                 date=date.today(),
@@ -169,7 +122,6 @@ class TestCalculateBalance:
         )
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("100.00"),
                 description="Exp2",
                 date=date.today(),
@@ -182,7 +134,7 @@ class TestCalculateBalance:
         )
         db_session.commit()
 
-        balance = calculate_balance(db_session, group.id, user1.id)
+        balance = calculate_balance(db_session, user1.id)
 
         assert balance["current_user_is_owed"] == Decimal("0.00")
         assert balance["formatted_message"] == "All square!"
@@ -197,37 +149,19 @@ class TestCalculateBalance:
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         user2 = UserRow(
             oidc_sub="user2",
             email="user2@example.com",
             display_name="User Two",
-            role="USER",
         )
         db_session.add(user1)
         db_session.add(user2)
         db_session.flush()
 
-        # Create group
-        group = GroupRow(
-            name="Owed Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add members
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-        db_session.flush()
-
         # user1 pays 100 (50 is for user2) → user2 owes user1 €50
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("100.00"),
                 description="Paid by user1",
                 date=date.today(),
@@ -240,7 +174,7 @@ class TestCalculateBalance:
         )
         db_session.commit()
 
-        balance = calculate_balance(db_session, group.id, user1.id)
+        balance = calculate_balance(db_session, user1.id)
 
         assert balance["current_user_is_owed"] == Decimal("50.00")
         assert "owes you" in balance["formatted_message"]
@@ -255,37 +189,19 @@ class TestCalculateBalance:
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         user2 = UserRow(
             oidc_sub="user2",
             email="user2@example.com",
             display_name="User Two",
-            role="USER",
         )
         db_session.add(user1)
         db_session.add(user2)
         db_session.flush()
 
-        # Create group
-        group = GroupRow(
-            name="Owes Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add members
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-        db_session.flush()
-
         # user2 pays 100 (50 is for user1) → user1 owes user2 €50
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("100.00"),
                 description="Paid by user2",
                 date=date.today(),
@@ -298,7 +214,7 @@ class TestCalculateBalance:
         )
         db_session.commit()
 
-        balance = calculate_balance(db_session, group.id, user1.id)
+        balance = calculate_balance(db_session, user1.id)
 
         assert balance["current_user_is_owed"] == Decimal("-50.00")
         assert "You owe partner" in balance["formatted_message"]
@@ -313,36 +229,18 @@ class TestCalculateBalance:
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         user2 = UserRow(
             oidc_sub="user2",
             email="user2@example.com",
             display_name="User Two",
-            role="USER",
         )
         db_session.add(user1)
         db_session.add(user2)
         db_session.flush()
 
-        # Create group
-        group = GroupRow(
-            name="Settled Test Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add members
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-        db_session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-        db_session.flush()
-
         # Create pending expense (user1 paid 20€)
         expense = ExpenseRow(
-            group_id=group.id,
             amount=Decimal("20.00"),
             description="Test expense",
             date=date.today(),
@@ -356,7 +254,7 @@ class TestCalculateBalance:
         db_session.commit()
 
         # Balance should show partner owes user1 10€
-        balance = calculate_balance(db_session, group.id, user1.id)
+        balance = calculate_balance(db_session, user1.id)
         assert balance["current_user_is_owed"] == Decimal("10.00")
         assert "owes you" in balance["formatted_message"]
 
@@ -365,7 +263,7 @@ class TestCalculateBalance:
         db_session.commit()
 
         # Balance should now be zero (settled expenses excluded)
-        balance = calculate_balance(db_session, group.id, user1.id)
+        balance = calculate_balance(db_session, user1.id)
         assert balance["current_user_is_owed"] == Decimal("0.00")
         assert balance["formatted_message"] == "All square!"
         assert balance["is_zero"] is True
@@ -376,28 +274,13 @@ class TestGetThisMonthTotal:
 
     def test_this_month_sums_only_current_month_expenses(self, db_session: Session):
         """Verify only current month expenses are summed."""
-        # Create users
+        # Create user
         user1 = UserRow(
             oidc_sub="user1",
             email="user1@example.com",
             display_name="User One",
-            role="USER",
         )
         db_session.add(user1)
-        db_session.flush()
-
-        # Create group
-        group = GroupRow(
-            name="Month Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.flush()
-
-        # Add member
-        db_session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
         db_session.flush()
 
         today = date.today()
@@ -405,7 +288,6 @@ class TestGetThisMonthTotal:
         # Create expense this month
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("50.00"),
                 description="This month",
                 date=today,
@@ -420,7 +302,6 @@ class TestGetThisMonthTotal:
         # Create expense last month (should not be included)
         db_session.add(
             ExpenseRow(
-                group_id=group.id,
                 amount=Decimal("100.00"),
                 description="Last month",
                 date=today - timedelta(days=35),
@@ -434,21 +315,12 @@ class TestGetThisMonthTotal:
 
         db_session.commit()
 
-        total = get_this_month_total(db_session, group.id)
+        total = get_this_month_total(db_session)
 
         assert total == Decimal("50.00")
 
-    def test_this_month_returns_zero_for_empty_group(self, db_session: Session):
-        """Verify zero total for group with no expenses."""
-        group = GroupRow(
-            name="Empty Month Group",
-            singleton_guard=True,
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-        )
-        db_session.add(group)
-        db_session.commit()
-
-        total = get_this_month_total(db_session, group.id)
+    def test_this_month_returns_zero_when_no_expenses(self, db_session: Session):
+        """Verify zero total when no expenses exist."""
+        total = get_this_month_total(db_session)
 
         assert total == Decimal("0.00")

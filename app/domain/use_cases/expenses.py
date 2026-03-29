@@ -6,7 +6,6 @@ from decimal import Decimal
 from app.domain.errors import (
     CannotEditSettledExpenseError,
     DomainError,
-    GroupNotFoundError,
     InvalidShareError,
     RecurringExpenseDescriptionError,
 )
@@ -28,13 +27,12 @@ from app.domain.splits import (
 
 def create_expense(
     uow: UnitOfWorkPort,
-    group_id: int,
     amount: Decimal,
     description: str,
     creator_id: int,
     payer_id: int,
     member_ids: list[int],
-    currency: str | None = None,
+    currency: str,
     date=None,
     split_type: str = "EVEN",
     split_config: dict[int, Decimal] | None = None,
@@ -43,13 +41,12 @@ def create_expense(
 
     Args:
         uow: Unit of work for transaction management
-        group_id: ID of the group/household this expense belongs to
         amount: Decimal amount (must be > 0)
         description: Description of the expense (e.g., "Spar", "Netflix")
         creator_id: User ID who entered the expense
         payer_id: User ID who actually paid the bill
-        member_ids: List of user IDs who are members of the group (for split calculation)
-        currency: Currency code (defaults to group's configured currency)
+        member_ids: List of user IDs (for split calculation)
+        currency: Currency code
         date: Expense date (defaults to today)
         split_type: How to split the expense (EVEN, SHARES, PERCENTAGE, EXACT)
         split_config: Configuration for non-even splits:
@@ -61,20 +58,11 @@ def create_expense(
         The persisted ExpensePublic with generated ID.
 
     Raises:
-        GroupNotFoundError: If the group doesn't exist
         InvalidShareError: If split configuration is invalid
         ValidationError: If amount or other fields fail validation
 
     Transaction must be committed by caller using `with uow:`.
     """
-    # Validate group exists
-    group = uow.groups.get_by_id(group_id)
-    if group is None:
-        raise GroupNotFoundError(f"Group {group_id} not found")
-
-    # Default currency to group's configured default
-    effective_currency = currency or group.default_currency
-
     # Default date to today
     effective_date = date or date_type.today()
 
@@ -83,13 +71,12 @@ def create_expense(
 
     # Build expense base model
     expense = ExpenseBase(
-        group_id=group_id,
         amount=amount,
         description=description,
         date=effective_date,
         creator_id=creator_id,
         payer_id=payer_id,
-        currency=effective_currency,
+        currency=currency,
         split_type=split_type_enum,
         status=ExpenseStatus.PENDING,
     )

@@ -224,7 +224,6 @@ class TestCalculateBalancesTwoPeople:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test expense",
             date=date.today(),
@@ -340,7 +339,6 @@ class TestCalculateBalancesThreePeople:
 
         return ExpensePublic(
             id=expense_id,
-            group_id=1,
             amount=Decimal(amount),
             description="Test expense",
             date=date.today(),
@@ -452,7 +450,6 @@ class TestCalculateBalancesFourPlusPeople:
 
         return ExpensePublic(
             id=expense_id,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -506,7 +503,6 @@ class TestRoundingEdgeCases:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -659,7 +655,6 @@ class TestErrorConditions:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -726,7 +721,6 @@ class TestIntegrationWithEvenSplitStrategy:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),

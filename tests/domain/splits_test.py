@@ -17,7 +17,6 @@ from app.domain.splits import (
 def create_expense(
     amount: Decimal,
     payer_id: int = 1,
-    group_id: int = 1,
     creator_id: int = 1,
 ) -> ExpensePublic:
     """Create a test expense."""
@@ -25,7 +24,6 @@ def create_expense(
 
     return ExpensePublic(
         id=1,
-        group_id=group_id,
         amount=amount,
         description="Test expense",
         date=date.today(),

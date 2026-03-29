@@ -43,7 +43,7 @@ def format_transfer_message(
     return f"{len(transactions)} payments required"
 
 
-def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
+def generate_reference_id(uow: UnitOfWorkPort) -> str:
     """Generate unique human-readable reference ID.
 
     Format: "March 2025" or "March 2025 (2)" if duplicate exists.
@@ -52,12 +52,12 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
     now = datetime.now(UTC)
     base = now.strftime("%B %Y")
 
-    if not uow.settlements.reference_exists(group_id, base):
+    if not uow.settlements.reference_exists(base):
         return base
 
     counter = 2
     max_attempts = 100
-    while uow.settlements.reference_exists(group_id, f"{base} ({counter})"):
+    while uow.settlements.reference_exists(f"{base} ({counter})"):
         counter += 1
         if counter > max_attempts:
             raise SettlementError(
@@ -106,7 +106,6 @@ def preview_settlement(
 def confirm_settlement(
     uow: UnitOfWorkPort,
     *,
-    group_id: int,
     expense_ids: list[int],
     settled_by_id: int,
     member_ids: list[int],
@@ -116,10 +115,9 @@ def confirm_settlement(
 
     Args:
         uow: Unit of work for transaction boundary
-        group_id: Group being settled
         expense_ids: IDs of expenses to include
         settled_by_id: User confirming the settlement
-        member_ids: All member user IDs in the group
+        member_ids: All user IDs in the household
         reference_id: Optional custom reference (auto-generated if None)
 
     Returns:
@@ -156,10 +154,9 @@ def confirm_settlement(
     ]
 
     if reference_id is None:
-        reference_id = generate_reference_id(uow, group_id)
+        reference_id = generate_reference_id(uow)
 
     settlement = SettlementBase(
-        group_id=group_id,
         reference_id=reference_id,
         settled_by_id=settled_by_id,
         settled_at=datetime.now(UTC),

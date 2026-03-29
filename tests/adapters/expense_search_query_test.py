@@ -6,24 +6,23 @@ from sqlmodel import Session
 from app.adapters.sqlalchemy.orm_models import ExpenseNoteRow, ExpenseRow
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_filtered_expenses
 from app.domain.models import ExpenseStatus
-from tests.conftest import create_test_expense, create_test_group, create_test_user
+from tests.conftest import create_test_expense, create_test_user
 
 
 @pytest.fixture
 def search_setup(db_session: Session):
-    """Two users, one group, a handful of expenses with descriptions and notes."""
+    """Two users, a handful of expenses with descriptions and notes."""
     user1 = create_test_user(db_session, "search_u1", "u1@test.com", "Alice")
     user2 = create_test_user(db_session, "search_u2", "u2@test.com", "Bob")
-    group = create_test_group(db_session, user1.id)
 
     netflix = create_test_expense(
-        db_session, group.id, "14.99", user1.id, user1.id, description="Netflix subscription"
+        db_session, "14.99", user1.id, user1.id, description="Netflix subscription"
     )
     grocery = create_test_expense(
-        db_session, group.id, "55.00", user1.id, user2.id, description="Grocery run at Lidl"
+        db_session, "55.00", user1.id, user2.id, description="Grocery run at Lidl"
     )
     electric = create_test_expense(
-        db_session, group.id, "80.00", user1.id, user1.id, description="Electric bill"
+        db_session, "80.00", user1.id, user1.id, description="Electric bill"
     )
 
     # Add a note to grocery mentioning "receipt" (to test notes JOIN)
@@ -42,7 +41,6 @@ def search_setup(db_session: Session):
     db_session.flush()
 
     return {
-        "group": group,
         "user1": user1,
         "user2": user2,
         "netflix": netflix,
@@ -53,34 +51,29 @@ def search_setup(db_session: Session):
 
 class TestSearchByDescription:
     def test_ilike_matches_case_insensitively(self, db_session: Session, search_setup):
-        group = search_setup["group"]
-        results = get_filtered_expenses(db_session, group.id, search_query="NETFLIX")
+        results = get_filtered_expenses(db_session, search_query="NETFLIX")
         assert len(results) == 1
         assert results[0].description == "Netflix subscription"
 
     def test_partial_match_works(self, db_session: Session, search_setup):
-        group = search_setup["group"]
-        results = get_filtered_expenses(db_session, group.id, search_query="net")
+        results = get_filtered_expenses(db_session, search_query="net")
         assert len(results) == 1
         assert results[0].description == "Netflix subscription"
 
     def test_no_match_returns_empty_list(self, db_session: Session, search_setup):
-        group = search_setup["group"]
-        results = get_filtered_expenses(db_session, group.id, search_query="spotify")
+        results = get_filtered_expenses(db_session, search_query="spotify")
         assert results == []
 
 
 class TestSearchByNotes:
     def test_matches_note_content(self, db_session: Session, search_setup):
-        group = search_setup["group"]
         # "receipt" only appears in grocery note, not in description
-        results = get_filtered_expenses(db_session, group.id, search_query="receipt")
+        results = get_filtered_expenses(db_session, search_query="receipt")
         assert len(results) == 1
         assert results[0].description == "Grocery run at Lidl"
 
     def test_note_ilike_case_insensitive(self, db_session: Session, search_setup):
-        group = search_setup["group"]
-        results = get_filtered_expenses(db_session, group.id, search_query="LIDL")
+        results = get_filtered_expenses(db_session, search_query="LIDL")
         assert len(results) == 1
 
 
@@ -88,16 +81,14 @@ class TestDistinct:
     def test_expense_with_multiple_matching_notes_returned_once(
         self, db_session: Session, search_setup
     ):
-        group = search_setup["group"]
         # "bill" matches two notes on electric AND the description
-        results = get_filtered_expenses(db_session, group.id, search_query="bill")
+        results = get_filtered_expenses(db_session, search_query="bill")
         electric_results = [r for r in results if r.description == "Electric bill"]
         assert len(electric_results) == 1  # DISTINCT ensures no duplicates
 
 
 class TestSearchCombinedWithFilters:
     def test_search_combined_with_status_filter(self, db_session: Session, search_setup):
-        group = search_setup["group"]
         # Mark netflix as settled
         netflix = search_setup["netflix"]
         netflix_row = db_session.get(ExpenseRow, netflix.id)
@@ -107,33 +98,28 @@ class TestSearchCombinedWithFilters:
 
         # Search "netflix" with status=PENDING → no results
         pending_results = get_filtered_expenses(
-            db_session, group.id, search_query="netflix", status="PENDING"
+            db_session, search_query="netflix", status="PENDING"
         )
         assert pending_results == []
 
         # Search "netflix" with status=SETTLED → 1 result
         settled_results = get_filtered_expenses(
-            db_session, group.id, search_query="netflix", status="SETTLED"
+            db_session, search_query="netflix", status="SETTLED"
         )
         assert len(settled_results) == 1
 
     def test_search_combined_with_payer_filter(self, db_session: Session, search_setup):
-        group = search_setup["group"]
         user2 = search_setup["user2"]
         # grocery is paid by user2; netflix and electric by user1
-        results = get_filtered_expenses(
-            db_session, group.id, search_query="lidl", payer_id=user2.id
-        )
+        results = get_filtered_expenses(db_session, search_query="lidl", payer_id=user2.id)
         assert len(results) == 1
         assert results[0].description == "Grocery run at Lidl"
 
     def test_search_with_no_query_returns_all(self, db_session: Session, search_setup):
-        group = search_setup["group"]
-        results = get_filtered_expenses(db_session, group.id, search_query=None)
+        results = get_filtered_expenses(db_session, search_query=None)
         assert len(results) == 3
 
     def test_empty_string_search_returns_all(self, db_session: Session, search_setup):
-        group = search_setup["group"]
         # Passing empty string is falsy — treated the same as None (no search filter)
-        results = get_filtered_expenses(db_session, group.id, search_query="")
+        results = get_filtered_expenses(db_session, search_query="")
         assert len(results) == 3

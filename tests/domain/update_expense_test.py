@@ -35,30 +35,19 @@ def user2(uow):
     return user
 
 
-@pytest.fixture
-def test_group(user1, user2, uow):
-    """Create a test group with both users as members."""
-    with uow:
-        group = uow.groups.save(name="Test Household")
-        uow.groups.add_member(group.id, user1.id, "ADMIN")
-        uow.groups.add_member(group.id, user2.id, "USER")
-    return group
-
-
-def test_update_expense_changes_amount(uow, test_group, user1, user2):
+def test_update_expense_changes_amount(uow, user1, user2):
     """Test updating expense amount."""
-    # Create an expense
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Original expense",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     # Update the amount
@@ -77,19 +66,19 @@ def test_update_expense_changes_amount(uow, test_group, user1, user2):
         assert updated.description == "Original expense"  # Unchanged
 
 
-def test_update_expense_changes_description(uow, test_group, user1, user2):
+def test_update_expense_changes_description(uow, user1, user2):
     """Test updating expense description."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Original",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     with uow:
@@ -104,19 +93,19 @@ def test_update_expense_changes_description(uow, test_group, user1, user2):
         assert updated.description == "Updated description"
 
 
-def test_update_expense_changes_payer(uow, test_group, user1, user2):
+def test_update_expense_changes_payer(uow, user1, user2):
     """Test updating expense payer."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     with uow:
@@ -131,7 +120,7 @@ def test_update_expense_changes_payer(uow, test_group, user1, user2):
         assert updated.payer_id == user2.id
 
 
-def test_update_expense_changes_date(uow, test_group, user1, user2):
+def test_update_expense_changes_date(uow, user1, user2):
     """Test updating expense date."""
     from app.domain.use_cases.expenses import create_expense
 
@@ -141,13 +130,13 @@ def test_update_expense_changes_date(uow, test_group, user1, user2):
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
             date=original_date,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     with uow:
@@ -162,19 +151,19 @@ def test_update_expense_changes_date(uow, test_group, user1, user2):
         assert updated.date == new_date
 
 
-def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1, user2):
+def test_cannot_edit_settled_expense(uow: UnitOfWork, user1, user2):
     """Test immutability: settled expenses cannot be edited (FR7, FR20)."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     # Manually mark expense as settled (settlement logic not implemented yet)
@@ -198,19 +187,19 @@ def test_cannot_edit_settled_expense(uow: UnitOfWork, test_group, user1, user2):
     assert exc_info.value.expense_id == expense.id
 
 
-def test_update_expense_validates_positive_amount(uow, test_group, user1, user2):
+def test_update_expense_validates_positive_amount(uow, user1, user2):
     """Test validation: amount must be positive."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     with pytest.raises(DomainError, match="Amount must be greater than zero"), uow:
@@ -221,19 +210,19 @@ def test_update_expense_validates_positive_amount(uow, test_group, user1, user2)
         )
 
 
-def test_update_expense_validates_future_date(uow, test_group, user1, user2):
+def test_update_expense_validates_future_date(uow, user1, user2):
     """Test validation: date cannot be in the future."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Test",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     future_date = date.today() + timedelta(days=1)
@@ -245,19 +234,19 @@ def test_update_expense_validates_future_date(uow, test_group, user1, user2):
         )
 
 
-def test_update_expense_changes_multiple_fields(uow: UnitOfWork, test_group, user1, user2):
+def test_update_expense_changes_multiple_fields(uow: UnitOfWork, user1, user2):
     """Test updating multiple fields at once."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Original",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
 
     # Update multiple fields

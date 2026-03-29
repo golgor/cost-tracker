@@ -2,36 +2,12 @@ class DomainError(Exception):
     """Base class for all domain errors."""
 
 
-class DuplicateHouseholdError(DomainError):
-    """Raised when user already belongs to a household."""
-
-
-class GroupNotFoundError(DomainError):
-    """Raised when a group cannot be found."""
-
-
-class MembershipNotFoundError(DomainError):
-    """Raised when a group membership cannot be found."""
-
-
-class DuplicateMembershipError(DomainError):
-    """Raised when user is already a member of a group."""
-
-
-class UnauthorizedGroupActionError(DomainError):
-    """Raised when user lacks permission for a group-level action."""
-
-
 class UserNotFoundError(DomainError):
     """Raised when a user cannot be found."""
 
 
-class UserAlreadyAdminError(DomainError):
-    """Raised when attempting to promote a user who is already an admin."""
-
-
-class UserAlreadyRegularError(DomainError):
-    """Raised when attempting to demote a user who is already a regular user."""
+class UserLimitReachedError(DomainError):
+    """Raised when the maximum number of users has been reached."""
 
 
 class CannotEditSettledExpenseError(DomainError):

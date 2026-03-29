@@ -115,9 +115,9 @@
                 tabindex="5"
             >
                 <option value="">Select who paid</option>
-                {% for member in group_members %}
-                <option value="{{ member.user_id }}" {% if member.user_id == current_user_id %}selected{% endif %}>
-                    {{ users[member.user_id].display_name if users and member.user_id in users else 'User ' ~ member.user_id }}
+                {% for member in users_list %}
+                <option value="{{ member.id }}" {% if member.id == current_user_id %}selected{% endif %}>
+                    {{ member.display_name }}
                 </option>
                 {% endfor %}
             </select>
@@ -133,7 +133,7 @@
                 type="text"
                 id="desktop-currency"
                 name="currency"
-                value="{{ group.default_currency }}"
+                value="{{ default_currency }}"
                 readonly
                 class="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
             >
@@ -166,8 +166,8 @@
 (function() {
 // Group members data for split fields
 const groupMembers = [
-    {% for member in group_members %}
-    { id: {{ member.user_id }}, name: '{{ users[member.user_id].display_name if users and member.user_id in users else "User " ~ member.user_id }}' },
+    {% for member in users_list %}
+    { id: {{ member.id }}, name: '{{ member.display_name }}' },
     {% endfor %}
 ];
 

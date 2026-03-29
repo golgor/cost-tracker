@@ -17,7 +17,6 @@ def get_all_users(session: Session) -> list[UserPublic]:
             oidc_sub=row.oidc_sub,
             email=row.email,
             display_name=row.display_name,
-            role=row.role,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

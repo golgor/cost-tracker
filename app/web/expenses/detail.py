@@ -6,9 +6,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import (
-    get_group_members,
+    get_all_users,
     get_recurring_definition_names,
 )
+from app.settings import settings
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
@@ -33,21 +34,13 @@ async def get_expense_detail(
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    # Authorization: user must be in the expense's group
+    # Authorization: verify user exists
     user = uow.users.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    group_members = get_group_members(uow.session, group.id)
-
-    # Get all users for display (batch query)
-    member_ids = [m.user_id for m in group_members]
-    users_list = uow.users.get_by_ids(member_ids)
-    users_dict = {u.id: u for u in users_list}
+    users = get_all_users(uow.session)
+    users_dict = {u.id: u for u in users}
     creator = users_dict.get(expense.creator_id)
     payer = users_dict.get(expense.payer_id)
 
@@ -71,10 +64,8 @@ async def get_expense_detail(
             "expense": expense,
             "creator": creator,
             "payer": payer,
-            "group_members": group_members,
             "users": users_dict,
             "current_user_id": user_id,
-            "group": group,
             "is_settled": expense.status == "SETTLED",
             "splits_display": splits_display,
             "split_type_label": split_type_label,
@@ -99,15 +90,9 @@ async def collapse_expense_detail(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Get user details for display (batch query)
-    group_members = get_group_members(uow.session, group.id)
-    member_ids = [m.user_id for m in group_members]
-    users_list = uow.users.get_by_ids(member_ids)
-    users_dict = {u.id: u for u in users_list}
+    # Get all users for display
+    users = get_all_users(uow.session)
+    users_dict = {u.id: u for u in users}
 
     # Look up recurring definition name if applicable
     recurring_names: dict[int, str] = {}
@@ -119,7 +104,7 @@ async def collapse_expense_detail(
     # Transform to view model for template
     payer = users_dict.get(expense.payer_id)
     payer_name = payer.display_name if payer else "Unknown User"
-    currency_symbol = _get_currency_symbol(group.default_currency)
+    currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
     rec_name = (
         recurring_names.get(expense.recurring_definition_id)
         if expense.recurring_definition_id
@@ -163,17 +148,9 @@ async def edit_expense_page(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Get group members for paid-by selector
-    group_members = get_group_members(uow.session, group.id)
-
-    # Get user details for display (batch query)
-    member_ids = [m.user_id for m in group_members]
-    users_list = uow.users.get_by_ids(member_ids)
-    users_dict = {u.id: u for u in users_list}
+    # Get all users for paid-by selector
+    users = get_all_users(uow.session)
+    users_dict = {u.id: u for u in users}
 
     # Get current splits for pre-populating split config
     current_splits = uow.expenses.get_splits(expense.id)
@@ -187,13 +164,12 @@ async def edit_expense_page(
         "expenses/_edit_modal.html",
         {
             "expense": expense,
-            "group": group,
-            "group_members": group_members,
             "users": users_dict,
             "today": date.today().isoformat(),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
-            "currency_symbol": _get_currency_symbol(group.default_currency),
+            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
             "split_config": split_config_dict,
+            "default_currency": settings.DEFAULT_CURRENCY,
         },
     )

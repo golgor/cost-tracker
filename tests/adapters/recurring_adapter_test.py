@@ -17,7 +17,6 @@ def _make_adapter(session: Session) -> SqlAlchemyRecurringDefinitionAdapter:
 
 
 def _make_definition(
-    group_id: int,
     payer_id: int,
     name: str = "Netflix",
     amount: str = "14.99",
@@ -26,7 +25,6 @@ def _make_definition(
 ) -> RecurringDefinitionPublic:
     return RecurringDefinitionPublic.model_construct(
         id=0,
-        group_id=group_id,
         name=name,
         amount=Decimal(amount),
         frequency=frequency,
@@ -47,14 +45,13 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_save_creates_row(self, db_session: Session):
         """save() inserts a new recurring_definitions row."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_save", "rd_save@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
         before = len(db_session.exec(select(RecurringDefinitionRow)).all())
-        adapter.save(_make_definition(group.id, user.id))
+        adapter.save(_make_definition(user.id))
         db_session.commit()
 
         after = len(db_session.exec(select(RecurringDefinitionRow)).all())
@@ -62,15 +59,13 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_save_stores_correct_values(self, db_session: Session):
         """save() persists all provided field values correctly."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_values", "rd_values@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
         defn = adapter.save(
             _make_definition(
-                group.id,
                 user.id,
                 name="Car Insurance",
                 amount="340.00",
@@ -98,13 +93,12 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_get_by_id_returns_public_model(self, db_session: Session):
         """get_by_id() returns RecurringDefinitionPublic, not RecurringDefinitionRow."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_getbyid", "rd_getbyid@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        saved = adapter.save(_make_definition(group.id, user.id))
+        saved = adapter.save(_make_definition(user.id))
         db_session.commit()
 
         retrieved = adapter.get_by_id(saved.id)
@@ -118,62 +112,55 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         adapter = _make_adapter(db_session)
         assert adapter.get_by_id(99999) is None
 
-    def test_list_by_group_excludes_deleted_by_default(self, db_session: Session):
-        """list_by_group() excludes soft-deleted definitions by default."""
-        from tests.conftest import create_test_group, create_test_user
+    def test_list_all_excludes_deleted_by_default(self, db_session: Session):
+        """list_all() excludes soft-deleted definitions by default."""
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_list_excl", "rd_list_excl@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn_active = adapter.save(_make_definition(group.id, user.id, name="Active"))
-        defn_to_delete = adapter.save(_make_definition(group.id, user.id, name="ToDelete"))
+        defn_active = adapter.save(_make_definition(user.id, name="Active"))
+        defn_to_delete = adapter.save(_make_definition(user.id, name="ToDelete"))
         db_session.commit()
 
         adapter.soft_delete(defn_to_delete.id)
         db_session.commit()
 
-        results = adapter.list_by_group(group.id)
+        results = adapter.list_all()
         ids = [d.id for d in results]
 
         assert defn_active.id in ids
         assert defn_to_delete.id not in ids
 
-    def test_list_by_group_include_deleted(self, db_session: Session):
-        """list_by_group(include_deleted=True) includes soft-deleted rows."""
-        from tests.conftest import create_test_group, create_test_user
+    def test_list_all_include_deleted(self, db_session: Session):
+        """list_all(include_deleted=True) includes soft-deleted rows."""
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_list_incl", "rd_list_incl@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(_make_definition(group.id, user.id, name="WillDelete"))
+        defn = adapter.save(_make_definition(user.id, name="WillDelete"))
         db_session.commit()
 
         adapter.soft_delete(defn.id)
         db_session.commit()
 
-        results = adapter.list_by_group(group.id, include_deleted=True)
+        results = adapter.list_all(include_deleted=True)
         ids = [d.id for d in results]
         assert defn.id in ids
 
-    def test_list_by_group_active_only(self, db_session: Session):
-        """list_by_group(active_only=True) excludes paused definitions."""
-        from tests.conftest import create_test_group, create_test_user
+    def test_list_all_active_only(self, db_session: Session):
+        """list_all(active_only=True) excludes paused definitions."""
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_list_active", "rd_list_active@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn_active = adapter.save(
-            _make_definition(group.id, user.id, name="Active", is_active=True)
-        )
-        defn_paused = adapter.save(
-            _make_definition(group.id, user.id, name="Paused", is_active=False)
-        )
+        defn_active = adapter.save(_make_definition(user.id, name="Active", is_active=True))
+        defn_paused = adapter.save(_make_definition(user.id, name="Paused", is_active=False))
         db_session.commit()
 
-        results = adapter.list_by_group(group.id, active_only=True)
+        results = adapter.list_all(active_only=True)
         ids = [d.id for d in results]
 
         assert defn_active.id in ids
@@ -181,14 +168,13 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_update_changes_fields(self, db_session: Session):
         """update() modifies only the provided fields."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_update", "rd_update@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
         defn = adapter.save(
-            _make_definition(group.id, user.id, amount="14.99", currency="EUR"),
+            _make_definition(user.id, amount="14.99", currency="EUR"),
         )
         db_session.commit()
 
@@ -211,13 +197,12 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_soft_delete_sets_deleted_at(self, db_session: Session):
         """soft_delete() sets deleted_at without removing the row."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_softdel", "rd_softdel@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(_make_definition(group.id, user.id))
+        defn = adapter.save(_make_definition(user.id))
         db_session.commit()
 
         adapter.soft_delete(defn.id)
@@ -237,13 +222,12 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
     def test_soft_delete_raises_for_already_deleted(self, db_session: Session):
         """soft_delete() raises RecurringDefinitionNotFoundError for already-deleted row."""
-        from tests.conftest import create_test_group, create_test_user
+        from tests.conftest import create_test_user
 
         user = create_test_user(db_session, "auth0|rd_del2x", "rd_del2x@example.com")
-        group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(_make_definition(group.id, user.id))
+        defn = adapter.save(_make_definition(user.id))
         db_session.commit()
 
         adapter.soft_delete(defn.id)
