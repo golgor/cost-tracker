@@ -1,20 +1,26 @@
-"""API key authentication for external API consumers (Glance Dashboard)."""
+"""API key authentication for external API consumers (Glance Dashboard).
 
-from typing import Annotated
+Uses FastAPI's HTTPBearer security scheme so Swagger UI shows a proper
+"Authorize" button with lock icons on protected endpoints.
+"""
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.settings import settings
 
+_bearer_scheme = HTTPBearer()
 
-def verify_api_key(authorization: Annotated[str | None, Header()] = None) -> None:
-    """Validate Authorization: Bearer <key> header against GLANCE_API_KEY.
 
-    Raises HTTPException 401 if the key is missing or invalid.
+def verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+) -> None:
+    """Validate Bearer token against GLANCE_API_KEY.
+
+    Raises HTTPException 401/403 if the token is missing or invalid.
     """
-    expected = f"Bearer {settings.GLANCE_API_KEY}"
-    if authorization != expected:
+    if credentials.credentials != settings.GLANCE_API_KEY:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid API key",
         )
