@@ -3,6 +3,11 @@
 The cost-tracker exposes a read-only JSON API at `/api/v1/summary` for
 [Glance Dashboard](https://github.com/glanceapp/glance) `custom-api` widgets.
 
+## Interactive API docs
+
+Browse the auto-generated OpenAPI documentation at `/api/v1/docs` (Swagger UI)
+or `/api/v1/redoc` (ReDoc).
+
 ## Authentication
 
 Set the `GLANCE_API_KEY` environment variable on the cost-tracker instance.

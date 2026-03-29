@@ -2,12 +2,15 @@
 
 Read-only endpoints returning JSON summaries of household expenses.
 Protected by Bearer token authentication (GLANCE_API_KEY).
+
+Mounted as a sub-application at /api/v1 so it gets its own OpenAPI docs
+at /api/v1/docs without exposing the web (HTMX) routes.
 """
 
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import Depends, FastAPI, Query
 from sqlmodel import Session
 
 from app.adapters.sqlalchemy.queries.api_queries import (
@@ -33,12 +36,17 @@ from app.api.v1.schemas import (
 )
 from app.dependencies import get_db_session
 
-router = APIRouter(prefix="/api/v1", tags=["api"], dependencies=[Depends(verify_api_key)])
+api_v1 = FastAPI(
+    title="Cost Tracker API",
+    version="1.0.0",
+    description="Read-only API for Glance Dashboard integration.",
+    dependencies=[Depends(verify_api_key)],
+)
 
 DbSession = Annotated[Session, Depends(get_db_session)]
 
 
-@router.get("/summary", response_model=GlanceSummary)
+@api_v1.get("/summary", response_model=GlanceSummary)
 def get_summary(
     session: DbSession,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,

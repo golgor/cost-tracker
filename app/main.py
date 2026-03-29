@@ -34,7 +34,7 @@ from app.domain.errors import (
     UserHasActiveGroupMembershipError,
     UserNotFoundError,
 )
-from app.api.v1.router import router as api_v1_router
+from app.api.v1.router import api_v1
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
 from app.web.router import router as web_router
@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
     engine.dispose()
 
 
-app = FastAPI(title="Cost Tracker", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Cost Tracker", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
 
 # Middleware (order matters: last added = first to process request)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)  # type: ignore[arg-type]
@@ -87,7 +87,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Routers
 app.include_router(web_router)
-app.include_router(api_v1_router)
+
+# API sub-application — mounted separately so it gets its own OpenAPI docs
+# at /api/v1/docs without exposing the web (HTMX) routes.
+app.mount("/api/v1", api_v1)
 
 
 @app.exception_handler(RequestValidationError)

@@ -14,6 +14,7 @@ from app.adapters.sqlalchemy.orm_models import (
     RecurringDefinitionRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
+from app.api.v1.router import api_v1
 from app.dependencies import get_db_session
 from app.domain.models import (
     ExpenseStatus,
@@ -69,11 +70,15 @@ def test_group(user1, user2, uow: UnitOfWork):
 
 @pytest.fixture
 def api_client(db_session):
-    """Test client with db_session override (no session cookie needed — API key auth)."""
-    app.dependency_overrides[get_db_session] = lambda: db_session
+    """Test client with db_session override (no session cookie needed — API key auth).
+
+    Overrides on the sub-application (api_v1) since it's mounted as a separate
+    ASGI app — the main app's dependency_overrides don't propagate to it.
+    """
+    api_v1.dependency_overrides[get_db_session] = lambda: db_session
     client = TestClient(app, raise_server_exceptions=False)
     yield client
-    app.dependency_overrides.clear()
+    api_v1.dependency_overrides.clear()
 
 
 class TestApiAuthentication:
