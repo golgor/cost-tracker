@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.api.v1.router import api_v1
 from app.auth.middleware import AuthMiddleware, CSRFMiddleware
 from app.dependencies import engine, get_db_session
 from app.domain.errors import (
@@ -29,7 +30,6 @@ from app.domain.errors import (
     UserAlreadyRegularError,
     UserNotFoundError,
 )
-from app.api.v1.router import api_v1
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
 from app.web.router import router as web_router
@@ -64,7 +64,9 @@ async def lifespan(app: FastAPI):
     engine.dispose()
 
 
-app = FastAPI(title="Cost Tracker", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+app = FastAPI(
+    title="Cost Tracker", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None
+)
 
 # Middleware (order matters: last added = first to process request)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)  # type: ignore[arg-type]

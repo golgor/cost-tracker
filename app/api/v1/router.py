@@ -96,8 +96,7 @@ def get_summary(
                 net_amount=balance_data["net_amount"],
                 direction=balance_data["direction"],
                 members=[
-                    MemberBalance(name=m["name"], net=m["net"])
-                    for m in balance_data["members"]
+                    MemberBalance(name=m["name"], net=m["net"]) for m in balance_data["members"]
                 ],
             ),
         ),

@@ -48,9 +48,7 @@ class Settings(BaseSettings):
                     "INTERNAL_WEBHOOK_SECRET must be set to a secure value in production"
                 )
             if self.GLANCE_API_KEY in _INSECURE_SECRETS:
-                raise ValueError(
-                    "GLANCE_API_KEY must be set to a secure value in production"
-                )
+                raise ValueError("GLANCE_API_KEY must be set to a secure value in production")
         return self
 
 

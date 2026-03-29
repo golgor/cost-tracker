@@ -104,7 +104,6 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
         "net_amount": str(net),
         "direction": direction,
         "members": [
-            {"name": names[uid], "net": str(balances[uid].net_balance.amount)}
-            for uid in member_ids
+            {"name": names[uid], "net": str(balances[uid].net_balance.amount)} for uid in member_ids
         ],
     }

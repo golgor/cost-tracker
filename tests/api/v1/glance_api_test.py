@@ -293,9 +293,7 @@ class TestSummaryWithRecurring:
             )
         db_session.flush()
 
-        response = api_client.get(
-            f"{API_URL}?limit=2", headers={"Authorization": VALID_AUTH}
-        )
+        response = api_client.get(f"{API_URL}?limit=2", headers={"Authorization": VALID_AUTH})
         data = response.json()
 
         assert data["recurring"]["active_count"] == 5
