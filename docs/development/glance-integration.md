@@ -125,12 +125,12 @@ Dates are ISO 8601 date strings (`"YYYY-MM-DD"`) — not datetimes.
 
 ## Edge Cases
 
-| Scenario               | Behavior                                                  |
-|------------------------|-----------------------------------------------------------|
-| No group exists        | All values zero/empty, currency defaults to `"EUR"`       |
-| No expenses            | `total`: `"0.00"`, `expense_count`: 0                     |
-| No recurring costs     | `active_count`: 0, `total_monthly_cost`: `"0.00"`         |
-| Partners fully settled | `balance.direction`: `"All square"`                       |
+| Scenario               | Behavior                                                                     |
+|------------------------|------------------------------------------------------------------------------|
+| No group exists        | All values zero/empty, currency defaults to `"EUR"`                          |
+| No expenses            | `total`: `"0.00"`, `expense_count`: 0, balance: All square                   |
+| No recurring costs     | `active_count`: 0, `total_monthly_cost`: `"0.00"`, `upcoming`: `[]`          |
+| Partners fully settled | `balance.direction`: `"All square"`, `net_amount`: `"0.00"`                  |
 
 ## gjson Accessor Cheat Sheet
 
