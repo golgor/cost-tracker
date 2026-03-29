@@ -4,6 +4,8 @@ Uses FastAPI's HTTPBearer security scheme so Swagger UI shows a proper
 "Authorize" button with lock icons on protected endpoints.
 """
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -13,7 +15,7 @@ _bearer_scheme = HTTPBearer()
 
 
 def verify_api_key(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_bearer_scheme)],
 ) -> None:
     """Validate Bearer token against GLANCE_API_KEY.
 
