@@ -8,12 +8,13 @@ from sqlmodel import Session, func, select
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseNoteRow,
     ExpenseRow,
-    ExpenseSplitRow,
     MembershipRow,
     RecurringDefinitionRow,
 )
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
-from app.domain.models import ExpensePublic, ExpenseStatus, MembershipPublic
+from app.domain.balance import calculate_balances
+from app.domain.models import ExpensePublic, MembershipPublic
+from app.domain.splits.config import BalanceConfig
 
 
 def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]:
@@ -117,44 +118,6 @@ def get_filtered_expenses(
     return [expense_row_to_public(row) for row in rows]
 
 
-def _filtered_expense_ids_subquery(
-    group_id: int,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    payer_id: int | None = None,
-    search_query: str | None = None,
-):
-    """Build a subquery of ExpenseRow IDs matching optional filters.
-
-    Used by calculate_balance() to avoid row duplication from note joins
-    affecting split-sum calculations.
-    """
-    stmt = select(ExpenseRow.id).where(  # type: ignore[arg-type]
-        ExpenseRow.group_id == group_id,
-        ExpenseRow.status == ExpenseStatus.PENDING,
-    )
-    if date_from:
-        stmt = stmt.where(ExpenseRow.date >= date_from)
-    if date_to:
-        stmt = stmt.where(ExpenseRow.date <= date_to)
-    if payer_id:
-        stmt = stmt.where(ExpenseRow.payer_id == payer_id)
-    if search_query:
-        pattern = f"%{search_query}%"
-        stmt = (
-            stmt.outerjoin(  # type: ignore[call-overload]
-                ExpenseNoteRow,
-                ExpenseNoteRow.expense_id == ExpenseRow.id,  # type: ignore[union-attr]  # ty: ignore[invalid-argument-type]
-            )
-            .where(
-                ExpenseRow.description.ilike(pattern)  # type: ignore[union-attr]
-                | ExpenseNoteRow.content.ilike(pattern)  # type: ignore[union-attr]
-            )
-            .distinct()
-        )
-    return stmt
-
-
 def calculate_balance(
     session: Session,
     group_id: int,
@@ -164,16 +127,21 @@ def calculate_balance(
     payer_id: int | None = None,
     search_query: str | None = None,
 ) -> dict:
-    """Calculate current balance for a group using actual split amounts from expense_splits.
+    """Calculate current balance for a group using domain balance logic.
+
+    Uses the same calculate_balances() function as the settlement flow to
+    ensure consistent results. Fetches filtered pending expenses, then
+    delegates to the pure domain function.
 
     Returns: {
         "current_user_is_owed": Decimal,  # positive = current user is owed, negative = owes
-        "partner_id": int,
+        "partner_id": int | None,
         "formatted_message": str,  # "All square!" if zero, else formatted balance
+        "is_positive": bool,
+        "is_negative": bool,
+        "is_zero": bool,
     }
 
-    This query sums from expense_splits table to support all split modes (even, shares,
-    percentage, exact). Excludes GIFT status expenses from balance calculation.
     Optionally filters by date range, payer, and search query.
     """
     # Get group members to identify partner
@@ -185,84 +153,35 @@ def calculate_balance(
             "formatted_message": "All square!",
         }
 
-    # Assumes 2 members; will be generalized in future epics
     other_members = [m.user_id for m in members if m.user_id != user_id]
     partner_id = other_members[0] if other_members else None
+    member_ids = [m.user_id for m in members]
 
-    # Query all splits for pending expenses in this group
-    # Join with expenses to filter by status and get payer info
-    has_filters = any([date_from, date_to, payer_id, search_query])
-    statement = (
-        select(ExpenseSplitRow, ExpenseRow.payer_id)
-        .join(ExpenseRow, ExpenseSplitRow.expense_id == ExpenseRow.id)  # ty: ignore[invalid-argument-type]
-        .where(
-            ExpenseRow.group_id == group_id,
-            ExpenseRow.status == ExpenseStatus.PENDING,
-            ExpenseRow.status != ExpenseStatus.GIFT,
-        )
+    # Fetch pending expenses with optional filters
+    expenses = get_filtered_expenses(
+        session,
+        group_id,
+        date_from=date_from,
+        date_to=date_to,
+        payer_id=payer_id,
+        status="PENDING",
+        search_query=search_query,
     )
-    if has_filters:
-        filtered_ids = _filtered_expense_ids_subquery(
-            group_id, date_from, date_to, payer_id, search_query
-        )
-        statement = statement.where(ExpenseSplitRow.expense_id.in_(filtered_ids))  # type: ignore[union-attr]
-    results = session.exec(statement).all()
 
-    # Calculate balance from splits
-    # Logic: For each expense:
-    #   - If current user paid: they are owed the sum of all other members' splits
-    #   - If someone else paid: current user owes their split amount
-    balance = Decimal("0.00")
+    if not expenses:
+        return {
+            "current_user_is_owed": Decimal("0.00"),
+            "partner_id": partner_id,
+            "formatted_message": "All square!",
+            "is_positive": False,
+            "is_negative": False,
+            "is_zero": True,
+        }
 
-    # Group splits by expense_id
-    expense_splits: dict[int, list[tuple[int, Decimal, int]]] = {}
-    for split_row, payer_id in results:
-        eid = split_row.expense_id
-        if eid not in expense_splits:
-            expense_splits[eid] = []
-        expense_splits[eid].append((split_row.user_id, split_row.amount, payer_id))
-
-    # Calculate balance for each expense that has splits
-    for _eid, splits in expense_splits.items():
-        # Find payer for this expense
-        payer_id = splits[0][2] if splits else None
-
-        if payer_id == user_id:
-            # Current user paid → add amounts owed by others
-            for member_id, amount, _ in splits:
-                if member_id != user_id:
-                    balance += amount
-        else:
-            # Someone else paid → subtract current user's share
-            for member_id, amount, _ in splits:
-                if member_id == user_id:
-                    balance -= amount
-
-    # Backward compatibility: Handle expenses without split rows (legacy data)
-    # Calculate even split (50/50) for these expenses
-    expenses_without_splits = (
-        select(ExpenseRow)
-        .where(
-            ExpenseRow.group_id == group_id,
-            ExpenseRow.status == ExpenseStatus.PENDING,
-            ExpenseRow.status != ExpenseStatus.GIFT,
-        )
-        .where(ExpenseRow.id.notin_(list(expense_splits.keys()) if expense_splits else [0]))  # ty: ignore[unresolved-attribute]
-    )
-    if has_filters:
-        expenses_without_splits = expenses_without_splits.where(
-            ExpenseRow.id.in_(filtered_ids)  # type: ignore[union-attr]
-        )
-    legacy_expenses = session.exec(expenses_without_splits).all()
-
-    for expense in legacy_expenses:
-        half = expense.amount / 2
-        if expense.payer_id == user_id:
-            # Current user paid → partner owes current user
-            balance += half
-        else:
-            # Partner paid → current user owes partner
-            balance -= half
+    # Use proven domain logic (same as settlement flow)
+    config = BalanceConfig()
+    balances = calculate_balances(expenses, member_ids, config)
+    balance = balances[user_id].net_balance.amount
 
     # Format message
     if balance == 0:
@@ -276,9 +195,9 @@ def calculate_balance(
         "current_user_is_owed": balance,
         "partner_id": partner_id,
         "formatted_message": message,
-        "is_positive": balance > 0,  # Pre-computed flag for template
-        "is_negative": balance < 0,  # Pre-computed flag for template
-        "is_zero": balance == 0,  # Pre-computed flag for template
+        "is_positive": balance > 0,
+        "is_negative": balance < 0,
+        "is_zero": balance == 0,
     }
 
 

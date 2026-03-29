@@ -8,7 +8,7 @@ from starlette.responses import RedirectResponse, Response
 from app.auth.session import decode_session
 from app.settings import settings
 
-PUBLIC_PATHS = {"/auth/login", "/auth/callback", "/health", "/static"}
+PUBLIC_PATHS = {"/auth/login", "/auth/callback", "/health", "/static", "/api/v1"}
 # Exact-match public paths (no prefix matching) — for internal webhook endpoints
 EXACT_PUBLIC_PATHS = {"/api/internal/generate-recurring"}
 SETUP_PATHS = {"/setup"}

@@ -6,6 +6,7 @@ _INSECURE_SECRETS = {
     "change-me",
     "test-secret-key-not-for-production",
     "change-me-webhook-secret",
+    "change-me-glance-api-key",
 }
 
 
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
+    GLANCE_API_KEY: str = "change-me-glance-api-key"
 
     @property
     def is_production(self) -> bool:
@@ -45,6 +47,8 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "INTERNAL_WEBHOOK_SECRET must be set to a secure value in production"
                 )
+            if self.GLANCE_API_KEY in _INSECURE_SECRETS:
+                raise ValueError("GLANCE_API_KEY must be set to a secure value in production")
         return self
 
 

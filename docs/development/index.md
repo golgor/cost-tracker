@@ -14,6 +14,10 @@ Guides for contributing to and maintaining Cost Tracker.
 - [Add a Route](how-to/add-route.md) — New page or HTMX endpoint
 - [Add a Migration](how-to/add-migration.md) — Alembic database migrations
 
+## Integrations
+
+- [Glance Dashboard](glance-integration.md) — Read-only JSON API for Glance `custom-api` widgets
+
 ## Architecture
 
 For deeper understanding of design decisions and patterns, see the
