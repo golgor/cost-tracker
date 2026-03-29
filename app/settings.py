@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     ENV: str = "dev"  # "dev" | "prod"
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
     GLANCE_API_KEY: str = "change-me-glance-api-key"
-    SYSTEM_ACTOR_ID: int = 0  # ID used for automated system-initiated actions
 
     @property
     def is_production(self) -> bool:

@@ -22,7 +22,6 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
 
 from sqlmodel import Field, SQLModel  # noqa: F401
 
@@ -67,9 +66,6 @@ class UserBase(SQLModel):
     email: str = Field(max_length=255)
     display_name: str = Field(max_length=255)
     role: UserRole = Field(default=UserRole.USER)
-    is_active: bool = Field(default=True)
-    deactivated_at: datetime | None = Field(default=None)
-    deactivated_by_user_id: int | None = Field(default=None)
 
 
 class UserPublic(UserBase):
@@ -109,18 +105,6 @@ class MembershipPublic(SQLModel):
     group_id: int
     role: MemberRole
     joined_at: datetime
-
-
-class AuditEntry(SQLModel):
-    """Output schema for an audit log entry."""
-
-    id: int
-    actor_id: int
-    action: str
-    entity_type: str
-    entity_id: int
-    occurred_at: datetime
-    changes: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------

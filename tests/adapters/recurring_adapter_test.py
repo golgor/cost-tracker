@@ -6,15 +6,14 @@ from decimal import Decimal
 import pytest
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.orm_models import AuditRow, RecurringDefinitionRow
+from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
 from app.domain.errors import RecurringDefinitionNotFoundError
 from app.domain.models import RecurringDefinitionPublic, RecurringFrequency, SplitType
 
 
 def _make_adapter(session: Session) -> SqlAlchemyRecurringDefinitionAdapter:
-    return SqlAlchemyRecurringDefinitionAdapter(session, SqlAlchemyAuditAdapter(session))
+    return SqlAlchemyRecurringDefinitionAdapter(session)
 
 
 def _make_definition(
@@ -55,7 +54,7 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         adapter = _make_adapter(db_session)
 
         before = len(db_session.exec(select(RecurringDefinitionRow)).all())
-        adapter.save(_make_definition(group.id, user.id), actor_id=user.id)
+        adapter.save(_make_definition(group.id, user.id))
         db_session.commit()
 
         after = len(db_session.exec(select(RecurringDefinitionRow)).all())
@@ -81,7 +80,6 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
                 auto_generate=True,
                 currency="SEK",
             ),
-            actor_id=user.id,
         )
         db_session.commit()
 
@@ -106,7 +104,7 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        saved = adapter.save(_make_definition(group.id, user.id), actor_id=user.id)
+        saved = adapter.save(_make_definition(group.id, user.id))
         db_session.commit()
 
         retrieved = adapter.get_by_id(saved.id)
@@ -128,15 +126,11 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn_active = adapter.save(
-            _make_definition(group.id, user.id, name="Active"), actor_id=user.id
-        )
-        defn_to_delete = adapter.save(
-            _make_definition(group.id, user.id, name="ToDelete"), actor_id=user.id
-        )
+        defn_active = adapter.save(_make_definition(group.id, user.id, name="Active"))
+        defn_to_delete = adapter.save(_make_definition(group.id, user.id, name="ToDelete"))
         db_session.commit()
 
-        adapter.soft_delete(defn_to_delete.id, actor_id=user.id)
+        adapter.soft_delete(defn_to_delete.id)
         db_session.commit()
 
         results = adapter.list_by_group(group.id)
@@ -153,12 +147,10 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(
-            _make_definition(group.id, user.id, name="WillDelete"), actor_id=user.id
-        )
+        defn = adapter.save(_make_definition(group.id, user.id, name="WillDelete"))
         db_session.commit()
 
-        adapter.soft_delete(defn.id, actor_id=user.id)
+        adapter.soft_delete(defn.id)
         db_session.commit()
 
         results = adapter.list_by_group(group.id, include_deleted=True)
@@ -174,10 +166,10 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         adapter = _make_adapter(db_session)
 
         defn_active = adapter.save(
-            _make_definition(group.id, user.id, name="Active", is_active=True), actor_id=user.id
+            _make_definition(group.id, user.id, name="Active", is_active=True)
         )
         defn_paused = adapter.save(
-            _make_definition(group.id, user.id, name="Paused", is_active=False), actor_id=user.id
+            _make_definition(group.id, user.id, name="Paused", is_active=False)
         )
         db_session.commit()
 
@@ -197,13 +189,11 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
 
         defn = adapter.save(
             _make_definition(group.id, user.id, amount="14.99", currency="EUR"),
-            actor_id=user.id,
         )
         db_session.commit()
 
         updated = adapter.update(
             defn.id,
-            actor_id=user.id,
             amount=Decimal("19.99"),
             currency="SEK",
         )
@@ -213,37 +203,11 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         assert updated.currency == "SEK"
         assert updated.name == defn.name  # unchanged
 
-    def test_update_no_audit_when_nothing_changed(self, db_session: Session):
-        """update() does not create an audit row if no fields are provided."""
-        from tests.conftest import create_test_group, create_test_user
-
-        user = create_test_user(db_session, "auth0|rd_upd_noop", "rd_upd_noop@example.com")
-        group = create_test_group(db_session, user.id)
-        adapter = _make_adapter(db_session)
-
-        defn = adapter.save(_make_definition(group.id, user.id), actor_id=user.id)
-        db_session.commit()
-
-        before = len(
-            db_session.exec(
-                select(AuditRow).where(AuditRow.action == "recurring_definition_updated")
-            ).all()
-        )
-        adapter.update(defn.id, actor_id=user.id)  # No fields provided
-        db_session.commit()
-
-        after = len(
-            db_session.exec(
-                select(AuditRow).where(AuditRow.action == "recurring_definition_updated")
-            ).all()
-        )
-        assert after == before
-
     def test_update_raises_for_missing_definition(self, db_session: Session):
         """update() raises RecurringDefinitionNotFoundError for non-existent ID."""
         adapter = _make_adapter(db_session)
         with pytest.raises(RecurringDefinitionNotFoundError):
-            adapter.update(99999, actor_id=1, name="New Name")
+            adapter.update(99999, name="New Name")
 
     def test_soft_delete_sets_deleted_at(self, db_session: Session):
         """soft_delete() sets deleted_at without removing the row."""
@@ -253,10 +217,10 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(_make_definition(group.id, user.id), actor_id=user.id)
+        defn = adapter.save(_make_definition(group.id, user.id))
         db_session.commit()
 
-        adapter.soft_delete(defn.id, actor_id=user.id)
+        adapter.soft_delete(defn.id)
         db_session.commit()
 
         row = db_session.exec(
@@ -269,7 +233,7 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         """soft_delete() raises RecurringDefinitionNotFoundError for non-existent ID."""
         adapter = _make_adapter(db_session)
         with pytest.raises(RecurringDefinitionNotFoundError):
-            adapter.soft_delete(99999, actor_id=1)
+            adapter.soft_delete(99999)
 
     def test_soft_delete_raises_for_already_deleted(self, db_session: Session):
         """soft_delete() raises RecurringDefinitionNotFoundError for already-deleted row."""
@@ -279,59 +243,11 @@ class TestSqlAlchemyRecurringDefinitionAdapter:
         group = create_test_group(db_session, user.id)
         adapter = _make_adapter(db_session)
 
-        defn = adapter.save(_make_definition(group.id, user.id), actor_id=user.id)
+        defn = adapter.save(_make_definition(group.id, user.id))
         db_session.commit()
 
-        adapter.soft_delete(defn.id, actor_id=user.id)
+        adapter.soft_delete(defn.id)
         db_session.commit()
 
         with pytest.raises(RecurringDefinitionNotFoundError):
-            adapter.soft_delete(defn.id, actor_id=user.id)
-
-    def test_save_creates_audit_row(self, db_session: Session):
-        """save() auto-audits with a snapshot of the new definition fields."""
-        from tests.conftest import create_test_group, create_test_user
-
-        user = create_test_user(db_session, "auth0|rd_audit_save", "rd_audit_save@example.com")
-        group = create_test_group(db_session, user.id)
-        adapter = _make_adapter(db_session)
-
-        defn = adapter.save(
-            _make_definition(group.id, user.id, name="Audit Save"), actor_id=user.id
-        )
-        db_session.commit()
-
-        rows = db_session.exec(
-            select(AuditRow).where(
-                AuditRow.action == "recurring_definition_created",
-                AuditRow.entity_id == defn.id,
-            )
-        ).all()
-        assert len(rows) == 1
-        assert rows[0].changes is not None
-        assert rows[0].changes["name"] == {"old": None, "new": "Audit Save"}
-
-    def test_update_creates_audit_row_with_old_and_new(self, db_session: Session):
-        """update() auto-audits with old→new changes for modified fields."""
-        from tests.conftest import create_test_group, create_test_user
-
-        user = create_test_user(db_session, "auth0|rd_audit_upd", "rd_audit_upd@example.com")
-        group = create_test_group(db_session, user.id)
-        adapter = _make_adapter(db_session)
-
-        defn = adapter.save(_make_definition(group.id, user.id, name="Old Name"), actor_id=user.id)
-        db_session.commit()
-
-        adapter.update(defn.id, actor_id=user.id, name="New Name")
-        db_session.commit()
-
-        rows = db_session.exec(
-            select(AuditRow).where(
-                AuditRow.action == "recurring_definition_updated",
-                AuditRow.entity_id == defn.id,
-            )
-        ).all()
-        assert len(rows) == 1
-        changes = rows[0].changes
-        assert changes is not None
-        assert changes["name"] == {"old": "Old Name", "new": "New Name"}
+            adapter.soft_delete(defn.id)

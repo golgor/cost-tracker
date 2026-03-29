@@ -5,6 +5,7 @@ in the Authorization header instead. The path /api/internal/... is in
 EXACT_PUBLIC_PATHS so AuthMiddleware and CSRFMiddleware skip them.
 """
 
+import hmac
 import logging
 from datetime import date
 from typing import Annotated
@@ -28,14 +29,14 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 def _verify_webhook_secret(authorization: str | None) -> None:
     """Validate Authorization: Bearer <secret> header."""
     expected = f"Bearer {settings.INTERNAL_WEBHOOK_SECRET}"
-    if authorization != expected:
+    if not authorization or not hmac.compare_digest(authorization, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing webhook secret",
         )
 
 
-def run_auto_generation(session: Session, current_date: date, actor_id: int) -> dict:
+def run_auto_generation(session: Session, current_date: date) -> dict:
     """Create expenses for all overdue auto-generate definitions.
 
     Uses savepoints so a duplicate-billing-period error on one definition
@@ -54,7 +55,7 @@ def run_auto_generation(session: Session, current_date: date, actor_id: int) -> 
     for defn in definitions:
         try:
             with session.begin_nested():
-                create_expense_from_definition(uow, defn, actor_id=actor_id, is_auto_generated=True)
+                create_expense_from_definition(uow, defn, is_auto_generated=True)
             created_count += 1
             logger.info(
                 "Auto-generated expense for recurring definition %d (%s)",
@@ -93,7 +94,7 @@ async def generate_recurring(
     """
     _verify_webhook_secret(authorization)
 
-    result = run_auto_generation(session, date.today(), settings.SYSTEM_ACTOR_ID)
+    result = run_auto_generation(session, date.today())
 
     logger.info(
         "Auto-generation complete: created=%d skipped=%d errors=%d",

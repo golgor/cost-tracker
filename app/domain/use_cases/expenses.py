@@ -10,7 +10,13 @@ from app.domain.errors import (
     InvalidShareError,
     RecurringExpenseDescriptionError,
 )
-from app.domain.models import ExpensePublic, ExpenseSplitPublic, ExpenseStatus, SplitType
+from app.domain.models import (
+    ExpenseBase,
+    ExpensePublic,
+    ExpenseSplitPublic,
+    ExpenseStatus,
+    SplitType,
+)
 from app.domain.ports import UnitOfWorkPort
 from app.domain.splits import (
     EvenSplitStrategy,
@@ -75,9 +81,8 @@ def create_expense(
     # Normalize split_type to enum
     split_type_enum = SplitType(split_type.upper())
 
-    # Calculate expense splits
-    expense_model = ExpensePublic.model_construct(
-        id=0,  # Placeholder ID
+    # Build expense base model
+    expense = ExpenseBase(
         group_id=group_id,
         amount=amount,
         description=description,
@@ -89,29 +94,20 @@ def create_expense(
         status=ExpenseStatus.PENDING,
     )
 
-    # Calculate splits based on type
-    splits = _calculate_splits(
-        expense=expense_model,
+    # Calculate splits based on type (needs ExpensePublic-like object for strategies)
+    expense_for_splits = ExpensePublic.model_construct(
+        id=0,
+        **expense.model_dump(),
+    )
+    splits = calculate_splits(
+        expense=expense_for_splits,
         member_ids=member_ids,
         split_type=split_type_enum,
         split_config=split_config,
     )
 
-    # Create expense with computed split_type
-    expense = ExpensePublic.model_construct(
-        group_id=group_id,
-        amount=amount,
-        description=description,
-        date=effective_date,
-        creator_id=creator_id,
-        payer_id=payer_id,
-        currency=effective_currency,
-        split_type=split_type_enum,
-        status=ExpenseStatus.PENDING,
-    )
-
     # Persist expense
-    saved_expense = uow.expenses.save(expense, actor_id=creator_id)
+    saved_expense = uow.expenses.save(expense)
 
     # Persist splits
     split_publics = [
@@ -124,12 +120,12 @@ def create_expense(
         )
         for user_id, split_amount, share_value in splits
     ]
-    uow.expenses.save_splits(saved_expense.id, split_publics, actor_id=creator_id)
+    uow.expenses.save_splits(saved_expense.id, split_publics)
 
     return saved_expense
 
 
-def _calculate_splits(
+def calculate_splits(
     expense: ExpensePublic,
     member_ids: list[int],
     split_type: SplitType,
@@ -176,7 +172,6 @@ def _calculate_splits(
 def update_expense(
     uow: UnitOfWorkPort,
     expense_id: int,
-    actor_id: int,
     amount: Decimal | None = None,
     description: str | None = None,
     date: date_type | None = None,
@@ -193,13 +188,11 @@ def update_expense(
     - Amount must be positive
     - Date cannot be in the future
 
-    Audit logging: Records all changed fields with previous values.
     Recalculates splits when amount or split type changes.
 
     Args:
         uow: Unit of work for transaction management
         expense_id: ID of expense to update
-        actor_id: User ID performing the update
         amount: New amount (optional)
         description: New description (optional)
         date: New date (optional)
@@ -243,7 +236,7 @@ def update_expense(
         except ValueError as err:
             raise DomainError(f"Invalid split type: {split_type}") from err
 
-    # Update expense fields (adapter handles change tracking and audit)
+    # Update expense fields
     uow.expenses.update(
         expense_id=expense_id,
         amount=amount,
@@ -251,7 +244,6 @@ def update_expense(
         date=date,
         payer_id=payer_id,
         currency=currency,
-        actor_id=actor_id,
     )
 
     # Update split_type on the expense row if changed
@@ -259,7 +251,6 @@ def update_expense(
         uow.expenses.update(
             expense_id=expense_id,
             split_type=split_type_enum,
-            actor_id=actor_id,
         )
 
     # Recalculate splits when amount or split type changes
@@ -292,7 +283,7 @@ def update_expense(
                         if s.share_value is not None
                     }
 
-            new_splits = _calculate_splits(
+            new_splits = calculate_splits(
                 expense=updated_expense,
                 member_ids=effective_member_ids,
                 split_type=updated_expense.split_type,
@@ -309,13 +300,12 @@ def update_expense(
                 )
                 for uid, split_amount, share_value in new_splits
             ]
-            uow.expenses.save_splits(expense_id, split_publics, actor_id=actor_id)
+            uow.expenses.save_splits(expense_id, split_publics)
 
 
 def delete_expense(
     uow: UnitOfWorkPort,
     expense_id: int,
-    actor_id: int,
 ) -> None:
     """Delete an expense (only if unsettled).
 
@@ -323,12 +313,9 @@ def delete_expense(
     - Expense must exist
     - Expense must not be settled (immutability check)
 
-    Audit logging: Records deletion with pre-delete snapshot of all fields.
-
     Args:
         uow: Unit of work for transaction management
         expense_id: ID of expense to delete
-        actor_id: User ID performing the deletion
 
     Raises:
         DomainError: If expense not found
@@ -343,5 +330,5 @@ def delete_expense(
     if expense.status == ExpenseStatus.SETTLED:
         raise CannotEditSettledExpenseError(expense_id)
 
-    # Delete (adapter handles audit logging with snapshot)
-    uow.expenses.delete(expense_id=expense_id, actor_id=actor_id)
+    # Delete
+    uow.expenses.delete(expense_id=expense_id)

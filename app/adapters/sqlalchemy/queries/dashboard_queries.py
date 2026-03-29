@@ -12,7 +12,7 @@ from app.adapters.sqlalchemy.orm_models import (
     RecurringDefinitionRow,
 )
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
-from app.domain.balance import calculate_balances, minimize_transactions
+from app.domain.balance import calculate_balances
 from app.domain.models import ExpensePublic, MembershipPublic
 from app.domain.splits.config import BalanceConfig
 

@@ -25,13 +25,13 @@
         {% set ns.current_date = expense_date %}
         <div class="px-6 py-2 bg-stone-50 border-b border-stone-200">
           <p class="text-xs font-semibold text-stone-600 uppercase tracking-wide">
-            {{ expense_date.strftime("%B %d, %Y") }}
+            {{ expense.formatted_date }}
           </p>
         </div>
       {% endif %}
 
       <!-- Expense Card -->
-      {% with is_settled=is_settled_section, currency_symbol=currency_symbol %}
+      {% with is_settled=is_settled_section %}
         {% include "expenses/_expense_card.html" %}
       {% endwith %}
     {% endfor %}

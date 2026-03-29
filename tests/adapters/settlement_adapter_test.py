@@ -6,7 +6,6 @@ import pytest
 from sqlmodel import select
 
 from app.adapters.sqlalchemy.orm_models import (
-    AuditRow,
     ExpenseRow,
     SettlementExpenseRow,
     SettlementRow,
@@ -25,7 +24,6 @@ def user1(uow):
             oidc_sub="user1@test.com",
             email="user1@test.com",
             display_name="Alice",
-            actor_id=1,
         )
     return user
 
@@ -38,7 +36,6 @@ def user2(uow):
             oidc_sub="user2@test.com",
             email="user2@test.com",
             display_name="Bob",
-            actor_id=2,
         )
     return user
 
@@ -47,9 +44,9 @@ def user2(uow):
 def test_group(user1, user2, uow):
     """Create a test group with two members."""
     with uow:
-        group = uow.groups.save(name="Test Household", actor_id=user1.id)
-        uow.groups.add_member(group.id, user1.id, "ADMIN", actor_id=user1.id)
-        uow.groups.add_member(group.id, user2.id, "USER", actor_id=user1.id)
+        group = uow.groups.save(name="Test Household")
+        uow.groups.add_member(group.id, user1.id, "ADMIN")
+        uow.groups.add_member(group.id, user2.id, "USER")
     return group
 
 
@@ -160,36 +157,6 @@ class TestSettlementAdapter:
         expense_row = uow.session.get(ExpenseRow, test_expense.id)
         assert expense_row is not None
         assert expense_row.status == ExpenseStatus.SETTLED
-
-    def test_save_settlement_creates_audit_log(
-        self, uow: UnitOfWork, test_group, user1, user2, test_expense
-    ):
-        """Test that settlement creation logs audit entry."""
-        member_ids = [user1.id, user2.id]
-
-        with uow:
-            settlement = confirm_settlement(
-                uow,
-                group_id=test_group.id,
-                expense_ids=[test_expense.id],
-                settled_by_id=user1.id,
-                member_ids=member_ids,
-            )
-
-        audit_entries = uow.session.exec(
-            select(AuditRow).where(
-                AuditRow.entity_type == "settlement",
-                AuditRow.entity_id == settlement.id,
-                AuditRow.action == "settlement_confirmed",
-            )
-        ).all()
-
-        assert len(audit_entries) >= 1
-        entry = audit_entries[-1]
-        assert entry.actor_id == user1.id
-        assert entry.changes is not None
-        assert "expense_ids" in entry.changes
-        assert "transactions" in entry.changes
 
     def test_get_by_id_existing(self, uow: UnitOfWork, test_group, user1, user2, test_expense):
         """Test retrieving settlement by ID."""

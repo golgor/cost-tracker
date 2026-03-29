@@ -22,7 +22,6 @@ def test_user(uow: UnitOfWork):
             oidc_sub="form_user@test.com",
             email="form_user@test.com",
             display_name="Form User",
-            actor_id=1,
         )
     return user
 

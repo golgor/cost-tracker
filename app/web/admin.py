@@ -8,12 +8,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.adapters.sqlalchemy.queries import get_all_users
-from app.adapters.sqlalchemy.queries.admin_queries import get_recent_audit_entries
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
-from app.web.view_models import AuditEntryViewModel, UserProfileViewModel, UserRowViewModel
+from app.web.view_models import UserProfileViewModel, UserRowViewModel
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +49,11 @@ async def admin_users_page(
     if user_domain is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Count active admins to determine demote button visibility
-    active_admin_count = sum(1 for u in users_domain if u.role == UserRole.ADMIN and u.is_active)
+    # Count admins to determine demote button visibility
+    admin_count = sum(1 for u in users_domain if u.role == UserRole.ADMIN)
 
-    # Transform to view models with active admin count context
-    users_view = [
-        UserRowViewModel.from_domain(u, active_admin_count=active_admin_count) for u in users_domain
-    ]
+    # Transform to view models with admin count context
+    users_view = [UserRowViewModel.from_domain(u, admin_count=admin_count) for u in users_domain]
     user_view = UserProfileViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -65,35 +62,6 @@ async def admin_users_page(
         {
             "user": user_view,
             "users": users_view,
-            "csrf_token": getattr(request.state, "csrf_token", ""),
-        },
-    )
-
-
-@router.get("/audit", response_class=HTMLResponse)
-async def admin_audit_log_page(
-    request: Request,
-    user_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Admin audit log page."""
-    _check_admin_access(user_id, uow)
-
-    user_domain = uow.users.get_by_id(user_id)
-    if user_domain is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    audit_entries_dicts = get_recent_audit_entries(uow.session, limit=100)
-
-    # Transform to view models
-    user_view = UserProfileViewModel.from_domain(user_domain)
-    audit_entries_view = [AuditEntryViewModel.from_dict(e) for e in audit_entries_dicts]
-
-    return templates.TemplateResponse(
-        request,
-        "admin/audit.html",
-        {
-            "user": user_view,
-            "audit_entries": audit_entries_view,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -113,7 +81,7 @@ async def promote_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.promote_user_to_admin(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.promote_user_to_admin(uow, target_user_id)
         # Return updated row
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
@@ -138,81 +106,7 @@ async def demote_user(
     _check_admin_access(actor_id, uow)
 
     with uow:
-        user_use_cases.demote_user_to_regular(uow, target_user_id, actor_id=actor_id)
-        user_domain = uow.users.get_by_id(target_user_id)
-        if user_domain is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        user_view = UserRowViewModel.from_domain(user_domain)
-
-    return templates.TemplateResponse(
-        request,
-        "admin/_user_row.html",
-        {"u": user_view},
-    )
-
-
-@router.get("/users/{target_user_id}/deactivate-confirm", response_class=HTMLResponse)
-async def deactivate_confirm_dialog(
-    target_user_id: int,
-    request: Request,
-    user_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Show deactivate confirmation dialog."""
-    _check_admin_access(user_id, uow)
-
-    target_user_domain = uow.users.get_by_id(target_user_id)
-    if target_user_domain is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    target_user_view = UserProfileViewModel.from_domain(target_user_domain)
-
-    return templates.TemplateResponse(
-        request,
-        "admin/_deactivate_confirm.html",
-        {
-            "target_user": target_user_view,
-            "target_user_id": target_user_id,
-            "csrf_token": getattr(request.state, "csrf_token", ""),
-        },
-    )
-
-
-@router.post("/users/{target_user_id}/deactivate")
-async def deactivate_user(
-    target_user_id: int,
-    request: Request,
-    actor_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Deactivate a user."""
-    _check_admin_access(actor_id, uow)
-
-    with uow:
-        user_use_cases.deactivate_user(uow, target_user_id, actor_id=actor_id)
-        user_domain = uow.users.get_by_id(target_user_id)
-        if user_domain is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        user_view = UserRowViewModel.from_domain(user_domain)
-
-    return templates.TemplateResponse(
-        request,
-        "admin/_user_row.html",
-        {"u": user_view},
-    )
-
-
-@router.post("/users/{target_user_id}/reactivate")
-async def reactivate_user(
-    target_user_id: int,
-    request: Request,
-    actor_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Reactivate a deactivated user."""
-    _check_admin_access(actor_id, uow)
-
-    with uow:
-        user_use_cases.reactivate_user(uow, target_user_id, actor_id=actor_id)
+        user_use_cases.demote_user_to_regular(uow, target_user_id)
         user_domain = uow.users.get_by_id(target_user_id)
         if user_domain is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

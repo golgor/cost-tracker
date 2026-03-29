@@ -1,19 +1,14 @@
 """Tests verifying the global DomainError exception handler mapping."""
 
 from app.domain.errors import (
-    DeactivatedUserAccessDenied,
     DomainError,
     DuplicateHouseholdError,
     DuplicateMembershipError,
     GroupNotFoundError,
-    LastActiveAdminDeactivationForbidden,
     MembershipNotFoundError,
     UnauthorizedGroupActionError,
-    UserAlreadyActive,
     UserAlreadyAdminError,
-    UserAlreadyDeactivated,
     UserAlreadyRegularError,
-    UserHasActiveGroupMembershipError,
     UserNotFoundError,
 )
 from app.main import DOMAIN_ERROR_MAP
@@ -30,14 +25,9 @@ class TestDomainErrorMap:
             GroupNotFoundError,
             MembershipNotFoundError,
             UnauthorizedGroupActionError,
-            LastActiveAdminDeactivationForbidden,
-            UserHasActiveGroupMembershipError,
-            DeactivatedUserAccessDenied,
             UserNotFoundError,
             UserAlreadyAdminError,
             UserAlreadyRegularError,
-            UserAlreadyDeactivated,
-            UserAlreadyActive,
         }
         for error_class in expected:
             assert error_class in DOMAIN_ERROR_MAP, (
@@ -48,12 +38,8 @@ class TestDomainErrorMap:
         """Conflict domain errors map to HTTP 409."""
         assert DOMAIN_ERROR_MAP[DuplicateHouseholdError] == 409
         assert DOMAIN_ERROR_MAP[DuplicateMembershipError] == 409
-        assert DOMAIN_ERROR_MAP[LastActiveAdminDeactivationForbidden] == 409
-        assert DOMAIN_ERROR_MAP[UserHasActiveGroupMembershipError] == 409
         assert DOMAIN_ERROR_MAP[UserAlreadyAdminError] == 409
         assert DOMAIN_ERROR_MAP[UserAlreadyRegularError] == 409
-        assert DOMAIN_ERROR_MAP[UserAlreadyDeactivated] == 409
-        assert DOMAIN_ERROR_MAP[UserAlreadyActive] == 409
 
     def test_not_found_errors_map_to_404(self):
         """Not-found domain errors map to HTTP 404."""
@@ -64,7 +50,6 @@ class TestDomainErrorMap:
     def test_forbidden_errors_map_to_403(self):
         """Forbidden domain errors map to HTTP 403."""
         assert DOMAIN_ERROR_MAP[UnauthorizedGroupActionError] == 403
-        assert DOMAIN_ERROR_MAP[DeactivatedUserAccessDenied] == 403
 
     def test_unmapped_domain_error_defaults_to_422(self):
         """Unknown DomainError subclasses fall back to HTTP 422."""

@@ -3,7 +3,6 @@ from typing import Any
 
 from sqlmodel import Session
 
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
 from app.adapters.sqlalchemy.expense_adapter import SqlAlchemyExpenseAdapter
 from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
@@ -17,22 +16,27 @@ class UnitOfWork:
     """Shared SQLAlchemy Session across adapters with context manager support.
 
     Usage:
+        # Mutations: use context manager for commit/rollback
         with uow:
-            user = uow.users.save(...)
-            group = uow.groups.save(...)
+            uow.users.save(...)
+            uow.groups.save(...)
         # Automatically commits on success, rolls back on exception
+
+        # Read-only: no context manager needed (session lifecycle managed by DI)
+        # The get_db_session() dependency manages session open/close,
+        # so reads can call adapter methods directly without ``with uow:``.
+        user = uow.users.get_by_id(user_id)
 
     Note: UnitOfWork context managers cannot be nested.
     """
 
     def __init__(self, session: Session) -> None:
         self.session = session
-        self.audit = SqlAlchemyAuditAdapter(session)
-        self.users = SqlAlchemyUserAdapter(session, self.audit)
-        self.groups = SqlAlchemyGroupAdapter(session, self.audit)
-        self.expenses = SqlAlchemyExpenseAdapter(session, self.audit)
-        self.settlements = SqlAlchemySettlementAdapter(session, self.audit)
-        self.recurring = SqlAlchemyRecurringDefinitionAdapter(session, self.audit)
+        self.users = SqlAlchemyUserAdapter(session)
+        self.groups = SqlAlchemyGroupAdapter(session)
+        self.expenses = SqlAlchemyExpenseAdapter(session)
+        self.settlements = SqlAlchemySettlementAdapter(session)
+        self.recurring = SqlAlchemyRecurringDefinitionAdapter(session)
 
     def __enter__(self) -> UnitOfWork:
         """Enter context manager - return self for use in with block."""

@@ -22,7 +22,6 @@ def user1(uow: UnitOfWork):
             oidc_sub="user1@test.com",
             email="user1@test.com",
             display_name="User One",
-            actor_id=1,
         )
     return user
 
@@ -35,7 +34,6 @@ def user2(uow: UnitOfWork):
             oidc_sub="user2@test.com",
             email="user2@test.com",
             display_name="User Two",
-            actor_id=2,
         )
     return user
 
@@ -190,10 +188,6 @@ class TestDashboardBalanceBar:
 class TestDashboardExpenseFeed:
     """Test expense feed display and ordering."""
 
-    @pytest.mark.skip(
-        reason="TODO: Test setup issue with transaction handling - "
-        "query sorting verified in adapter tests"
-    )
     def test_expense_feed_shows_newest_first(self, authenticated_client, user1, test_group, uow):
         """Expenses are sorted newest first in the feed."""
         today = date.today()

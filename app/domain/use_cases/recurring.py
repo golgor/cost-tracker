@@ -10,8 +10,10 @@ from app.domain.errors import (
     RecurringDefinitionNotFoundError,
 )
 from app.domain.models import (
+    ExpenseBase,
     ExpensePublic,
     ExpenseStatus,
+    RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
     SplitType,
@@ -23,7 +25,6 @@ from app.domain.recurring import advance_due_date, billing_period_for, format_ex
 def create_recurring_definition(
     uow: UnitOfWorkPort,
     group_id: int,
-    actor_id: int,
     name: str,
     amount: Decimal,
     frequency: RecurringFrequency,
@@ -41,7 +42,6 @@ def create_recurring_definition(
     Args:
         uow: Unit of work for transaction management
         group_id: ID of the group this definition belongs to
-        actor_id: User ID performing the creation
         name: Name of the recurring cost (e.g. "Netflix")
         amount: Amount per billing cycle (must be > 0)
         frequency: Billing frequency (MONTHLY, QUARTERLY, etc.)
@@ -69,8 +69,7 @@ def create_recurring_definition(
 
     effective_currency = currency or group.default_currency
 
-    definition = RecurringDefinitionPublic.model_construct(
-        id=0,
+    definition = RecurringDefinitionBase(
         group_id=group_id,
         name=name,
         amount=amount,
@@ -86,13 +85,12 @@ def create_recurring_definition(
         currency=effective_currency,
     )
 
-    return uow.recurring.save(definition, actor_id=actor_id)
+    return uow.recurring.save(definition)
 
 
 def update_recurring_definition(
     uow: UnitOfWorkPort,
     definition_id: int,
-    actor_id: int,
     name: str | None = None,
     amount: Decimal | None = None,
     frequency: RecurringFrequency | None = None,
@@ -114,7 +112,6 @@ def update_recurring_definition(
     Args:
         uow: Unit of work for transaction management
         definition_id: ID of the definition to update
-        actor_id: User ID performing the update
         All other args: Optional new values for each field
 
     Returns:
@@ -138,7 +135,6 @@ def update_recurring_definition(
 
     return uow.recurring.update(
         definition_id,
-        actor_id=actor_id,
         name=name,
         amount=amount,
         frequency=frequency,
@@ -157,7 +153,6 @@ def update_recurring_definition(
 def create_expense_from_definition(
     uow: UnitOfWorkPort,
     definition: RecurringDefinitionPublic,
-    actor_id: int,
     *,
     is_auto_generated: bool = False,
 ) -> ExpensePublic:
@@ -166,7 +161,6 @@ def create_expense_from_definition(
     Args:
         uow: Unit of work for transaction management
         definition: The recurring definition to generate from
-        actor_id: User ID performing the action
         is_auto_generated: True when created by the auto-generation engine
 
     Returns:
@@ -182,13 +176,12 @@ def create_expense_from_definition(
     billing_period = billing_period_for(definition.next_due_date)
     description = format_expense_description(definition.name, billing_period)
 
-    expense = ExpensePublic.model_construct(
-        id=0,
+    expense = ExpenseBase(
         group_id=definition.group_id,
         amount=definition.amount,
         description=description,
         date=definition.next_due_date,
-        creator_id=actor_id,
+        creator_id=definition.payer_id,
         payer_id=definition.payer_id,
         currency=definition.currency,
         split_type=definition.split_type,
@@ -196,18 +189,16 @@ def create_expense_from_definition(
         recurring_definition_id=definition.id,
         billing_period=billing_period,
         is_auto_generated=is_auto_generated,
-        created_at=None,  # type: ignore[arg-type]
-        updated_at=None,  # type: ignore[arg-type]
     )
 
-    expense_pub = uow.expenses.save(expense, actor_id=actor_id)
+    expense_pub = uow.expenses.save(expense)
 
     new_due_date = advance_due_date(
         definition.next_due_date,
         definition.frequency,
         definition.interval_months,
     )
-    uow.recurring.update(definition.id, actor_id=actor_id, next_due_date=new_due_date)
+    uow.recurring.update(definition.id, next_due_date=new_due_date)
 
     return expense_pub
 
@@ -215,7 +206,6 @@ def create_expense_from_definition(
 def generate_pending_expenses(
     uow: UnitOfWorkPort,
     current_date: date_type,
-    actor_id: int,
     limit: int | None = None,
 ) -> list[ExpensePublic]:
     """Generate expenses for all overdue auto_generate recurring definitions.
@@ -226,7 +216,6 @@ def generate_pending_expenses(
     Args:
         uow: Unit of work for transaction management
         current_date: Reference date for "overdue" check
-        actor_id: User ID to record as creator (use system actor for automated runs)
         limit: If set, process at most this many definitions
 
     Returns:
@@ -242,9 +231,7 @@ def generate_pending_expenses(
 
     created: list[ExpensePublic] = []
     for definition in definitions:
-        expense = create_expense_from_definition(
-            uow, definition, actor_id=actor_id, is_auto_generated=True
-        )
+        expense = create_expense_from_definition(uow, definition, is_auto_generated=True)
         created.append(expense)
     return created
 
@@ -252,14 +239,12 @@ def generate_pending_expenses(
 def pause_definition(
     uow: UnitOfWorkPort,
     definition_id: int,
-    actor_id: int,
 ) -> RecurringDefinitionPublic:
     """Pause an active recurring definition.
 
     Args:
         uow: Unit of work for transaction management
         definition_id: ID of the definition to pause
-        actor_id: User ID performing the action
 
     Returns:
         The updated RecurringDefinitionPublic.
@@ -267,13 +252,12 @@ def pause_definition(
     Raises:
         RecurringDefinitionNotFoundError: If definition doesn't exist or is deleted
     """
-    return uow.recurring.update(definition_id, actor_id=actor_id, is_active=False)
+    return uow.recurring.update(definition_id, is_active=False)
 
 
 def reactivate_definition(
     uow: UnitOfWorkPort,
     definition_id: int,
-    actor_id: int,
 ) -> RecurringDefinitionPublic:
     """Reactivate a paused recurring definition.
 
@@ -282,7 +266,6 @@ def reactivate_definition(
     Args:
         uow: Unit of work for transaction management
         definition_id: ID of the definition to reactivate
-        actor_id: User ID performing the action
 
     Returns:
         The updated RecurringDefinitionPublic.
@@ -301,7 +284,6 @@ def reactivate_definition(
 
     return uow.recurring.update(
         definition_id,
-        actor_id=actor_id,
         is_active=True,
         next_due_date=next_due,
     )
@@ -310,19 +292,17 @@ def reactivate_definition(
 def delete_definition(
     uow: UnitOfWorkPort,
     definition_id: int,
-    actor_id: int,
 ) -> None:
     """Soft-delete a recurring definition.
 
     Args:
         uow: Unit of work for transaction management
         definition_id: ID of the definition to delete
-        actor_id: User ID performing the action
 
     Raises:
         RecurringDefinitionNotFoundError: If definition doesn't exist or is already deleted
     """
-    uow.recurring.soft_delete(definition_id, actor_id=actor_id)
+    uow.recurring.soft_delete(definition_id)
 
 
 def _validate_interval_months(

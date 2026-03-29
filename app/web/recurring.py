@@ -2,7 +2,7 @@
 
 import json
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -21,6 +21,7 @@ from app.domain.errors import DomainError, InvalidShareError
 from app.domain.models import (
     ExpensePublic,
     ExpenseStatus,
+    RecurringDefinitionPublic,
     RecurringFrequency,
     SplitType,
     UserPublic,
@@ -39,7 +40,9 @@ from app.domain.use_cases.recurring import (
     reactivate_definition,
     update_recurring_definition,
 )
+from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
+from app.web.view_models import RecurringDefinitionViewModel
 
 router = APIRouter(tags=["recurring"])
 templates = setup_templates("app/templates")
@@ -109,12 +112,23 @@ def _build_users_dict(
     members: list,
     uow: UnitOfWork,
 ) -> dict[int, UserPublic]:
-    users_dict: dict[int, UserPublic] = {}
-    for member in members:
-        u = uow.users.get_by_id(member.user_id)
-        if u:
-            users_dict[member.user_id] = u
-    return users_dict
+    member_ids = [member.user_id for member in members]
+    users = uow.users.get_by_ids(member_ids)
+    return {u.id: u for u in users}
+
+
+def _to_view_models(
+    definitions: list[RecurringDefinitionPublic],
+    uow: UnitOfWork,
+) -> list[RecurringDefinitionViewModel]:
+    """Convert domain models to template-ready view models."""
+    payer_ids = list({d.payer_id for d in definitions})
+    payer_users = uow.users.get_by_ids(payer_ids)
+    payer_map = {u.id: u.display_name for u in payer_users}
+    return [
+        RecurringDefinitionViewModel.from_domain(d, payer_map.get(d.payer_id, "Unknown"))
+        for d in definitions
+    ]
 
 
 @router.get("/recurring", response_class=HTMLResponse)
@@ -138,7 +152,8 @@ async def registry_index(
                 detail="User not found",
             )
 
-        definitions = get_active_definitions(uow.session, group.id)
+        domain_defs = get_active_definitions(uow.session, group.id)
+        definitions = _to_view_models(domain_defs, uow)
         summary = get_registry_summary(uow.session, group.id)
 
     return templates.TemplateResponse(
@@ -269,7 +284,6 @@ async def create_recurring(
                 create_recurring_definition(
                     uow,
                     group_id=group.id,
-                    actor_id=user_id,
                     name=name,
                     amount=parsed["amount"],
                     frequency=parsed["frequency"],
@@ -326,10 +340,11 @@ async def registry_tab(
             )
 
         if tab == "active":
-            definitions = get_active_definitions(uow.session, group.id)
+            domain_defs = get_active_definitions(uow.session, group.id)
         else:
-            definitions = get_paused_definitions(uow.session, group.id)
+            domain_defs = get_paused_definitions(uow.session, group.id)
 
+        definitions = _to_view_models(domain_defs, uow)
         summary = get_registry_summary(uow.session, group.id)
 
     return templates.TemplateResponse(
@@ -471,7 +486,6 @@ async def update_recurring(
                 update_recurring_definition(
                     uow,
                     definition_id=definition_id,
-                    actor_id=user_id,
                     name=name,
                     amount=parsed["amount"],
                     frequency=parsed["frequency"],
@@ -526,22 +540,16 @@ async def toggle_active(
             raise HTTPException(status_code=404, detail="Recurring definition not found")
 
         if definition.is_active:
-            pause_definition(uow, definition_id, actor_id=user_id)
+            pause_definition(uow, definition_id)
         else:
-            reactivate_definition(uow, definition_id, actor_id=user_id)
+            reactivate_definition(uow, definition_id)
 
         # Re-fetch updated definition for card render
-        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
-        from app.adapters.sqlalchemy.queries.recurring_queries import (
-            _build_definition_view,
-            _get_payer_map,
-        )
-
-        row = uow.session.get(RecurringDefinitionRow, definition_id)
-        if row is None:
+        updated = uow.recurring.get_by_id(definition_id)
+        if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        payer_map = _get_payer_map(uow.session, {row.payer_id})
-        defn = _build_definition_view(row, payer_map)
+        view_models = _to_view_models([updated], uow)
+        defn = view_models[0]
 
     return templates.TemplateResponse(
         request,
@@ -566,7 +574,7 @@ async def delete_recurring(
         if group is None:
             raise HTTPException(status_code=404, detail="No household group found")
 
-        delete_definition(uow, definition_id, actor_id=user_id)
+        delete_definition(uow, definition_id)
 
     return HTMLResponse(content="", status_code=200)
 
@@ -590,19 +598,14 @@ async def create_expense_for_definition(
         definition = uow.recurring.get_by_id(definition_id)
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        create_expense_from_definition(uow, definition, actor_id=user_id)
+        create_expense_from_definition(uow, definition)
 
-        from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
-        from app.adapters.sqlalchemy.queries.recurring_queries import (
-            _build_definition_view,
-            _get_payer_map,
-        )
-
-        row = uow.session.get(RecurringDefinitionRow, definition_id)
-        if row is None:
+        # Re-fetch updated definition for card render
+        updated = uow.recurring.get_by_id(definition_id)
+        if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        payer_map = _get_payer_map(uow.session, {row.payer_id})
-        defn = _build_definition_view(row, payer_map)
+        view_models = _to_view_models([updated], uow)
+        defn = view_models[0]
 
     return templates.TemplateResponse(
         request,
@@ -677,22 +680,24 @@ def _parse_form(
 
     # Parse amount
     amount_str = form_data.get("amount", "")
-    try:
-        amount = Decimal(str(amount_str).replace(",", "."))
-        if amount <= 0:
-            errors["amount"] = "Amount must be greater than zero"
-        parsed["amount"] = amount
-    except InvalidOperation, ValueError:
+    amount = parse_amount(str(amount_str))
+    if amount is None:
         errors["amount"] = "Invalid amount format"
         parsed["amount"] = Decimal("0")
+    elif amount <= 0:
+        errors["amount"] = "Amount must be greater than zero"
+        parsed["amount"] = amount
+    else:
+        parsed["amount"] = amount
 
     # Parse next_due_date
     next_due_date_str = form_data.get("next_due_date", "")
-    try:
-        parsed["next_due_date"] = date.fromisoformat(str(next_due_date_str))
-    except ValueError:
+    parsed_date = parse_date(str(next_due_date_str))
+    if parsed_date is None:
         errors["next_due_date"] = "Invalid date format"
         parsed["next_due_date"] = date.today()
+    else:
+        parsed["next_due_date"] = parsed_date
 
     # Parse interval_months
     interval_str = str(form_data.get("interval_months", "")).strip()
@@ -727,11 +732,11 @@ def _parse_form(
     parsed["split_config"] = None
     split_config_json = form_data.get("split_config", "")
     if parsed["split_enum"] != SplitType.EVEN and split_config_json:
-        try:
-            raw = json.loads(str(split_config_json))
-            parsed["split_config"] = {int(k): str(Decimal(str(v))) for k, v in raw.items()}
-        except json.JSONDecodeError, ValueError, KeyError:
+        config = parse_split_config(str(split_config_json))
+        if config is None:
             errors["split_type"] = "Invalid split configuration"
+        else:
+            parsed["split_config"] = {k: str(v) for k, v in config.items()}
 
     # Validate EVERY_N_MONTHS constraint
     if (
