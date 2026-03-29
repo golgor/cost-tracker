@@ -45,7 +45,7 @@ def get_this_month_expense_count(session: Session, group_id: int) -> int:
         .where(ExpenseRow.date >= first_of_month)
         .where(ExpenseRow.date <= last_of_month)
     )
-    return session.exec(statement).scalar_one()
+    return session.exec(statement).one()
 
 
 def _get_member_display_names(session: Session, group_id: int) -> dict[int, str]:
