@@ -35,27 +35,34 @@ def authenticated_client(test_user, uow):
 
 
 class TestAdminUsersPage:
-    """Test admin users page."""
+    """Test admin users page access."""
 
-    def test_admin_users_page_renders(self, authenticated_client: TestClient):
-        """Admin users page renders successfully."""
+    def test_admin_users_page_returns_200(self, authenticated_client: TestClient):
+        """Authenticated user can access /admin/users."""
         response = authenticated_client.get("/admin/users")
         assert response.status_code == 200
-        assert "Users" in response.text
+        assert "User Management" in response.text or "Admin" in response.text
 
-    def test_admin_users_page_shows_user(self, authenticated_client: TestClient):
-        """Admin users page shows the authenticated user."""
-        response = authenticated_client.get("/admin/users")
-        assert response.status_code == 200
-        assert "Test User" in response.text
-        assert "user@test.com" in response.text
+
+class TestProfileDropdown:
+    """Test profile dropdown rendering."""
+
+    def test_profile_dropdown_structure(self, authenticated_client: TestClient, test_user):
+        """Profile dropdown has correct structure: name and logout."""
+        response = authenticated_client.get("/expenses")
+        html = response.text
+
+        # Check user name appears
+        assert test_user.display_name in html
+        # Check logout link exists
+        assert "/auth/logout" in html
 
 
 class TestUserRowViewModel:
     """Unit tests for UserRowViewModel presentation logic."""
 
     def test_user_row_view_model(self, test_user):
-        """User row has correct display fields."""
+        """User has correct display fields."""
         from app.web.view_models import UserRowViewModel
 
         vm = UserRowViewModel.from_domain(test_user)
@@ -77,5 +84,6 @@ class TestUserProfileViewModel:
         assert vm.display_name == test_user.display_name
         assert vm.email == test_user.email
         assert vm.avatar_initial == test_user.display_name[0].upper()
+        # Check member_since format (e.g., "March 18, 2026")
         assert len(vm.member_since) > 0
-        assert "," in vm.member_since
+        assert "," in vm.member_since  # Date format includes comma

@@ -48,7 +48,7 @@ class TestRecurringRegistryAccess:
         assert response.headers.get("location") == "/auth/login"
 
     def test_registry_returns_200_for_authenticated_user(self, authenticated_client):
-        """Authenticated user with group gets 200 on registry page."""
+        """Authenticated user gets 200 on registry page."""
         response = authenticated_client.get("/recurring")
         assert response.status_code == 200
 
