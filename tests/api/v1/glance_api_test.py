@@ -36,7 +36,6 @@ def user1(uow: UnitOfWork):
             oidc_sub="alice@test.com",
             email="alice@test.com",
             display_name="Alice",
-            actor_id=1,
         )
 
 
@@ -47,7 +46,6 @@ def user2(uow: UnitOfWork):
             oidc_sub="bob@test.com",
             email="bob@test.com",
             display_name="Bob",
-            actor_id=2,
         )
 
 
