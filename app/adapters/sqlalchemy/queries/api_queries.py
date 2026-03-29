@@ -48,7 +48,7 @@ def get_this_month_expense_count(session: Session, group_id: int) -> int:
     return session.exec(statement).one()
 
 
-def _get_member_display_names(session: Session, group_id: int) -> dict[int, str]:
+def get_member_display_names(session: Session, group_id: int) -> dict[int, str]:
     """Fetch {user_id: display_name} for all members of a group."""
     statement = (
         select(UserRow.id, UserRow.display_name)
@@ -73,7 +73,7 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
 
     Positive net = member is owed money; negative = member owes money.
     """
-    names = _get_member_display_names(session, group_id)
+    names = get_member_display_names(session, group_id)
     member_ids = list(names.keys())
 
     if len(member_ids) < 2:

@@ -82,9 +82,9 @@ def api_client(db_session):
 class TestApiAuthentication:
     """Test API key authentication."""
 
-    def test_missing_auth_returns_403(self, api_client):
+    def test_missing_auth_returns_401(self, api_client):
         response = api_client.get(API_URL)
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_invalid_auth_returns_403(self, api_client):
         response = api_client.get(API_URL, headers={"Authorization": "Bearer wrong-key"})
