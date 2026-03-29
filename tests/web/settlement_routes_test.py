@@ -8,7 +8,6 @@ from starlette.testclient import TestClient
 
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
-    UserRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
@@ -19,27 +18,25 @@ from app.main import app
 
 @pytest.fixture
 def user1(uow: UnitOfWork):
-    """Create first test user using direct SQLAlchemy."""
-    user = UserRow(
-        oidc_sub="user1@test.com",
-        email="user1@test.com",
-        display_name="Alice",
-    )
-    uow.session.add(user)
-    uow.session.flush()
+    """Create first test user."""
+    with uow:
+        user = uow.users.save(
+            oidc_sub="user1@test.com",
+            email="user1@test.com",
+            display_name="Alice",
+        )
     return user
 
 
 @pytest.fixture
 def user2(uow: UnitOfWork):
-    """Create second test user using direct SQLAlchemy."""
-    user = UserRow(
-        oidc_sub="user2@test.com",
-        email="user2@test.com",
-        display_name="Bob",
-    )
-    uow.session.add(user)
-    uow.session.flush()
+    """Create second test user."""
+    with uow:
+        user = uow.users.save(
+            oidc_sub="user2@test.com",
+            email="user2@test.com",
+            display_name="Bob",
+        )
     return user
 
 
@@ -62,7 +59,7 @@ def test_expense(user1, user2, uow: UnitOfWork):
 
 
 @pytest.fixture
-def authenticated_client(user1, uow):
+def authenticated_client(user1, user2, uow):
     """Test client with session cookie for user1."""
     app.dependency_overrides[get_uow] = lambda: uow
 
