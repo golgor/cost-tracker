@@ -6,7 +6,7 @@ A walkthrough of everything Cost Tracker can do.
 
 The main screen shows your expense feed — a list of all shared expenses, most recent first.
 
-<!-- TODO: Add screenshot of expense list -->
+TODO: Add screenshot of expense list
 
 ### Creating an Expense
 
@@ -163,4 +163,3 @@ When auto-generate is enabled, expenses are created automatically when due:
 - Triggered on user login (best-effort)
 - Triggered by a daily cron job (if configured)
 - The next due date advances automatically after each generation
-
