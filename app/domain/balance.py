@@ -90,6 +90,55 @@ class SettlementTransaction:
     amount: Money
 
 
+def calculate_balances_from_splits(
+    expenses: list[ExpensePublic],
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]],
+    member_ids: list[int],
+) -> dict[int, MemberBalance]:
+    """Calculate balances using pre-loaded split amounts.
+
+    This is the canonical balance calculation that respects all split types
+    (even, percentage, shares, exact) by reading persisted split rows rather
+    than re-deriving them. Used by both the dashboard and settlement flows.
+
+    Args:
+        expenses: List of expenses to calculate from
+        splits_by_expense: {expense_id: [(user_id, amount), ...]} from expense_splits table
+        member_ids: All user IDs in the household
+
+    Returns:
+        Dictionary mapping user_id to MemberBalance
+    """
+    from app.domain.value_objects import Money
+
+    if not expenses:
+        currency = "EUR"
+        zero = Money(Decimal("0"), currency)
+        return {uid: MemberBalance(uid, zero, zero, zero) for uid in member_ids}
+
+    currency = expenses[0].currency
+
+    amount_paid: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
+    fair_share: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
+
+    for expense in expenses:
+        if expense.payer_id in amount_paid:
+            amount_paid[expense.payer_id] += expense.amount
+
+        for user_id, split_amount in splits_by_expense.get(expense.id, []):
+            if user_id in fair_share:
+                fair_share[user_id] += split_amount
+
+    result: dict[int, MemberBalance] = {}
+    for uid in member_ids:
+        paid = Money(amount_paid[uid], currency)
+        owed = Money(fair_share[uid], currency)
+        net = Money(amount_paid[uid] - fair_share[uid], currency)
+        result[uid] = MemberBalance(uid, paid, owed, net)
+
+    return result
+
+
 def calculate_balances(
     expenses: list[ExpensePublic],
     member_ids: list[int],
