@@ -6,8 +6,11 @@ Dates are ISO 8601 strings.
 
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.domain.models import SplitType
 
 
 class MemberBalance(BaseModel):
@@ -51,23 +54,23 @@ class GlanceSummary(BaseModel):
 
 
 class ExpenseCreateRequest(BaseModel):
-    amount: Decimal
-    description: str
-    date: date | None = None
+    amount: Decimal = Field(gt=0, decimal_places=2)
+    description: str = Field(min_length=1, max_length=255)
+    date: Optional[date] = None
     creator_id: int
     payer_id: int
     member_ids: list[int]
-    currency: str = "EUR"
-    split_type: str = "EVEN"
-    split_config: dict[int, Decimal] | None = None
+    currency: str = Field(default="EUR", max_length=3)
+    split_type: SplitType = SplitType.EVEN
+    split_config: Optional[dict[int, Decimal]] = None
 
 
 class ExpenseUpdateRequest(BaseModel):
-    amount: Decimal | None = None
-    description: str | None = None
-    date: date | None = None
-    payer_id: int | None = None
-    currency: str | None = None
-    split_type: str | None = None
-    split_config: dict[int, Decimal] | None = None
-    member_ids: list[int] | None = None
+    amount: Optional[Decimal] = Field(default=None, gt=0, decimal_places=2)
+    description: Optional[str] = Field(default=None, max_length=255)
+    date: Optional[date] = None
+    payer_id: Optional[int] = None
+    currency: Optional[str] = Field(default=None, max_length=3)
+    split_type: Optional[SplitType] = None
+    split_config: Optional[dict[int, Decimal]] = None
+    member_ids: Optional[list[int]] = None
