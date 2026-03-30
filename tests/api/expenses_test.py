@@ -166,3 +166,29 @@ class TestUpdateExpense:
         response = api_client.put(f"/expenses/{expense.id}", json={"amount": "45.00"})
         # CannotEditSettledExpenseError maps to 403 in _API_ERROR_MAP
         assert response.status_code == 403
+
+
+class TestDeleteExpense:
+    def test_delete_returns_204(self, api_client, db_session, two_users):
+        user1, _ = two_users
+        expense = create_test_expense(
+            db_session, amount="20.00", creator_id=user1.id, payer_id=user1.id
+        )
+        db_session.flush()
+
+        response = api_client.delete(f"/expenses/{expense.id}")
+        assert response.status_code == 204
+
+    def test_delete_nonexistent_returns_404(self, api_client):
+        response = api_client.delete("/expenses/999999")
+        assert response.status_code == 404
+
+    def test_delete_settled_expense_returns_403(self, api_client, db_session, two_users):
+        user1, _ = two_users
+        expense = create_test_expense(
+            db_session, amount="20.00", creator_id=user1.id, payer_id=user1.id, status="SETTLED"
+        )
+        db_session.flush()
+
+        response = api_client.delete(f"/expenses/{expense.id}")
+        assert response.status_code == 403

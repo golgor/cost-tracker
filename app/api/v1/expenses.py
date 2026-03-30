@@ -9,7 +9,7 @@ from app.api.v1.schemas import ExpenseCreateRequest, ExpenseUpdateRequest
 from app.dependencies import get_uow
 from app.domain.errors import ExpenseNotFoundError
 from app.domain.models import ExpensePublic
-from app.domain.use_cases.expenses import create_expense, update_expense
+from app.domain.use_cases.expenses import create_expense, delete_expense, update_expense
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -67,3 +67,10 @@ def update_expense_endpoint(expense_id: int, body: ExpenseUpdateRequest, uow: Uo
             split_config=body.split_config,
             member_ids=body.member_ids,
         )
+
+
+@router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense_endpoint(expense_id: int, uow: UowDep) -> None:
+    """Delete an expense. Settled expenses cannot be deleted."""
+    with uow:
+        delete_expense(uow=uow, expense_id=expense_id)
