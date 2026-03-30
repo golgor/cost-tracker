@@ -240,10 +240,15 @@ def update_expense(
             split_type=split_type_enum,
         )
 
-    # Recalculate splits when amount or split type changes
+    # Recalculate splits when amount, split type, or membership changes
     amount_changed = amount is not None and amount != expense.amount
     split_type_changed = split_type_enum is not None and split_type_enum != expense.split_type
-    if amount_changed or split_type_changed or split_config is not None:
+    members_changed = False
+    if member_ids:
+        current_splits = uow.expenses.get_splits(expense_id)
+        current_member_ids = sorted(s.user_id for s in current_splits)
+        members_changed = current_member_ids != sorted(member_ids)
+    if amount_changed or split_type_changed or split_config is not None or members_changed:
         updated_expense = uow.expenses.get_by_id(expense_id)
         if updated_expense is None:
             raise DomainError(f"Expense {expense_id} not found after update")
