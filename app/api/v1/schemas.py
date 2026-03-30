@@ -6,7 +6,6 @@ Dates are ISO 8601 strings.
 
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -56,21 +55,21 @@ class GlanceSummary(BaseModel):
 class ExpenseCreateRequest(BaseModel):
     amount: Decimal = Field(gt=0, decimal_places=2)
     description: str = Field(min_length=1, max_length=255)
-    date: Optional[date] = None
+    date: date | None = None
     creator_id: int
     payer_id: int
     member_ids: list[int]
     currency: str = Field(default="EUR", max_length=3)
     split_type: SplitType = SplitType.EVEN
-    split_config: Optional[dict[int, Decimal]] = None
+    split_config: dict[int, Decimal] | None = None
 
 
 class ExpenseUpdateRequest(BaseModel):
-    amount: Optional[Decimal] = Field(default=None, gt=0, decimal_places=2)
-    description: Optional[str] = Field(default=None, max_length=255)
-    date: Optional[date] = None
-    payer_id: Optional[int] = None
-    currency: Optional[str] = Field(default=None, max_length=3)
-    split_type: Optional[SplitType] = None
-    split_config: Optional[dict[int, Decimal]] = None
-    member_ids: Optional[list[int]] = None
+    amount: Decimal | None = Field(default=None, gt=0, decimal_places=2)
+    description: str | None = Field(default=None, max_length=255)
+    date: date | None = None
+    payer_id: int | None = None
+    currency: str | None = Field(default=None, max_length=3)
+    split_type: SplitType | None = None
+    split_config: dict[int, Decimal] | None = None
+    member_ids: list[int] | None = None
