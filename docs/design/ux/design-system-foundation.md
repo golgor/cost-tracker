@@ -39,7 +39,7 @@ token configuration in `tailwind.config.js`.
 - **Production build:** `tailwind build` runs during Docker image build, generating optimized CSS from template usage.
   No Node.js runtime dependency in the container.
 
-**HTMX Transition Baseline (MVP1a):**
+**HTMX Transition Baseline:**
 
 - `htmx-swapping` and `htmx-settling` CSS classes defined from day one
 - Simple 150ms opacity fade on content swap — prevents the "flash of empty content" that makes HTMX swaps look broken
@@ -50,7 +50,7 @@ token configuration in `tailwind.config.js`.
 | Partial | Purpose | Used In |
 | --- | --- | --- |
 | `_expense_card.html` | Expense item in feed — location bold, amount, paid-by badge, date, status | Expense feed, settlement review |
-| `_form_input.html` | Styled input field with label, error state, and hint text | Expense form, setup wizard |
+| `_form_input.html` | Styled input field with label, error state, and hint text | Expense form, recurring form |
 | `_button.html` | Primary, secondary, and danger button variants | All screens |
 | `_badge.html` | Initials badge (paid-by), status badge (proposed/accepted/gift) | Expense feed, expense detail |
 | `_balance_bar.html` | Red/green horizontal bar with names and amounts | Dashboard |
@@ -79,17 +79,14 @@ mobile-only. These are different layout patterns, not the same component with di
 
 ## Customization Strategy
 
-**Phase 1 (MVP1a):** Establish the base partials and design tokens. Build the expense card, form input, button,
-navigation, and HTMX transition CSS first — these are used on every screen. Include the baseline HTMX swap transitions
-(opacity fade) from day one. Visual polish is secondary to functional correctness, but the card-based visual tone is
-established immediately.
+**Foundation:** Establish the base partials and design tokens. Build the expense card, form input, button, navigation,
+and HTMX transition CSS first — these are used on every screen. Include the baseline HTMX swap transitions (opacity
+fade) from day one. Visual polish is secondary to functional correctness, but the card-based visual tone is established
+immediately.
 
-**Phase 2 (MVP1b-c):** Add settlement-specific partials (step indicator, balance bar). Refine the expense card for
-settlement review context (accept/discard controls). Ensure visual consistency across all screens.
+**Incremental:** Add settlement-specific partials (step indicator, balance bar), recurring cost partials, and polish
+(responsive refinements, enhanced HTMX transition animations, micro-interactions). Location typeahead client-side
+component (small vendored JS).
 
-**Phase 3 (MVP1d):** Polish pass — responsive refinements, enhanced HTMX transition animations, micro-interactions
-(copy-to-clipboard feedback, form reset animation). Location typeahead client-side component (small vendored JS).
-
-**Future (MVP2+):** If the app grows to need more components (event cards, participant lists, multi-person balance
-bars), the pattern is established: create a Jinja2 partial, style with Tailwind, add to the component inventory. No
-migration needed.
+**Future:** If the app grows to need more components, the pattern is established: create a Jinja2 partial, style with
+Tailwind, add to the component inventory. No migration needed.

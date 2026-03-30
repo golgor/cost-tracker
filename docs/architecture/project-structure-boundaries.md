@@ -339,7 +339,7 @@ def calculate_settlement_transfer(
 
 **Expense Selection Pattern:**
 
-1. **Review page** displays all unsettled expenses for group
+1. **Review page** displays all unsettled expenses
 2. Each expense has checkbox with `name="expense_ids" value="{expense.id}"`
 3. JavaScript-less form submission works (standard HTML checkboxes)
 4. HTMX-enhanced: `hx-post="/settlements/confirm" hx-target="#content"`
@@ -350,7 +350,7 @@ def calculate_settlement_transfer(
 **Key Implementation Notes:**
 
 - **Concurrency protection**: `SELECT FOR UPDATE` on expenses during settlement creation
-- **Idempotency**: Unique constraint on `(group_id, reference)` prevents duplicate monthly settlements
+- **Idempotency**: Unique constraint on `reference` prevents duplicate monthly settlements
 - **Validation**: Confirm page re-validates that all selected expenses are still unsettled (race condition protection)
 - **Audit**: Settlement creation + expense linking both audited with `actor_id`
 

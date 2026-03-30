@@ -21,7 +21,7 @@ features. The app should feel like a shared notebook — quick to jot in, easy t
 
 - Logs expenses immediately after purchase, typically on phone
 - Initiates and drives the monthly settlement process (desktop, co-located with Partner)
-- Also the system admin/deployer
+- Also the deployer (self-hosted)
 - Wants: fast entry, clear balance visibility, confident settlement flow
 
 ### Partner (Primary — Batch reviewer)
@@ -33,8 +33,8 @@ features. The app should feel like a shared notebook — quick to jot in, easy t
 - Wants: obvious UI with clear primary actions, easy batch entry with keyboard-optimized tab order, quick visual
   scanning of expense history
 
-Both are co-admins with equal permissions. Neither is particularly technical in a UX sense — the interface must be
-immediately obvious.
+Both partners have equal permissions — no admin/user distinction. Neither is particularly technical in a UX sense — the
+interface must be immediately obvious.
 
 ## Key Design Challenges
 

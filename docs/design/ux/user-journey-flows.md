@@ -604,9 +604,7 @@ in the feed:
 
 ---
 
-## Updated Navigation Structure (MVP1d)
-
-With the Recurring registry as a new primary view, navigation updates from 3 to 4 items:
+## Navigation Structure
 
 **Mobile bottom nav (4 items + FAB):**
 
@@ -624,9 +622,6 @@ With the Recurring registry as a new primary view, navigation updates from 3 to 
 - "+ Add Expense" button (right)
 - Authenticated user's name/initials badge (far-right, from OIDC session — confirms who is logged in, with a dropdown
   for logout)
-
-The "Recurring" nav item is introduced in MVP1d when the registry is built. In MVP1a-c, navigation has 3 items
-(Dashboard, Expenses, Settlements) with recurring cost management deferred.
 
 ---
 

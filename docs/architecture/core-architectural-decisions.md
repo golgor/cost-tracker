@@ -252,7 +252,7 @@ don't access closed sessions.
 **Status:** Accepted (Updated)
 **Context:** Audit trail is a business requirement (FR43-44), not infrastructure. Original pattern required every use
 case to call `uow.audit.log()` explicitly, which was repetitive and easy to forget.
-**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `add_member()`) accept an
+**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `delete()`) accept an
 `actor_id` keyword parameter and create audit rows automatically using SQLAlchemy `inspect()` dirty tracking.
 `compute_changes(row)` reads attribute history for updates (old→new for changed fields only). `snapshot_new(row)` builds
 a changes dict for creates (old is always null). Changes stored as `{"field": {"old": ..., "new": ...}}` JSON. No audit

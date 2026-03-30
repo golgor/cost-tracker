@@ -25,9 +25,9 @@ In `app/domain/models.py`, define the base and public models:
 class WidgetBase(SQLModel):
     """Domain base — validation + business data. No table."""
 
-    group_id: int
     name: str = Field(max_length=255)
     amount: Decimal = Field(decimal_places=2, ge=0.01)
+    payer_id: int
     category: str | None = Field(default=None, max_length=50)
     is_active: bool = Field(default=True)
 
@@ -55,7 +55,7 @@ In `app/domain/ports.py`, define the persistence interface:
 class WidgetPort(Protocol):
     def save(self, widget: WidgetPublic, *, actor_id: int) -> WidgetPublic: ...
     def get_by_id(self, widget_id: int) -> WidgetPublic | None: ...
-    def list_by_group(self, group_id: int) -> list[WidgetPublic]: ...
+    def list_all(self) -> list[WidgetPublic]: ...
     def update(self, widget_id: int, *, actor_id: int, name: str | None = None) -> WidgetPublic: ...
     def soft_delete(self, widget_id: int, *, actor_id: int) -> None: ...
 ```
@@ -65,7 +65,6 @@ Add it to `UnitOfWorkPort`:
 ```python
 class UnitOfWorkPort(Protocol):
     users: UserPort
-    groups: GroupPort
     expenses: ExpensePort
     # ...
     widgets: WidgetPort  # Add here
@@ -118,8 +117,8 @@ class WidgetRow(WidgetBase, table=True):
     )
 
     __table_args__ = (
-        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
-        sa.Index("ix_widgets_group_id", "group_id"),
+        sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.Index("ix_widgets_payer_id", "payer_id"),
     )
 ```
 
@@ -150,7 +149,7 @@ class SqlAlchemyWidgetAdapter:
         self._audit = audit
 
     def save(self, widget: WidgetPublic, *, actor_id: int) -> WidgetPublic:
-        row = WidgetRow(group_id=widget.group_id, name=widget.name, amount=widget.amount)
+        row = WidgetRow(payer_id=widget.payer_id, name=widget.name, amount=widget.amount)
         changes = snapshot_new(row, exclude={"id", "created_at", "updated_at", "deleted_at"})
         self._session.add(row)
         self._session.flush()
@@ -182,7 +181,7 @@ class SqlAlchemyWidgetAdapter:
 
     def _to_public(self, row: WidgetRow) -> WidgetPublic:
         return WidgetPublic(
-            id=row.id, group_id=row.group_id, name=row.name, amount=row.amount,
+            id=row.id, payer_id=row.payer_id, name=row.name, amount=row.amount,
             category=row.category, is_active=row.is_active,
             created_at=row.created_at, updated_at=row.updated_at,
         )
@@ -215,24 +214,24 @@ class UnitOfWork:
 Create `app/domain/use_cases/widgets.py`:
 
 ```python
-from app.domain.errors import GroupNotFoundError
+from app.domain.errors import UserNotFoundError
 from app.domain.models import WidgetPublic
 from app.domain.ports import UnitOfWorkPort
 
 
 def create_widget(
     uow: UnitOfWorkPort,
-    group_id: int,
+    payer_id: int,
     actor_id: int,
     name: str,
     amount: Decimal,
 ) -> WidgetPublic:
-    group = uow.groups.get_by_id(group_id)
-    if group is None:
-        raise GroupNotFoundError(f"Group {group_id} not found")
+    payer = uow.users.get_by_id(payer_id)
+    if payer is None:
+        raise UserNotFoundError(f"User {payer_id} not found")
 
     widget = WidgetPublic.model_construct(
-        id=0, group_id=group_id, name=name, amount=amount,
+        id=0, payer_id=payer_id, name=name, amount=amount,
         created_at=datetime.now(), updated_at=datetime.now(),
     )
     return uow.widgets.save(widget, actor_id=actor_id)

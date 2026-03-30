@@ -26,9 +26,8 @@ UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 
 @router.get("/widgets", response_class=HTMLResponse)
 async def widget_list(request: Request, user_id: CurrentUserId, uow: UowDep):
-    """List all widgets for the user's group."""
-    group = uow.groups.get_by_user_id(user_id)
-    widgets = uow.queries.widget_list(group.id)  # Read-only query
+    """List all widgets."""
+    widgets = uow.queries.widget_list()  # Read-only query
 
     return request.app.state.templates.TemplateResponse(
         "widgets/list.html",
@@ -57,7 +56,7 @@ async def create_widget(
     with uow:
         widget = create_widget_use_case(
             uow=uow,
-            group_id=group.id,
+            payer_id=user_id,
             actor_id=user_id,
             name=name,
             amount=Decimal(amount),
@@ -118,7 +117,7 @@ For display-only routes (no mutations), call view queries directly instead of us
 ```python
 @router.get("/widgets", response_class=HTMLResponse)
 async def widget_list(request: Request, user_id: CurrentUserId, uow: UowDep):
-    widgets = uow.queries.widget_list(group.id)  # Direct query, no use case
+    widgets = uow.queries.widget_list()  # Direct query, no use case
     return request.app.state.templates.TemplateResponse(...)
 ```
 

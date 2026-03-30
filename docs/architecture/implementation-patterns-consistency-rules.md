@@ -11,16 +11,16 @@ process patterns.
 **Database Naming Conventions:**
 
 - Table names: `snake_case`, **plural** (e.g., `expenses`, `settlements`, `recurring_definitions`, `audit_logs`)
-- Column names: `snake_case` (e.g., `group_id`, `created_at`, `settlement_id`)
+- Column names: `snake_case` (e.g., `payer_id`, `created_at`, `settlement_id`)
 - Foreign key columns: `{referenced_table_singular}_id` (e.g., `expense_id`, `user_id`)
-- Indexes: `ix_{table}_{columns}` (e.g., `ix_expenses_group_id`, `ix_audit_logs_entity_type_entity_id`)
+- Indexes: `ix_{table}_{columns}` (e.g., `ix_expenses_payer_id`, `ix_audit_logs_entity_type_entity_id`)
 - Unique constraints: `uq_{table}_{columns}` (e.g., `uq_recurring_generations_definition_id_billing_period`)
 
 **API Naming Conventions:**
 
-- REST endpoints: **plural** nouns (e.g., `/expenses`, `/settlements`, `/groups`)
+- REST endpoints: **plural** nouns (e.g., `/expenses`, `/settlements`, `/recurring_definitions`)
 - URL path segments: `snake_case` (e.g., `/recurring_definitions`)
-- Query parameters: `snake_case` (e.g., `?group_id=1&page_size=20`)
+- Query parameters: `snake_case` (e.g., `?page_size=20`)
 - HTMX endpoints share page paths, distinguished by `HX-Request` header
 
 **Code Naming Conventions:**
@@ -220,7 +220,7 @@ def create_expense(
 
 **Audit Trail Patterns:**
 
-- Adapters auto-audit in mutating methods (`save()`, `update()`, `add_member()`) — use cases
+- Adapters auto-audit in mutating methods (`save()`, `update()`, `delete()`) — use cases
   don't call audit manually
 - Adapters receive the audit adapter via constructor injection
 - Mutating adapter methods accept `actor_id` as a keyword parameter; user adapter's `save()`
@@ -287,17 +287,16 @@ async def dashboard(
     # UoW operations inside context manager
     with uow:
         user = uow.users.get_by_id(user_id)
-        group = uow.groups.get_by_user_id(user_id)
         # Read-only queries also use the session
-        expenses = get_group_expenses(uow.session, group.id)
+        expenses = get_recent_expenses(uow.session)
         # Session commits automatically on __exit__ (if no exception)
-    
+
     # Template rendering AFTER context manager closes
     # This ensures session is cleaned up before Jinja2 renders
     return templates.TemplateResponse(
         request,
-        "dashboard/index.html",
-        {"user": user, "group": group, "expenses": expenses},
+        "expenses/index.html",
+        {"user": user, "expenses": expenses},
     )
 ```
 
@@ -397,13 +396,13 @@ Enforced by `test_templates_contain_no_complex_business_logic()` in `architectur
 ```python
 # Domain port — named for intent
 class ExpensePort(Protocol):
-    def get_unsettled(self, group_id: int) -> list[Expense]: ...
+    def get_unsettled(self) -> list[Expense]: ...
 
 # Adapter — implements port, ORM internal
 class SqlAlchemyExpenseAdapter:
-    def get_unsettled(self, group_id: int) -> list[Expense]:
+    def get_unsettled(self) -> list[Expense]:
         rows = self._session.query(ExpenseRow).filter_by(
-            group_id=group_id, settlement_id=None
+            settlement_id=None
         ).all()
         return [_to_public(row) for row in rows]
 

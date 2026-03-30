@@ -15,7 +15,7 @@
   dual-trigger generation, normalized monthly cost, edit-forward semantics
 - **Dashboard & Overview** (FR30-FR38): Balance summary, expense feed with tabs, recurring cost widget, settlement
   history summary, keyword search, contextual empty states
-- **Group & User Management** (FR39-FR42): OIDC auto-provisioning, setup wizard, co-admin model, creator vs. payer
+- **User Management** (FR39-FR42): OIDC auto-provisioning with `MAX_USERS` limit (default 2), creator vs. payer
   distinction
 - **Audit & History** (FR43-FR44): Complete audit trail for state-changing actions, expense/settlement traceability
 
