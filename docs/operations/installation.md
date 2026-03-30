@@ -84,8 +84,8 @@ The app is now running at `http://localhost:8000`.
 
 1. Navigate to `http://localhost:8000` — you'll be redirected to your OIDC provider
 2. Log in with your OIDC credentials
-3. The first user to log in is automatically promoted to admin
-4. Complete the setup wizard to create your household
+3. Your account is automatically provisioned from your OIDC profile
+4. Your partner logs in the same way — both users are equal partners (no admin roles)
 
 ## Verify Installation
 

@@ -15,20 +15,18 @@
   dual-trigger generation, normalized monthly cost, edit-forward semantics
 - **Dashboard & Overview** (FR30-FR38): Balance summary, expense feed with tabs, recurring cost widget, settlement
   history summary, keyword search, contextual empty states
-- **User Management** (FR39-FR42): OIDC auto-provisioning with `MAX_USERS` limit (default 2), creator vs. payer
-  distinction
-- **Audit & History** (FR43-FR44): Complete audit trail for state-changing actions, expense/settlement traceability
+- **User Management** (FR39, FR42): OIDC auto-provisioning with `MAX_USERS` limit (default 2), creator vs. payer
+  distinction. All users are equal partners — no roles or admin hierarchy
 
 **Non-Functional Requirements:**
 
 - **Performance**: Page loads <1s, HTMX partials <200ms, balance calculation <500ms for ~50 expenses
-- **Data Integrity**: DB-level immutability for settled expenses, split sums always exact, deterministic rounding, full
-  audit trail
+- **Data Integrity**: Application-level immutability for settled expenses, split sums always exact, deterministic rounding
 - **Security**: OIDC via Authentik + Authlib, signed cookie sessions, Pydantic input validation, ORM-only (no raw SQL),
   TLS at infrastructure level
 - **Reliability**: Stateless app with persistent DB, backwards-compatible migrations, graceful shutdown, HTMX error
   handling
-- **Observability**: Structured JSON logs with request context, health check endpoint, audit trail
+- **Observability**: Structured JSON logs with request context, health check endpoints
 - **Testing**: PostgreSQL for all tests with `_test` database suffix (auto-derived from `DATABASE_URL`).
   Test database auto-created if needed
 
@@ -36,7 +34,7 @@
 
 - Primary domain: Full-stack server-rendered web application (MPA + HTMX)
 - Complexity level: Medium
-- Estimated architectural components: ~12-15 (models, services, route layers, templates, auth, audit, recurring engine)
+- Estimated architectural components: ~10-12 (models, services, route layers, templates, auth, recurring engine, API)
 
 ## Technical Constraints & Dependencies
 
@@ -55,19 +53,16 @@
    triggers transparent re-auth via Authentik redirect. CSRF tokens required on browser-facing mutations only (not API)
 2. **Three-Layer Route Pattern** — Page + HTMX share URL paths (HX-Request header detection via centralized middleware).
    API gets separate `/api/v1/` prefix. Two URL namespaces, not three
-3. **Audit Trail** — Single `audit_log` table with JSON diff columns (entity_type, entity_id, action, actor_id,
-   timestamp, changes — a single JSON column with `{"field": {"old": ..., "new": ...}}`). Append-only. Automatic
-   capture via adapter-level auto-auditing within UnitOfWork transactions — not manual calls per route
-4. **Use Case Enforcement** — Structurally necessary because three route layers exist. Use cases are the single source
-   of truth for business logic. Routes are thin: validate input, call use case, render response
-5. **Input Validation** — Shared Pydantic models for input validation across API and HTMX form routes. Response models
+3. **Use Case Enforcement** — Structurally necessary because multiple route layers exist (web + API). Use cases are
+   the single source of truth for business logic. Routes are thin: validate input, call use case, render response
+4. **Input Validation** — Shared Pydantic models for input validation across API and HTMX form routes. Response models
    diverge: API uses Pydantic response models (JSON), HTMX uses template context dicts (Jinja2). Three-layer defense:
    route validation (format) → use case validation (business rules) → DB constraints (safety net)
-6. **HTMX Interaction Pattern** — Uniform loading states, error handling, and swap transitions. 150ms opacity fade
+5. **HTMX Interaction Pattern** — Uniform loading states, error handling, and swap transitions. 150ms opacity fade
    baseline. Expired session on HTMX requests returns `HX-Redirect` header. `hx-disabled-elt` prevents double submission
-7. **Money Precision** — `Decimal` type end to end: Pydantic models, use cases, PostgreSQL `NUMERIC` columns. Zero
+6. **Money Precision** — `Decimal` type end to end: Pydantic models, use cases, PostgreSQL `NUMERIC` columns. Zero
    floats in the money path
-8. **Timestamp Consistency** — All datetime columns use `TIMESTAMPTZ` (timezone-aware). Timestamps (`created_at`,
+7. **Timestamp Consistency** — All datetime columns use `TIMESTAMPTZ` (timezone-aware). Timestamps (`created_at`,
    `updated_at`) are server/SQLAlchemy-managed via `server_default=func.now()` and `onupdate=func.now()`. No
    Python-side `datetime.now()` calls in adapters — eliminates clock skew and ensures consistency across all write paths
 
@@ -81,12 +76,10 @@
 3. **Input validation is shared, responses diverge by layer** — Web form models (`web/forms/`) parse and validate input
    from both API JSON and HTMX form data. API responses use separate Pydantic response models. HTMX/page responses use
    template context dicts. Endpoint structure differs: API is resource-oriented CRUD, HTMX is view-oriented fragments
-4. **One audit log table with JSON diffs** — Append-only, covers all entity types. Automatic capture, not manual
-   per-operation calls
-5. **Two URL namespaces** — Page + HTMX share paths (header detection via centralized middleware). API gets `/api/v1/`
+4. **Two URL namespaces** — Page + HTMX share paths (header detection via centralized middleware). API gets `/api/v1/`
    prefix
-6. **Thin ORM** — Simple mapped classes and explicit queries. No deep relationship graphs, no lazy loading. The domain
-   is ~5 tables; keep the data access layer proportional
+5. **Thin ORM** — Simple mapped classes and explicit queries. No deep relationship graphs, no lazy loading. The domain
+   is ~8 tables; keep the data access layer proportional
 
 ## Critical Failure Modes Identified
 

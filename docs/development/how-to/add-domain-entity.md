@@ -53,11 +53,11 @@ In `app/domain/ports.py`, define the persistence interface:
 
 ```python
 class WidgetPort(Protocol):
-    def save(self, widget: WidgetPublic, *, actor_id: int) -> WidgetPublic: ...
+    def save(self, widget: WidgetPublic) -> WidgetPublic: ...
     def get_by_id(self, widget_id: int) -> WidgetPublic | None: ...
     def list_all(self) -> list[WidgetPublic]: ...
-    def update(self, widget_id: int, *, actor_id: int, name: str | None = None) -> WidgetPublic: ...
-    def soft_delete(self, widget_id: int, *, actor_id: int) -> None: ...
+    def update(self, widget_id: int, *, name: str | None = None) -> WidgetPublic: ...
+    def soft_delete(self, widget_id: int) -> None: ...
 ```
 
 Add it to `UnitOfWorkPort`:
@@ -72,7 +72,6 @@ class UnitOfWorkPort(Protocol):
 
 Rules:
 
-- All mutating methods take `actor_id: int` as keyword-only
 - Return `XxxPublic`, never `XxxRow`
 - Use `| None` for optional returns
 
@@ -136,47 +135,33 @@ Rules:
 Create `app/adapters/sqlalchemy/widget_adapter.py`:
 
 ```python
-from app.adapters.sqlalchemy.audit_adapter import SqlAlchemyAuditAdapter
-from app.adapters.sqlalchemy.changes import compute_changes, snapshot_new
 from app.adapters.sqlalchemy.orm_models import WidgetRow
 from app.domain.errors import WidgetNotFoundError
 from app.domain.models import WidgetPublic
 
 
 class SqlAlchemyWidgetAdapter:
-    def __init__(self, session: Session, audit: SqlAlchemyAuditAdapter) -> None:
+    def __init__(self, session: Session) -> None:
         self._session = session
-        self._audit = audit
 
-    def save(self, widget: WidgetPublic, *, actor_id: int) -> WidgetPublic:
+    def save(self, widget: WidgetPublic) -> WidgetPublic:
         row = WidgetRow(payer_id=widget.payer_id, name=widget.name, amount=widget.amount)
-        changes = snapshot_new(row, exclude={"id", "created_at", "updated_at", "deleted_at"})
         self._session.add(row)
         self._session.flush()
-        self._audit.log(
-            action="widget_created", actor_id=actor_id,
-            entity_type="widget", entity_id=row.id, changes=changes,
-        )
         return self._to_public(row)
 
     def get_by_id(self, widget_id: int) -> WidgetPublic | None:
         row = self._session.get(WidgetRow, widget_id)
         return self._to_public(row) if row else None
 
-    def update(self, widget_id: int, *, actor_id: int, name: str | None = None) -> WidgetPublic:
+    def update(self, widget_id: int, *, name: str | None = None) -> WidgetPublic:
         row = self._session.get(WidgetRow, widget_id)
         if row is None or row.deleted_at is not None:
             raise WidgetNotFoundError(f"Widget {widget_id} not found")
         if name is not None:
             row.name = name
-        changes = compute_changes(row)
         self._session.add(row)
         self._session.flush()
-        if changes:
-            self._audit.log(
-                action="widget_updated", actor_id=actor_id,
-                entity_type="widget", entity_id=widget_id, changes=changes,
-            )
         return self._to_public(row)
 
     def _to_public(self, row: WidgetRow) -> WidgetPublic:
@@ -189,9 +174,8 @@ class SqlAlchemyWidgetAdapter:
 
 Rules:
 
-- Constructor takes `session` + `audit` adapter
-- `save()` uses `snapshot_new()` then `flush()` then `audit.log()`
-- `update()` uses `compute_changes()` before flush
+- Constructor takes `session` only
+- `save()` creates row, flushes, returns public model
 - `_to_public()` converts `XxxRow` to `XxxPublic` — Row never leaves adapter
 
 ## Step 6: Wire to Unit of Work
@@ -204,9 +188,8 @@ from app.adapters.sqlalchemy.widget_adapter import SqlAlchemyWidgetAdapter
 class UnitOfWork:
     def __init__(self, session: Session) -> None:
         self.session = session
-        self.audit = SqlAlchemyAuditAdapter(session)
         # ... existing adapters ...
-        self.widgets = SqlAlchemyWidgetAdapter(session, self.audit)
+        self.widgets = SqlAlchemyWidgetAdapter(session)
 ```
 
 ## Step 7: Use Cases
@@ -222,7 +205,6 @@ from app.domain.ports import UnitOfWorkPort
 def create_widget(
     uow: UnitOfWorkPort,
     payer_id: int,
-    actor_id: int,
     name: str,
     amount: Decimal,
 ) -> WidgetPublic:
@@ -234,13 +216,13 @@ def create_widget(
         id=0, payer_id=payer_id, name=name, amount=amount,
         created_at=datetime.now(), updated_at=datetime.now(),
     )
-    return uow.widgets.save(widget, actor_id=actor_id)
+    return uow.widgets.save(widget)
 ```
 
 Rules:
 
 - Accept `uow: UnitOfWorkPort` — not the concrete `UnitOfWork`
-- Validate preconditions (group exists, etc.) before calling adapter
+- Validate preconditions before calling adapter
 - Raise domain errors, not `ValueError`
 - The caller wraps in `with uow:` for transaction management
 

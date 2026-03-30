@@ -95,11 +95,38 @@ Secret for signing internal webhook requests.
 
 - **Default:** `change-me-webhook-secret` (insecure — must be changed in production)
 
-### `SYSTEM_ACTOR_ID`
+### `DEFAULT_CURRENCY`
 
-User ID used for automated system-initiated actions in the audit log.
+Default currency label for new expenses.
 
-- **Default:** `0`
+- **Default:** `EUR`
+
+### `DEFAULT_SPLIT_TYPE`
+
+Default split mode for new expenses.
+
+- **Default:** `EVEN`
+- **Values:** `EVEN`, `SHARES`, `PERCENTAGE`, `EXACT`
+
+### `TRACKING_THRESHOLD`
+
+Tracking threshold in days for recurring expense reminders.
+
+- **Default:** `30`
+
+### `MAX_USERS`
+
+Maximum number of users that can be provisioned via OIDC login. Designed for a two-partner
+household.
+
+- **Default:** `2`
+
+### `GLANCE_API_KEY`
+
+Bearer token for the Glance dashboard API (`/api/v1/`). Clients must send
+`Authorization: Bearer <key>` to access API endpoints.
+
+- **Default:** `change-me-glance-api-key` (insecure — must be changed in production)
 
 ## Production Checklist
 
@@ -108,6 +135,7 @@ When deploying to production (`ENV=prod`), ensure:
 - [ ] `SECRET_KEY` is set to a cryptographically random value
 - [ ] `OIDC_CLIENT_SECRET` is set to the real secret from your OIDC provider
 - [ ] `INTERNAL_WEBHOOK_SECRET` is set to a unique, random value
+- [ ] `GLANCE_API_KEY` is set to a unique, random value
 - [ ] `DATABASE_URL` points to your production PostgreSQL instance
 - [ ] `OIDC_REDIRECT_URI` uses your production domain with HTTPS
 

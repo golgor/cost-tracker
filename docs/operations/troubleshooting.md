@@ -90,11 +90,14 @@ in the code. Check current state with `alembic current` and compare with `alembi
 **Fix:** The app handles this automatically by clearing cookies and restarting the login flow.
 If it persists, clear browser cookies manually.
 
-### User sees 403 after login
+### User cannot log in (new user)
 
-**Cause:** The user account has been deactivated by an admin.
+**Cause:** The `MAX_USERS` limit (default 2) has been reached and the app cannot provision a
+new user.
 
-**Fix:** An admin must reactivate the user via the admin panel at `/users`.
+**Fix:** If the household already has two users, a third cannot be added. If a user needs to
+be replaced, remove or disable them in the OIDC provider first, then adjust `MAX_USERS` if
+needed.
 
 ### CSRF validation fails (403)
 

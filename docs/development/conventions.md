@@ -81,11 +81,9 @@ These rules are non-negotiable. Violations will be caught by tests or code revie
 - Dates in JSON: ISO 8601 with timezone (`"2026-03-15T14:30:00+00:00"`)
 - Always use `DateTime(timezone=True)` for datetime columns
 
-### Adapters and Audit
+### Adapters
 
-- Every adapter with mutating methods must implement auto-auditing
-- Receive `SqlAlchemyAuditAdapter` via constructor
-- Use `compute_changes()` for updates and `snapshot_new()` for creates
+- ORM rows never leave the adapter boundary — use `_to_public()` conversion
 - Never manually assign `created_at` or `updated_at` — server-managed via `func.now()`
 
 ### Forms
