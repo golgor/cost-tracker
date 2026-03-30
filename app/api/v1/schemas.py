@@ -4,7 +4,7 @@ Money values are serialized as string Decimals (e.g. "123.45"), never floats.
 Dates are ISO 8601 strings.
 """
 
-from datetime import date as DateType
+import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -55,7 +55,7 @@ class GlanceSummary(BaseModel):
 class ExpenseCreateRequest(BaseModel):
     amount: Decimal = Field(gt=0, decimal_places=2)
     description: str = Field(min_length=1, max_length=255)
-    date: DateType | None = None
+    date: datetime.date | None = None
     creator_id: int
     payer_id: int
     member_ids: list[int]
@@ -67,7 +67,7 @@ class ExpenseCreateRequest(BaseModel):
 class ExpenseUpdateRequest(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0, decimal_places=2)
     description: str | None = Field(default=None, max_length=255)
-    date: DateType | None = None
+    date: datetime.date | None = None
     payer_id: int | None = None
     currency: str | None = Field(default=None, max_length=3)
     split_type: SplitType | None = None

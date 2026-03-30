@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_uow
+from app.domain.errors import ExpenseNotFoundError
 from app.domain.models import ExpensePublic
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -26,7 +27,5 @@ def get_expense(expense_id: int, uow: UowDep) -> ExpensePublic:
     with uow:
         expense = uow.expenses.get_by_id(expense_id)
     if expense is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Expense {expense_id} not found"
-        )
+        raise ExpenseNotFoundError(expense_id)
     return expense
