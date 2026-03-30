@@ -126,6 +126,25 @@ The app runs on port 8000 and expects a reverse proxy for HTTPS. [Traefik](https
 is recommended — it handles automatic HTTPS via Let's Encrypt and integrates natively with Docker
 and Kubernetes.
 
+### Proxy Headers
+
+Uvicorn must be told the original request scheme so that server-generated URLs (redirects, OIDC
+callbacks, etc.) use `https://` rather than `http://`. Pass `--proxy-headers` to enable
+`X-Forwarded-*` header processing, and `--forwarded-allow-ips=*` to accept those headers from
+any upstream address:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
+```
+
+The Dockerfile already includes these flags. If running uvicorn manually or overriding the
+container entrypoint, include them explicitly — without them the app will generate `http://`
+URLs even when the site is served over HTTPS.
+
+`--forwarded-allow-ips=*` trusts forwarded headers from all IPs. This is safe when port 8000
+is not publicly reachable (e.g., a Docker internal network or a Kubernetes ClusterIP service).
+In network setups where port 8000 is exposed more broadly, scope this to the proxy's IP instead.
+
 ### Traefik with Docker labels
 
 Add labels to your Cost Tracker container to let Traefik auto-discover it:
