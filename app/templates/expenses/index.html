@@ -2,30 +2,30 @@
 
 {% block title %}All Expenses - Cost Tracker{% endblock %}
 
+{% block main_class %}pb-24 md:pb-0{% endblock %}
+
 {% block content %}
-<main class="flex-1 overflow-auto bg-stone-50">
-  <!-- Desktop layout with sidebar -->
-  <div class="max-w-7xl mx-auto md:flex h-full">
-    <!-- Main content area -->
-    <div class="flex-1 overflow-auto">
-      <div class="px-4 py-6 sm:px-6 lg:px-8">
-    
-        <!-- Balance Bar Widget -->
-        {% include "expenses/_balance_bar.html" %}
-        
-        <!-- Unified Filter Bar (search + date picker + paid-by) -->
-        {% include "expenses/_filter_bar.html" %}
-        
-        <!-- Expense Feed -->
-        {% with currency_symbol=currency_symbol, csrf_token=csrf_token %}
-          {% include "expenses/_expense_feed.html" %}
-        {% endwith %}
-    
-      </div>
+<!-- Desktop layout with sidebar -->
+<div class="max-w-7xl mx-auto md:flex h-full">
+  <!-- Main content area -->
+  <div class="flex-1 min-w-0 overflow-auto">
+    <div class="px-4 py-6 sm:px-6 lg:px-8">
+
+      <!-- Balance Bar Widget -->
+      {% include "expenses/_balance_bar.html" %}
+
+      <!-- Unified Filter Bar (search + date picker + paid-by) -->
+      {% include "expenses/_filter_bar.html" %}
+
+      <!-- Expense Feed -->
+      {% with currency_symbol=currency_symbol, csrf_token=csrf_token %}
+        {% include "expenses/_expense_feed.html" %}
+      {% endwith %}
+
     </div>
-    
-    <!-- Desktop Sidebar Form (inherited from base via include) -->
-    {% include "expenses/_capture_form_desktop.html" %}
   </div>
-</main>
+
+  <!-- Desktop Sidebar Form -->
+  {% include "expenses/_capture_form_desktop.html" %}
+</div>
 {% endblock %}
