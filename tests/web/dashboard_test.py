@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import ExpenseRow
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
@@ -75,29 +75,56 @@ class TestDashboardBalanceBar:
 
     def test_zero_balance_shows_all_square(self, authenticated_client, user1, user2, uow):
         """Dashboard shows 'All square!' when balance is zero."""
-        # Create equal expenses
+        # Create equal expenses with splits
+        e1 = ExpenseRow(
+            amount=Decimal("100.00"),
+            description="User1 expense",
+            date=date.today(),
+            creator_id=user1.id,
+            payer_id=user1.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        e2 = ExpenseRow(
+            amount=Decimal("100.00"),
+            description="User2 expense",
+            date=date.today(),
+            creator_id=user2.id,
+            payer_id=user2.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        uow.session.add(e1)
+        uow.session.add(e2)
+        uow.session.flush()
         uow.session.add(
-            ExpenseRow(
-                amount=Decimal("100.00"),
-                description="User1 expense",
-                date=date.today(),
-                creator_id=user1.id,
-                payer_id=user1.id,
-                currency="EUR",
-                split_type=SplitType.EVEN,
-                status=ExpenseStatus.PENDING,
+            ExpenseSplitRow(
+                expense_id=e1.id,
+                user_id=user1.id,
+                amount=Decimal("50.00"),
             )
         )
         uow.session.add(
-            ExpenseRow(
-                amount=Decimal("100.00"),
-                description="User2 expense",
-                date=date.today(),
-                creator_id=user2.id,
-                payer_id=user2.id,
-                currency="EUR",
-                split_type=SplitType.EVEN,
-                status=ExpenseStatus.PENDING,
+            ExpenseSplitRow(
+                expense_id=e1.id,
+                user_id=user2.id,
+                amount=Decimal("50.00"),
+            )
+        )
+        uow.session.add(
+            ExpenseSplitRow(
+                expense_id=e2.id,
+                user_id=user1.id,
+                amount=Decimal("50.00"),
+            )
+        )
+        uow.session.add(
+            ExpenseSplitRow(
+                expense_id=e2.id,
+                user_id=user2.id,
+                amount=Decimal("50.00"),
             )
         )
         uow.session.commit()
@@ -110,16 +137,30 @@ class TestDashboardBalanceBar:
     def test_positive_balance_shows_partner_owes_you(self, authenticated_client, user1, user2, uow):
         """Dashboard shows partner owes you when balance is positive."""
         # User1 pays 100 -> partner owes user1 50
+        e = ExpenseRow(
+            amount=Decimal("100.00"),
+            description="Groceries",
+            date=date.today(),
+            creator_id=user1.id,
+            payer_id=user1.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        uow.session.add(e)
+        uow.session.flush()
         uow.session.add(
-            ExpenseRow(
-                amount=Decimal("100.00"),
-                description="Groceries",
-                date=date.today(),
-                creator_id=user1.id,
-                payer_id=user1.id,
-                currency="EUR",
-                split_type=SplitType.EVEN,
-                status=ExpenseStatus.PENDING,
+            ExpenseSplitRow(
+                expense_id=e.id,
+                user_id=user1.id,
+                amount=Decimal("50.00"),
+            )
+        )
+        uow.session.add(
+            ExpenseSplitRow(
+                expense_id=e.id,
+                user_id=user2.id,
+                amount=Decimal("50.00"),
             )
         )
         uow.session.commit()
@@ -133,16 +174,30 @@ class TestDashboardBalanceBar:
     def test_negative_balance_shows_you_owe_partner(self, authenticated_client, user1, user2, uow):
         """Dashboard shows you owe partner when balance is negative."""
         # User2 pays 100 -> user1 owes user2 50
+        e = ExpenseRow(
+            amount=Decimal("100.00"),
+            description="Netflix",
+            date=date.today(),
+            creator_id=user2.id,
+            payer_id=user2.id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        uow.session.add(e)
+        uow.session.flush()
         uow.session.add(
-            ExpenseRow(
-                amount=Decimal("100.00"),
-                description="Netflix",
-                date=date.today(),
-                creator_id=user2.id,
-                payer_id=user2.id,
-                currency="EUR",
-                split_type=SplitType.EVEN,
-                status=ExpenseStatus.PENDING,
+            ExpenseSplitRow(
+                expense_id=e.id,
+                user_id=user1.id,
+                amount=Decimal("50.00"),
+            )
+        )
+        uow.session.add(
+            ExpenseSplitRow(
+                expense_id=e.id,
+                user_id=user2.id,
+                amount=Decimal("50.00"),
             )
         )
         uow.session.commit()
