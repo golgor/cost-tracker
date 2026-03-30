@@ -18,6 +18,7 @@ from app.domain.errors import (
     DomainError,
     DuplicateBillingPeriodError,
     EmptySettlementError,
+    ExpenseNotFoundError,
     RecurringDefinitionNotFoundError,
     RecurringExpenseDescriptionError,
     StaleExpenseError,
@@ -41,6 +42,7 @@ DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
     RecurringDefinitionNotFoundError: 404,
     DuplicateBillingPeriodError: 409,
     RecurringExpenseDescriptionError: 400,
+    ExpenseNotFoundError: 404,
 }
 
 

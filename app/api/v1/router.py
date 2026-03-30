@@ -10,7 +10,8 @@ at /api/v1/docs without exposing the web (HTMX) routes.
 from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
+from fastapi.responses import JSONResponse
 from sqlmodel import Session
 
 from app.adapters.sqlalchemy.queries.api_queries import (
@@ -24,6 +25,7 @@ from app.adapters.sqlalchemy.queries.recurring_queries import (
 )
 from app.adapters.sqlalchemy.queries.settlement_queries import get_unsettled_count
 from app.api.v1.auth import verify_api_key
+from app.api.v1.expenses import router as expenses_router
 from app.api.v1.schemas import (
     BalanceSummary,
     GlanceSummary,
@@ -33,6 +35,18 @@ from app.api.v1.schemas import (
     UpcomingRecurring,
 )
 from app.dependencies import get_db_session
+from app.domain.errors import (
+    CannotEditSettledExpenseError,
+    DomainError,
+    DuplicateBillingPeriodError,
+    EmptySettlementError,
+    ExpenseNotFoundError,
+    RecurringDefinitionNotFoundError,
+    RecurringExpenseDescriptionError,
+    StaleExpenseError,
+    UserLimitReachedError,
+    UserNotFoundError,
+)
 from app.domain.models import RecurringFrequency
 from app.settings import settings
 
@@ -42,6 +56,29 @@ api_v1 = FastAPI(
     description="Read-only API for Glance Dashboard integration.",
     dependencies=[Depends(verify_api_key)],
 )
+
+_API_ERROR_MAP: dict[type[DomainError], int] = {
+    UserNotFoundError: 404,
+    UserLimitReachedError: 403,
+    CannotEditSettledExpenseError: 403,
+    EmptySettlementError: 400,
+    StaleExpenseError: 409,
+    RecurringDefinitionNotFoundError: 404,
+    DuplicateBillingPeriodError: 409,
+    RecurringExpenseDescriptionError: 400,
+    ExpenseNotFoundError: 404,
+}
+
+
+@api_v1.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
+    """Translate domain errors to JSON HTTP responses for the API."""
+    status_code = _API_ERROR_MAP.get(type(exc), 422)
+    return JSONResponse(status_code=status_code, content={"detail": str(exc)})
+
+
+api_v1.include_router(expenses_router)
+
 
 DbSession = Annotated[Session, Depends(get_db_session)]
 

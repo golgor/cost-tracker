@@ -6,6 +6,7 @@ from decimal import Decimal
 from app.domain.errors import (
     CannotEditSettledExpenseError,
     DomainError,
+    ExpenseNotFoundError,
     InvalidShareError,
     RecurringExpenseDescriptionError,
 )
@@ -196,7 +197,7 @@ def update_expense(
     # Get existing expense
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
-        raise DomainError(f"Expense {expense_id} not found")
+        raise ExpenseNotFoundError(expense_id)
 
     # Immutability check: cannot edit settled expenses
     if expense.status == ExpenseStatus.SETTLED:
@@ -316,7 +317,7 @@ def delete_expense(
     # Get existing expense
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
-        raise DomainError(f"Expense {expense_id} not found")
+        raise ExpenseNotFoundError(expense_id)
 
     # Immutability check: cannot delete settled expenses
     if expense.status == ExpenseStatus.SETTLED:
