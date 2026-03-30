@@ -59,7 +59,7 @@ def get_unsettled_count(session: Session) -> int:
         .select_from(ExpenseRow)
         .where(ExpenseRow.status != ExpenseStatus.SETTLED)
     )
-    return session.exec(statement).scalar_one()
+    return session.exec(statement).one()
 
 
 def get_oldest_unsettled_date(session: Session) -> date | None:

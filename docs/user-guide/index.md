@@ -45,4 +45,5 @@ insurance). They can auto-generate expenses when due or be triggered manually.
 
 - [Getting Started](getting-started.md) — First login and adding your first expense
 - [Features](features.md) — Detailed walkthrough of all features
+- [Glance Dashboard](glance-integration.md) — Display your finances on a Glance dashboard
 - [FAQ](faq.md) — Common questions and answers
