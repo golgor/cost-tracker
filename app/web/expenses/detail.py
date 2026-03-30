@@ -165,11 +165,12 @@ async def edit_expense_page(
         {
             "expense": expense,
             "users": users_dict,
+            "users_list": users,
             "today": date.today().isoformat(),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
             "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
-            "split_config": split_config_dict,
             "default_currency": settings.DEFAULT_CURRENCY,
+            "split_config": split_config_dict,
         },
     )
