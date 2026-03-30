@@ -57,6 +57,11 @@ async def get_expense_detail(
     ]
     split_type_label = expense.split_type.value.title()
 
+    # Detect incomplete splits (e.g., expense created before partner joined)
+    split_user_ids = {s.user_id for s in raw_splits}
+    all_user_ids = set(users_dict.keys())
+    has_incomplete_splits = split_user_ids != all_user_ids
+
     return templates.TemplateResponse(
         request,
         "expenses/_expense_card_expanded.html",
@@ -69,6 +74,7 @@ async def get_expense_detail(
             "is_settled": expense.status == "SETTLED",
             "splits_display": splits_display,
             "split_type_label": split_type_label,
+            "has_incomplete_splits": has_incomplete_splits,
         },
     )
 
