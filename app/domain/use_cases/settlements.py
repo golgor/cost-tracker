@@ -1,11 +1,11 @@
 """Settlement domain use cases."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from app.domain.balance import (
     MemberBalance,
     SettlementTransaction,
-    calculate_balances,
     minimize_transactions,
 )
 from app.domain.errors import EmptySettlementError, SettlementError, StaleExpenseError
@@ -17,7 +17,46 @@ from app.domain.models import (
     SettlementTransactionBase,
 )
 from app.domain.ports import UnitOfWorkPort
-from app.domain.splits import BalanceConfig
+from app.domain.value_objects import Money
+
+
+def _calculate_balances_from_splits(
+    uow: UnitOfWorkPort,
+    expenses: list[ExpensePublic],
+    member_ids: list[int],
+) -> dict[int, MemberBalance]:
+    """Calculate balances using persisted split rows, not re-derived splits.
+
+    This respects the actual split type and amounts stored in expense_splits,
+    so percentage/shares/exact splits settle correctly.
+    """
+    if not expenses:
+        currency = "EUR"
+        zero = Money(Decimal("0"), currency)
+        return {uid: MemberBalance(uid, zero, zero, zero) for uid in member_ids}
+
+    currency = expenses[0].currency
+
+    amount_paid: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
+    fair_share: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
+
+    for expense in expenses:
+        if expense.payer_id in amount_paid:
+            amount_paid[expense.payer_id] += expense.amount
+
+        splits = uow.expenses.get_splits(expense.id)
+        for split in splits:
+            if split.user_id in fair_share:
+                fair_share[split.user_id] += split.amount
+
+    result: dict[int, MemberBalance] = {}
+    for uid in member_ids:
+        paid = Money(amount_paid[uid], currency)
+        owed = Money(fair_share[uid], currency)
+        net = Money(amount_paid[uid] - fair_share[uid], currency)
+        result[uid] = MemberBalance(uid, paid, owed, net)
+
+    return result
 
 
 def format_transfer_message(
@@ -97,8 +136,7 @@ def preview_settlement(
             raise StaleExpenseError(expense_id)
         expenses.append(expense)
 
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    balances = _calculate_balances_from_splits(uow, expenses, member_ids)
     transactions = minimize_transactions(balances)
     return transactions, balances
 
@@ -139,8 +177,7 @@ def confirm_settlement(
             raise StaleExpenseError(expense_id)
         expenses.append(expense)
 
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    balances = _calculate_balances_from_splits(uow, expenses, member_ids)
     domain_transactions = minimize_transactions(balances)
 
     tx_models: list[SettlementTransactionBase] = [
