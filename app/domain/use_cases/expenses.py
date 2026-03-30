@@ -34,7 +34,7 @@ def create_expense(
     payer_id: int,
     member_ids: list[int],
     currency: str,
-    date=None,
+    date: date_type | None = None,
     split_type: str = "EVEN",
     split_config: dict[int, Decimal] | None = None,
 ) -> ExpensePublic:

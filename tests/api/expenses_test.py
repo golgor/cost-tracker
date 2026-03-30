@@ -139,3 +139,30 @@ class TestCreateExpense:
         response = api_client.post("/expenses", json=payload)
         # InvalidShareError is a DomainError → handled by api_v1 domain_error_handler → 422
         assert response.status_code == 422
+
+
+class TestUpdateExpense:
+    def test_update_returns_204(self, api_client, db_session, two_users):
+        user1, _ = two_users
+        expense = create_test_expense(
+            db_session, amount="40.00", creator_id=user1.id, payer_id=user1.id
+        )
+        db_session.flush()
+
+        response = api_client.put(f"/expenses/{expense.id}", json={"amount": "45.00"})
+        assert response.status_code == 204
+
+    def test_update_nonexistent_returns_404(self, api_client):
+        response = api_client.put("/expenses/999999", json={"amount": "10.00"})
+        assert response.status_code == 404
+
+    def test_update_settled_expense_returns_403(self, api_client, db_session, two_users):
+        user1, _ = two_users
+        expense = create_test_expense(
+            db_session, amount="40.00", creator_id=user1.id, payer_id=user1.id, status="SETTLED"
+        )
+        db_session.flush()
+
+        response = api_client.put(f"/expenses/{expense.id}", json={"amount": "45.00"})
+        # CannotEditSettledExpenseError maps to 403 in _API_ERROR_MAP
+        assert response.status_code == 403

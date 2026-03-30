@@ -5,11 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.api.v1.schemas import ExpenseCreateRequest
+from app.api.v1.schemas import ExpenseCreateRequest, ExpenseUpdateRequest
 from app.dependencies import get_uow
 from app.domain.errors import ExpenseNotFoundError
 from app.domain.models import ExpensePublic
-from app.domain.use_cases.expenses import create_expense
+from app.domain.use_cases.expenses import create_expense, update_expense
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -48,4 +48,22 @@ def create_expense_endpoint(body: ExpenseCreateRequest, uow: UowDep) -> ExpenseP
             date=body.date,
             split_type=body.split_type,
             split_config=body.split_config,
+        )
+
+
+@router.put("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+def update_expense_endpoint(expense_id: int, body: ExpenseUpdateRequest, uow: UowDep) -> None:
+    """Update an existing expense. Settled expenses cannot be modified."""
+    with uow:
+        update_expense(
+            uow=uow,
+            expense_id=expense_id,
+            amount=body.amount,
+            description=body.description,
+            date=body.date,
+            payer_id=body.payer_id,
+            currency=body.currency,
+            split_type=body.split_type,
+            split_config=body.split_config,
+            member_ids=body.member_ids,
         )
