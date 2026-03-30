@@ -25,6 +25,6 @@ For deeper understanding of design decisions and patterns, see the
 
 ## AI Agent Configuration
 
-This project uses Claude sub-agents for development assistance. Agent configuration lives in
-`CLAUDE.md` and `AGENTS.md` at the project root — these are the authoritative source for AI-specific
-conventions and are not duplicated here.
+This project uses AI sub-agents for development assistance. Agent configuration lives in
+`AGENTS.md` at the project root, with accumulated lessons in `tasks/lessons.md` — these are the
+authoritative source for AI-specific conventions and are not duplicated here.

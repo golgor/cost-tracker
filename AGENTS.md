@@ -1,155 +1,71 @@
-# AGENTS.md - Cost Tracker
+# Cost Tracker
 
-Instructions for AI coding agents working in this repository.
+Self-hosted household expense-sharing app for two partners. FastAPI + PostgreSQL + Jinja2 + HTMX + Tailwind CSS. Python 3.14, uv for package management. Hexagonal architecture (ports & adapters) — domain is pure Python, no framework imports.
 
-## Build / Lint / Test Commands
+No group abstraction — single household, two equal partners. Settings (currency, split type, threshold) via environment variables. User limit enforced at OIDC login via `MAX_USERS` (default 2).
 
-All commands use `mise` (task runner) and `uv` (package manager):
+## How to Work
+
+1. **Plan first** — Enter plan mode for any 3+ step task. If something goes wrong, STOP and re-plan immediately.
+2. **Use sub-agents** — Offload research, exploration, and parallel work to keep the main context clean. One task per agent.
+3. **Learn from corrections** — After any user correction, update `tasks/lessons.md` with the pattern. Review it at session start.
+4. **Verify before done** — Never mark complete without proving it works. Run tests, check logs, demonstrate correctness.
+5. **Demand elegance** — For non-trivial changes, ask "is there a more elegant solution?" Skip for simple fixes.
+6. **Fix bugs autonomously** — Given a bug report, just fix it. Use logs, errors, and failing tests to diagnose. Zero context switching for the user.
+7. **Simplicity first** — Make every change as simple as possible. Find root causes — no temporary fixes.
+
+## Commands
 
 ```bash
 # Development
 mise run dev              # Start dev server with reload
-mise run dev:css          # Watch Tailwind CSS (run alongside dev)
 mise run db               # Start PostgreSQL container
 mise run migrate          # Run Alembic migrations
 
 # Testing (requires PostgreSQL)
 mise run test             # Run all tests
-mise run test:unit        # Unit tests only
-mise run test:integration # Integration tests only
+uv run pytest tests/domain/expenses_test.py -v                        # Single file
+uv run pytest tests/domain/expenses_test.py::test_create_expense -v   # Single test
 
-# Single test file:
-uv run pytest tests/domain/expenses_test.py -v
-
-# Single test function:
-uv run pytest tests/domain/expenses_test.py::test_create_expense -v
-
-# Linting and Type Checking
+# Linting
 mise run lint             # ruff check + ruff format --check + ty
-mise run lint:fix         # Auto-fix ruff issues and format
-mise run types            # Type check with pyright (fast)
+mise run lint:fix         # Auto-fix (always run this first)
 mise run lint:docs        # Lint markdown in docs/
+
+# Dependencies
+uv add <package>          # Add dependency (never use pip)
+uv sync --locked          # Install from lockfile
 ```
 
-## Code Style Guidelines
+## Code Style
 
-### Formatting
 - **Line length**: 120 characters
 - **Quotes**: Double quotes for strings
 - **Indentation**: 4 spaces
 - **Python version**: 3.14+
+- Import order: stdlib, third-party, first-party (`from app import ...`). Managed by ruff.
 
-### Imports
-- Use `ruff` for import sorting (isort-compatible)
-- First-party imports: `from app import ...`
-- Standard library imports first, then third-party, then first-party
-- Domain (`app/domain/`) must NOT import framework packages
+## Sub-Agents
 
-### Naming Conventions
-- **Domain ports**: `XxxPort` (e.g., `ExpensePort`)
-- **Adapters**: `SqlAlchemyXxxAdapter` (e.g., `SqlAlchemyExpenseAdapter`)
-- **ORM models**: `XxxRow` (e.g., `ExpenseRow`)
-- **Domain models**: `XxxBase` (base), `XxxPublic` (public API)
-- **Test files**: `{module}_test.py` (e.g., `expenses_test.py`)
-- **Templates**: `snake_case.html`, HTMX partials prefixed `_`
-- **Database tables**: plural snake_case (e.g., `expenses`, `users`)
+Use the project sub-agents (`.claude/agents/`) to delegate specialized work instead of doing everything in the main conversation.
 
-### Architecture Rules
-- **Hexagonal architecture**: Domain is pure Python (no FastAPI/SQLAlchemy imports)
-- Only `dependencies.py` wires adapters to domain ports
-- ORM models (`XxxRow`) never leave adapter boundary
-- Use cases receive `UnitOfWork` as parameter (no global state)
-- `queries/` is read-only — no writes permitted
-- Never use `utils.py` or `helpers.py` — name by purpose (e.g., `splits.py`)
+**Knowledge oracles** — delegate questions to avoid loading full docs into context:
+- `architecture-lead` — architecture decisions, patterns, boundaries, naming. Ask instead of reading `docs/architecture/` yourself
+- `ux-lead` — UX decisions, component behavior, user flows, visual design. Ask instead of reading `docs/ux-design/` yourself
 
-### Error Handling
-- Never add `try/except` for domain errors in routes
-- Use global exception handler (`DOMAIN_ERROR_MAP` in `main.py`)
-- Define new `DomainError` subclasses as needed
-- **Fail fast**: Use runtime assertions to validate assumptions instead of silently ignoring potential bugs
-  - Example: `assert isinstance(value, str), "Expected string"` instead of casting or ignoring
-  - Example: `assert form_data is not None, "form_data should exist when no errors"` for type narrowing
-  - Prefer explicit validation over implicit coercion - if something shouldn't happen, make it fail loudly
+**Workflow agents** — delegate after implementation work:
+- `pr-reviewer` — review code changes against architecture rules and lessons before committing
+- `tester` — run tests, check architecture enforcement, identify missing coverage
+- `tech-writer` — create or update documentation in `docs/`
+- `docs-linter` — run markdownlint on `docs/` and auto-fix violations. Use after editing docs or before committing
 
-### Type Safety
-- Use type hints on all function signatures
-- Return type `-> None` for procedures
-- Use `from __future__ import annotations` where needed
-- **Fail fast on type mismatches**: Add runtime assertions rather than ignoring type errors
-  - Use `assert isinstance(x, ExpectedType)` to validate form inputs, API responses, etc.
-  - Use `assert x is not None` for type narrowing when the type checker can't infer it
-  - Never use `# type: ignore` to hide potential bugs - fix them explicitly or document with specific ignore codes
+## Reference
 
-### Data Handling
-- **Money**: Always use `Decimal`, never float
-- **Money in JSON**: String representation (e.g., `"123.45"`)
-- **Dates in JSON**: ISO 8601 with timezone
-- **Database datetimes**: `DateTime(timezone=True)` — never naive
-- **Audit logging**: Pass `actor_id` to adapter methods, don't call `uow.audit.log()` manually
-
-### Testing
-- All tests use PostgreSQL (no SQLite) — test DB auto-created with `_test` suffix
-- Test pattern: `*_test.py`
-- Use fixtures from `conftest.py` for UoW and sessions
-
-### Test Fixture Transaction Management
-**NEVER call `uow.session.commit()` in test fixtures.** Each test runs in a transaction that gets rolled back after the test. Committing early causes:
-- Data leaks between tests
-- Route transaction handling conflicts
-- Inconsistent test state
-
-**Correct pattern for test fixtures:**
-```python
-@pytest.fixture
-def test_entity(uow: UnitOfWork):
-    entity = EntityRow(name="test")
-    uow.session.add(entity)
-    uow.session.flush()  # Get ID without committing
-    return entity
-```
-
-Use `flush()` to get auto-generated IDs without committing the transaction.
-
-### Form Parameters
-Always use `Annotated[T, Form()]` for form parameters — never `T = Form(...)` or manual `await request.form()`:
-
-```python
-from typing import Annotated
-from fastapi import Form
-
-@router.post("/example")
-async def example(
-    name: Annotated[str, Form()],                              # required
-    description: Annotated[str, Form()] = "",                   # optional with default
-    date_str: Annotated[str, Form(alias="date")] = "",          # alias maps HTML field name to Python param
-    items: Annotated[list[int] | None, Form()] = None,          # list type (use None default, not [])
-):
-```
-
-Use `alias` when the HTML field name differs from the Python parameter name. For `list` defaults, use `None` (not `[]`) to satisfy ruff B006, and initialize to `[]` in the function body.
-
-### CSRF Middleware & Form Body Replay
-The CSRF middleware (`app/auth/middleware.py`) validates CSRF tokens from form data on regular (non-HTMX) POST requests. It calls `await request.body()` before `await request.form()` — this is critical because Starlette's `_CachedRequest.wrapped_receive` only replays the body to the inner app (FastAPI) if `body()` was called. Without `body()`, `form()` consumes the stream and FastAPI's `Form()` injection receives empty data (422 errors).
-
-**Do not** remove the `await request.body()` call or revert to manual `request.state._cached_form` reads in route handlers.
-
-**Always test POST routes with CSRF tokens** to catch body-replay issues early.
-
-### Templates (Jinja2)
-- No complex business logic in templates
-- Only boolean state checks for UI visibility
-- Never compare values to literals or do numeric comparisons in templates
-- Pass pre-computed boolean flags from view queries
-
-## Common Tasks
-
-```bash
-# Add a dependency
-uv add <package>
-
-# Install from lockfile
-uv sync --locked
-
-# Run a single test
-uv run pytest tests/domain/expenses_test.py::test_create_expense -v
-```
+Detailed docs — read on demand, don't load into context:
+- Architecture & boundaries: `docs/architecture/`
+- Naming & conventions: `docs/development/conventions.md`
+- Testing patterns: `docs/development/testing.md`
+- Setup & environment: `docs/development/setup.md`
+- Deployment & operations: `docs/operations/`
+- Lessons learned: `tasks/lessons.md`
+- Planning artifacts: `_bmad-output/planning-artifacts/`

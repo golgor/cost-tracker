@@ -1,8 +1,8 @@
 # Conventions
 
-Coding conventions, naming rules, and patterns for Cost Tracker. This document extracts the
-key rules in human-readable form. The authoritative and complete reference is
-[CLAUDE.md](https://github.com/golgor/cost-tracker/blob/main/CLAUDE.md) at the project root.
+Coding conventions, naming rules, and patterns for Cost Tracker. This is the detailed
+reference for naming, architecture boundaries, and code patterns. AGENTS.md points here
+for on-demand reading.
 
 ## Architecture
 

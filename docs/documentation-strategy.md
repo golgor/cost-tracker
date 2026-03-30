@@ -226,11 +226,11 @@ docs/
 
 ---
 
-## 7. CLAUDE.md and AGENTS.md Relationship
+## 7. AGENTS.md and Lessons
 
-These files serve AI agents and should **not** be merged into `/docs`. They stay at the project
-root. However, `docs/development/conventions.md` should reference CLAUDE.md as the authoritative
-source, extracting a human-friendly subset rather than duplicating content. This avoids drift.
+`AGENTS.md` serves AI agents and stays at the project root. `tasks/lessons.md` contains accumulated
+conventions and hard-won rules. `docs/development/conventions.md` extracts a human-friendly subset
+rather than duplicating content. This avoids drift.
 
 ---
 
