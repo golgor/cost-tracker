@@ -325,7 +325,7 @@ def calculate_settlement_transfer(
     user2_id: int,
 ) -> TransferDirection:
     """
-    Returns who pays whom based on net group balance.
+    Returns who pays whom based on net balance.
     If user1 has positive balance (owes), user1 pays user2.
     """
     net = user1_balance + user2_balance  # Should be ~0 for 2-person
