@@ -6,31 +6,13 @@ from typing import Any
 
 from sqlmodel import Session, func, select
 
-from app.adapters.sqlalchemy.orm_models import (
-    ExpenseRow,
-    GroupRow,
-    MembershipRow,
-    UserRow,
-)
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_filtered_expenses
-from app.domain.balance import calculate_balances, minimize_transactions
-from app.domain.splits.config import BalanceConfig
+from app.adapters.sqlalchemy.orm_models import ExpenseRow, ExpenseSplitRow
+from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users, get_filtered_expenses
+from app.domain.balance import calculate_balances_from_splits, minimize_transactions
 
 
-def get_default_group_id(session: Session) -> int | None:
-    """Get the ID of the default (singleton) group, or None if no group exists."""
-    row = session.exec(select(GroupRow).limit(1)).first()
-    return row.id if row else None
-
-
-def get_group_currency(session: Session, group_id: int) -> str:
-    """Get the default currency for a group."""
-    row = session.get(GroupRow, group_id)
-    return row.default_currency if row else "EUR"
-
-
-def get_this_month_expense_count(session: Session, group_id: int) -> int:
-    """Count expenses in the current calendar month for a group."""
+def get_this_month_expense_count(session: Session) -> int:
+    """Count expenses in the current calendar month."""
     today = date.today()
     first_of_month = date(today.year, today.month, 1)
 
@@ -42,39 +24,26 @@ def get_this_month_expense_count(session: Session, group_id: int) -> int:
     statement = (
         select(func.count())
         .select_from(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.date >= first_of_month)
         .where(ExpenseRow.date <= last_of_month)
     )
     return session.exec(statement).one()
 
 
-def get_member_display_names(session: Session, group_id: int) -> dict[int, str]:
-    """Fetch {user_id: display_name} for all members of a group."""
-    statement = (
-        select(UserRow.id, UserRow.display_name)
-        .join(MembershipRow, MembershipRow.user_id == UserRow.id)  # type: ignore[arg-type]
-        .where(MembershipRow.group_id == group_id)
-    )
-    rows = session.exec(statement).all()
-    return {row[0]: row[1] for row in rows}  # type: ignore[index]
+def get_balance_summary(session: Session) -> dict[str, Any]:
+    """Compute balance from both partners' perspectives.
 
-
-def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
-    """Compute balance from both members' perspectives.
-
-    Uses the same domain logic as the settlement flow (calculate_balances +
-    minimize_transactions) to ensure consistent results.
+    Uses calculate_balances_from_splits() (same as dashboard and settlement
+    flows) to ensure consistent results across all views.
 
     Returns: {
         "net_amount": str (Decimal),
         "direction": str (e.g. "Alice owes Bob" or "All square"),
         "members": [{"name": str, "net": str}, ...]
     }
-
-    Positive net = member is owed money; negative = member owes money.
     """
-    names = get_member_display_names(session, group_id)
+    users = get_all_users(session)
+    names = {u.id: u.display_name for u in users}
     member_ids = list(names.keys())
 
     if len(member_ids) < 2:
@@ -84,10 +53,19 @@ def get_balance_summary(session: Session, group_id: int) -> dict[str, Any]:
             "members": [{"name": names.get(uid, "Unknown"), "net": "0.00"} for uid in member_ids],
         }
 
-    # Fetch all pending expenses and compute balance using proven domain logic
-    expenses = get_filtered_expenses(session, group_id, status="PENDING")
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    # Fetch all pending expenses
+    expenses = get_filtered_expenses(session, status="PENDING")
+
+    # Load persisted splits
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]] = {}
+    for expense in expenses:
+        rows = session.exec(
+            select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense.id)
+        ).all()
+        splits_by_expense[expense.id] = [(r.user_id, r.amount) for r in rows]
+
+    # Use shared domain logic
+    balances = calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
     transactions = minimize_transactions(balances)
 
     # Build direction string from transactions

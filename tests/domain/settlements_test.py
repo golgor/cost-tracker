@@ -5,10 +5,13 @@ from decimal import Decimal
 
 import pytest
 
-from app.domain.balance import SettlementTransaction, calculate_balances, minimize_transactions
+from app.domain.balance import (
+    SettlementTransaction,
+    calculate_balances_from_splits,
+    minimize_transactions,
+)
 from app.domain.errors import EmptySettlementError, StaleExpenseError
 from app.domain.models import ExpenseStatus
-from app.domain.splits import BalanceConfig
 from app.domain.use_cases.settlements import (
     confirm_settlement,
     format_transfer_message,
@@ -277,8 +280,8 @@ class TestCalculateBalancesIntegration:
             ),
         ]
 
-        config = BalanceConfig()
-        balances = calculate_balances(expenses, [user1.id, user2.id], config)
+        splits = {1: [(user1.id, Decimal("50.00")), (user2.id, Decimal("50.00"))]}
+        balances = calculate_balances_from_splits(expenses, splits, [user1.id, user2.id])
 
         assert balances[user1.id].net_balance.amount == Decimal("50.00")
         assert balances[user2.id].net_balance.amount == Decimal("-50.00")
@@ -306,8 +309,8 @@ class TestCalculateBalancesIntegration:
             ),
         ]
 
-        config = BalanceConfig()
-        balances = calculate_balances(expenses, [user1.id, user2.id], config)
+        splits = {1: [(user1.id, Decimal("50.00")), (user2.id, Decimal("50.00"))]}
+        balances = calculate_balances_from_splits(expenses, splits, [user1.id, user2.id])
         transactions = minimize_transactions(balances)
 
         assert len(transactions) == 1
