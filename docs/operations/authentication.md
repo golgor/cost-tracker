@@ -114,15 +114,11 @@ User access is managed entirely by the OIDC provider. The app does not maintain 
 active/inactive state — if a user exists in the OIDC provider and can authenticate, they
 can use the app.
 
-### First User Bootstrap
+### User Provisioning
 
-The first user to log in is automatically promoted to **app admin**. This user can then:
-
-- Manage other users' roles (promote to admin, demote to regular)
-- The setup wizard creates the initial household group
-
-Subsequent users who log in via OIDC are automatically provisioned as regular users and
-added to the default group.
+Users who log in via OIDC are automatically provisioned. The `MAX_USERS` setting (default 2)
+limits how many users can be created. Both partners are equal — there are no roles or admin
+hierarchy.
 
 ### Removing a User
 

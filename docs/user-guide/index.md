@@ -25,7 +25,7 @@ The core loop is simple:
 ## Key Concepts
 
 **Expenses** are shared costs paid by one person on behalf of the household. Each expense tracks
-who paid and how the cost is split between members.
+who paid and how the cost is split between partners.
 
 **Split types** determine how an expense is divided:
 
@@ -43,6 +43,6 @@ insurance). They can auto-generate expenses when due or be triggered manually.
 
 ## Sections
 
-- [Getting Started](getting-started.md) — First login, setup wizard, and adding your first expense
+- [Getting Started](getting-started.md) — First login and adding your first expense
 - [Features](features.md) — Detailed walkthrough of all features
 - [FAQ](faq.md) — Common questions and answers

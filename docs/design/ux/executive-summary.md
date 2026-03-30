@@ -63,7 +63,7 @@ immediately obvious.
 
 ## Design Opportunities
 
-1. **Location typeahead with progressive enhancement** — Ship as a plain text field in MVP1a. In MVP1d, upgrade to a
+1. **Location typeahead with progressive enhancement** — Ship as a plain text field initially. Later, upgrade to a
    client-side filtered dropdown from a pre-loaded list of previously used locations (small vendored JS component).
    Keeps the core stack pure while delivering the smart shortcut later. Top 5-10 locations likely cover 80% of entries.
 2. **"Add Expense" as the hero action, always reachable** — A persistent, unmissable entry point on every screen
@@ -88,8 +88,7 @@ immediately obvious.
   reframe "description" in the PRD accordingly, with "notes" remaining as optional additional context. Affects FR1 and
   the expense form design. To be reconciled with PRD separately.
 - **HTMX constraint: Location typeahead** — Server round-trip typeahead is feasible but latency-sensitive.
-  Recommendation is client-side filtering from a pre-loaded location list to avoid tight server loops. Deferred to MVP1d
-  polish phase.
+  Recommendation is client-side filtering from a pre-loaded location list to avoid tight server loops.
 - **Settlement workflow model** — Settlement is a co-located activity: both partners sit together, Golgor drives the
   review on one screen, Partner follows along and discusses. No async handoff, no notifications needed. The stateless
   review model in the PRD (FR21) aligns with this — no state to track between sessions. The UX should prioritize

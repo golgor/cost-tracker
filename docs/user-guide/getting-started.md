@@ -8,30 +8,8 @@ A walkthrough of your first session with Cost Tracker — from login to your fir
 2. You'll be redirected to your OIDC provider (Authentik or similar) to log in
 3. After authenticating, you're redirected back to Cost Tracker
 
-The **first user** to log in is automatically made an admin. Subsequent users are added as regular
-members.
-
-## Setup Wizard
-
-On your first login, you'll walk through a three-step setup:
-
-### Step 1: Confirm Your Profile
-
-Your display name and email are pulled from your OIDC provider. Confirm they look correct.
-
-### Step 2: Create Your Household
-
-Give your household a name (e.g., "Home", "Our Place"). This is the group that expenses are
-tracked under.
-
-### Step 3: Configure Defaults
-
-- **Currency** — select your household currency (EUR, USD, GBP, SEK, NOK, DKK, CHF)
-- **Default split** — how expenses are divided by default (even split)
-- **Tracking threshold** — how many days of expenses to include in balance calculations
-  (default: 365 days)
-
-After completing setup, you'll land on the main expenses page.
+Your account is automatically provisioned from your OIDC profile (display name and email).
+After login, you land directly on the expenses page.
 
 ## Adding Your First Expense
 
@@ -51,9 +29,9 @@ That's it. Your balance updates automatically.
 
 ## Inviting Your Partner
 
-When your partner logs in via the same OIDC provider, they are automatically added to your
-household. No invite codes or manual setup needed — the first admin's group becomes the default
-group for new users.
+Your partner just logs in via the same OIDC provider. Their account is auto-provisioned and
+they see the same shared expenses. No invite codes or manual setup needed. The `MAX_USERS`
+setting (default 2) limits how many users can be created.
 
 ## Day-to-Day Usage
 
@@ -70,6 +48,5 @@ reaching for the mouse.
 
 ## What's Next
 
-- [Features](features.md) — Detailed walkthrough of expenses, settlements, recurring costs,
-  and admin features
+- [Features](features.md) — Detailed walkthrough of expenses, settlements, and recurring costs
 - [FAQ](faq.md) — Common questions

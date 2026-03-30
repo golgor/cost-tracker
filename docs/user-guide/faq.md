@@ -15,8 +15,8 @@ so you control your data.
 
 ### How many people can use it?
 
-The app is designed for households — typically 2 people, but the data model supports multiple
-members per group.
+The app is designed for a single household of two partners. The `MAX_USERS` environment variable
+(default 2) limits user creation. Both partners are equal — there are no admin or role distinctions.
 
 ## Expenses
 

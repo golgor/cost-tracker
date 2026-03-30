@@ -34,7 +34,7 @@ cost-tracker/
 │   ├── deployment/
 │   │   └── guide.md                        # Docker, GHCR, ArgoCD, k3s setup
 │   └── user-guide/
-│       ├── getting-started.md              # First-time: login → create group → add expense (mirrors setup wizard)
+│       ├── getting-started.md              # First-time: login → add expense
 │       ├── expenses.md                     # Adding, editing, splitting, accepting/gifting
 │       ├── settlements.md                  # Review, approve, confirm flow
 │       ├── recurring.md                    # Creating definitions, auto-generation, editing
@@ -47,7 +47,7 @@ cost-tracker/
 │   ├── dependencies.py                     # Composition root: wires adapters → use cases
 │   ├── domain/
 │   │   ├── __init__.py
-│   │   ├── models.py                       # SQLModel base classes: ExpenseBase, SettlementBase, RecurringDefinitionBase, AuditEntryBase, GroupBase, UserBase + public read models
+│   │   ├── models.py                       # SQLModel base classes: ExpenseBase, SettlementBase, RecurringDefinitionBase, AuditEntryBase, UserBase + public read models
 │   │   ├── errors.py                       # DomainError hierarchy: ExpenseNotFound, InvalidSplit, etc.
 │   │   ├── ports.py                        # Protocol interfaces: ExpensePort, SettlementPort, RecurringPort, AuditPort, UnitOfWork
 │   │   ├── splits.py                       # Pure math: even/shares/percentage/amount split, deterministic rounding
@@ -84,14 +84,12 @@ cost-tracker/
 │   │   ├── expenses.py                     # /expenses — CRUD routes, HTMX partials
 │   │   ├── settlements.py                  # /settlements — review/confirm flow, history
 │   │   ├── recurring.py                    # /recurring — definition CRUD, manual generation
-│   │   ├── groups.py                       # /groups — setup wizard, member management
 │   │   ├── auth.py                         # /login, /callback, /logout — OIDC endpoints
 │   │   └── forms/
 │   │       ├── __init__.py
 │   │       ├── expenses.py                 # ExpenseForm, SplitForm (Pydantic)
 │   │       ├── settlements.py              # SettlementConfirmForm (Pydantic)
-│   │       ├── recurring.py                # RecurringDefinitionForm (Pydantic)
-│   │       └── groups.py                   # GroupSetupForm, MemberForm (Pydantic)
+│   │       └── recurring.py                # RecurringDefinitionForm (Pydantic)
 │   ├── api/
 │   │   └── v1/                             # Deferred post-MVP
 │   │       ├── __init__.py
@@ -131,10 +129,6 @@ cost-tracker/
 │   │   │   ├── detail.html                 # Definition detail
 │   │   │   ├── _row.html                   # Definition row partial
 │   │   │   └── _form.html                  # Definition form partial
-│   │   ├── groups/
-│   │   │   ├── setup.html                  # Setup wizard (FR40)
-│   │   │   ├── settings.html               # Group settings
-│   │   │   └── _members.html               # Member management partial
 │   │   └── auth/
 │   │       └── login.html                  # Login page (pre-OIDC redirect)
 │   └── static/
@@ -183,7 +177,7 @@ in `alembic/env.py`.
 
 - `app/adapters/sqlalchemy/` implements domain ports using SQLAlchemy
 - ORM models (`XxxRow`) never leave adapter boundary — mapped to domain public models
-  (e.g., `UserPublic`, `GroupPublic`) via `_to_public()` before return
+  (e.g., `UserPublic`, `ExpensePublic`) via `_to_public()` before return
 - ORM rows are created directly as `XxxRow(...)` since they inherit from domain base classes — no `_to_row()` needed
 - Timestamp columns (`created_at`, `updated_at`) are server/SQLAlchemy-managed — adapters must not set them manually
 - `queries/` package is a controlled read-only bypass for view queries — no writes permitted
@@ -222,7 +216,7 @@ in `alembic/env.py`.
 | Settlement (FR13-FR22) | `use_cases/settlements.py`, `ports.py` | `settlement_adapter.py`, `queries/settlement_queries.py` | `web/settlements.py` | `settlements/` |
 | Recurring Costs (FR23-FR29) | `use_cases/recurring.py`, `ports.py` | `recurring_adapter.py` | `web/recurring.py` | `recurring/` |
 | Dashboard & Overview (FR30-FR38) | — (view concern) | `queries/dashboard_queries.py` | `web/dashboard.py` | `dashboard/` |
-| Group & User Mgmt (FR39-FR42) | `models.py` | `queries/dashboard_queries.py` | `web/groups.py` | `groups/` |
+| User Management (FR39-FR42) | `models.py` | `queries/dashboard_queries.py` | `web/auth.py` | `auth/` |
 | Audit & History (FR43-FR44) | `ports.py` (AuditPort) | `audit_adapter.py`, `queries/audit_queries.py` | `web/dashboard.py` | `dashboard/` |
 
 **Cross-Cutting Concerns Mapping:**
@@ -282,7 +276,7 @@ Browser → HTMX GET → web/dashboard.py
 ```text
 Browser → GET /settlements/review → web/settlements.py
   → with uow: [
-      queries/settlement_queries.py → list_unsettled_expenses(group_id)
+      queries/settlement_queries.py → list_unsettled_expenses()
     ] → Session.close()
   → templates/settlements/review.html (checkbox form)
 
@@ -297,9 +291,9 @@ Browser → POST /settlements/confirm → web/settlements.py
 Browser → POST /settlements → web/settlements.py
   → Parse expense_ids + confirm data
   → with uow: [
-      use_cases/settlements.confirm_settlement(uow, expense_ids, actor_id, group_id)
+      use_cases/settlements.confirm_settlement(uow, expense_ids, actor_id)
         → Validate expenses still available (SELECT FOR UPDATE)
-        → uow.settlements.create(reference=generate_reference(), group_id=group_id, actor_id)
+        → uow.settlements.create(reference=generate_reference(), actor_id=actor_id)
         → uow.expenses.link_to_settlement(expense_ids, settlement_id, actor_id)
         → uow.commit()
     ] → UnitOfWork.__exit__() → Session.commit()
