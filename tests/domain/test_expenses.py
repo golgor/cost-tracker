@@ -5,9 +5,6 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
-from app.domain.errors import GroupNotFoundError
 from app.domain.models import ExpensePublic, ExpenseStatus, SplitType
 from app.domain.use_cases.expenses import create_expense
 
@@ -16,16 +13,11 @@ def test_create_expense_success(mocker):
     """Test creating a valid expense with all required fields."""
     # Setup mock UnitOfWork
     uow = MagicMock()
-    group = MagicMock()
-    group.id = 1
-    group.default_currency = "EUR"
-    uow.groups.get_by_id.return_value = group
 
     # Setup mock expense after save
     now = datetime.now()
     saved_expense = ExpensePublic(
         id=123,
-        group_id=1,
         amount=Decimal("50.00"),
         description="Spar",
         date=date_type.today(),
@@ -42,12 +34,12 @@ def test_create_expense_success(mocker):
     # Act
     result = create_expense(
         uow=uow,
-        group_id=1,
         amount=Decimal("50.00"),
         description="Spar",
         creator_id=1,
         payer_id=2,
         member_ids=[1, 2],
+        currency="EUR",
     )
 
     # Assert
@@ -61,17 +53,12 @@ def test_create_expense_success(mocker):
 
 
 def test_create_expense_with_explicit_currency(mocker):
-    """Test creating an expense with explicit currency overrides group default."""
+    """Test creating an expense with explicit currency."""
     uow = MagicMock()
-    group = MagicMock()
-    group.id = 1
-    group.default_currency = "EUR"
-    uow.groups.get_by_id.return_value = group
 
     now = datetime.now()
     saved_expense = ExpensePublic(
         id=124,
-        group_id=1,
         amount=Decimal("100.00"),
         description="USD expense",
         date=date_type.today(),
@@ -87,7 +74,6 @@ def test_create_expense_with_explicit_currency(mocker):
 
     result = create_expense(
         uow=uow,
-        group_id=1,
         amount=Decimal("100.00"),
         description="USD expense",
         creator_id=1,
@@ -97,20 +83,3 @@ def test_create_expense_with_explicit_currency(mocker):
     )
 
     assert result.currency == "USD"
-
-
-def test_create_expense_group_not_found():
-    """Test that creating an expense fails if group doesn't exist."""
-    uow = MagicMock()
-    uow.groups.get_by_id.return_value = None
-
-    with pytest.raises(GroupNotFoundError):
-        create_expense(
-            uow=uow,
-            group_id=999,
-            amount=Decimal("50.00"),
-            description="Spar",
-            creator_id=1,
-            payer_id=2,
-            member_ids=[1, 2],
-        )

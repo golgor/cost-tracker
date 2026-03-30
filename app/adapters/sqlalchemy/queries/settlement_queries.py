@@ -25,7 +25,6 @@ from app.domain.models import (
 
 def get_unsettled_expenses_grouped(
     session: Session,
-    group_id: int,
 ) -> dict[str, list[ExpensePublic]]:
     """Fetch unsettled expenses grouped by week.
 
@@ -36,7 +35,6 @@ def get_unsettled_expenses_grouped(
     """
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.status != ExpenseStatus.SETTLED)
         .order_by(ExpenseRow.date.desc())  # type: ignore[attr-defined]
     )
@@ -54,22 +52,20 @@ def get_unsettled_expenses_grouped(
     return grouped
 
 
-def get_unsettled_count(session: Session, group_id: int) -> int:
+def get_unsettled_count(session: Session) -> int:
     """Count unsettled expenses for dashboard widget."""
     statement = (
         select(func.count())
         .select_from(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.status != ExpenseStatus.SETTLED)
     )
     return session.exec(statement).one()
 
 
-def get_oldest_unsettled_date(session: Session, group_id: int) -> date | None:
+def get_oldest_unsettled_date(session: Session) -> date | None:
     """Get date of oldest unsettled expense for escalation check."""
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.status != ExpenseStatus.SETTLED)
         .order_by(ExpenseRow.date.asc())  # type: ignore[attr-defined]
         .limit(1)

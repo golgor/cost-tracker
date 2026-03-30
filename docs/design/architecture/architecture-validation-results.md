@@ -12,7 +12,7 @@ conflicts.
 Implementation patterns from Step 5 align with the hexagonal architecture decisions in Step 4. Naming conventions
 (`XxxPort`, `SqlAlchemyXxxAdapter`, `XxxRow`) are consistent across all code examples. Per ADR-011, ORM `XxxRow` models
 inherit from domain `XxxBase` (SQLModel, no `table=True`), and adapters use `_to_public()` to convert ORM rows to public
-domain models (e.g., `UserPublic`, `GroupPublic`). Contract tests verify round-trip mapping preserves all fields via
+domain models (e.g., `UserPublic`, `ExpensePublic`). Contract tests verify round-trip mapping preserves all fields via
 `_to_public()`. Error handling flows through a single global exception handler — no conflicting per-route patterns.
 
 **Structure Alignment:**
@@ -27,7 +27,7 @@ architectural tests.
 
 - **FR1–FR5** (Authentication): Covered by `auth/` module (OIDC, session, middleware) + ADR-07
 - **FR6–FR11** (Expense Management): Covered by `domain/use_cases/expenses.py` + `ExpensePort` + web/API routes
-- **FR12–FR15** (Group Management): Covered by `domain/use_cases/groups.py` + web routes
+- **FR12–FR15** (User Management): Covered by OIDC auto-provisioning + `UserPort` + `MAX_USERS` setting
 - **FR16–FR22** (Settlement): Covered by `domain/use_cases/settlements.py` + `SettlementPort` + `SELECT FOR UPDATE`
   pattern
 - **FR23–FR29** (Recurring Costs): Covered by `domain/use_cases/recurring.py` + `RecurringPort` + idempotency constraint
@@ -41,7 +41,7 @@ architectural tests.
 
 - **NFR1–NFR3** (Performance): <1s page load addressed by sync SQLAlchemy + simple queries on small dataset. Dashboard
   query bypasses domain for direct reads
-- **NFR4–NFR6** (Security): OIDC + signed cookies + CSRF tokens + group-scoped access. Three-layer validation
+- **NFR4–NFR6** (Security): OIDC + signed cookies + CSRF tokens + `MAX_USERS` enforcement. Three-layer validation
 - **NFR7–NFR9** (Reliability): UnitOfWork for transactional consistency. `SELECT FOR UPDATE` for concurrent settlements.
   Idempotency constraints for recurring generation
 - **NFR10–NFR12** (Maintainability): Hexagonal architecture enforced by `architecture_test.py`. Clear module boundaries.

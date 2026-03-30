@@ -32,7 +32,7 @@ def get_uow(session: DbSession) -> UnitOfWork:
 
     Usage in route handlers:
         with uow:
-            # Perform operations on uow.users, uow.groups, etc.
+            # Perform operations on uow.users, uow.expenses, etc.
             # Transaction automatically commits on success, rolls back on exception
 
     Session lifecycle is managed by get_db_session() generator.

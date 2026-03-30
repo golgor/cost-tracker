@@ -6,7 +6,6 @@ from decimal import Decimal
 from app.domain.errors import (
     DomainError,
     DuplicateBillingPeriodError,  # noqa: F401 — re-exported for caller convenience
-    GroupNotFoundError,
     RecurringDefinitionNotFoundError,
 )
 from app.domain.models import (
@@ -24,53 +23,43 @@ from app.domain.recurring import advance_due_date, billing_period_for, format_ex
 
 def create_recurring_definition(
     uow: UnitOfWorkPort,
-    group_id: int,
     name: str,
     amount: Decimal,
     frequency: RecurringFrequency,
     next_due_date: date_type,
     payer_id: int,
+    currency: str,
     split_type: SplitType = SplitType.EVEN,
     split_config: dict | None = None,
     interval_months: int | None = None,
     category: str | None = None,
     auto_generate: bool = False,
-    currency: str | None = None,
 ) -> RecurringDefinitionPublic:
     """Create a new recurring cost definition.
 
     Args:
         uow: Unit of work for transaction management
-        group_id: ID of the group this definition belongs to
         name: Name of the recurring cost (e.g. "Netflix")
         amount: Amount per billing cycle (must be > 0)
         frequency: Billing frequency (MONTHLY, QUARTERLY, etc.)
         next_due_date: Next billing date
         payer_id: User ID who pays this recurring cost
+        currency: Currency code
         split_type: How the cost is split between members
         split_config: Configuration for non-even splits
         interval_months: Required when frequency is EVERY_N_MONTHS (>= 1)
         category: Optional category label
         auto_generate: Whether expenses are created automatically
-        currency: Currency code (defaults to group's configured currency)
 
     Returns:
         The persisted RecurringDefinitionPublic.
 
     Raises:
-        GroupNotFoundError: If the group doesn't exist
         DomainError: If interval_months constraint is violated
     """
-    group = uow.groups.get_by_id(group_id)
-    if group is None:
-        raise GroupNotFoundError(f"Group {group_id} not found")
-
     _validate_interval_months(frequency, interval_months)
 
-    effective_currency = currency or group.default_currency
-
     definition = RecurringDefinitionBase(
-        group_id=group_id,
         name=name,
         amount=amount,
         frequency=frequency,
@@ -82,7 +71,7 @@ def create_recurring_definition(
         category=category,
         auto_generate=auto_generate,
         is_active=True,
-        currency=effective_currency,
+        currency=currency,
     )
 
     return uow.recurring.save(definition)
@@ -177,7 +166,6 @@ def create_expense_from_definition(
     description = format_expense_description(definition.name, billing_period)
 
     expense = ExpenseBase(
-        group_id=definition.group_id,
         amount=definition.amount,
         description=description,
         date=definition.next_due_date,

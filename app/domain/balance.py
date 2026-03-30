@@ -14,8 +14,6 @@ from app.domain.value_objects import Money
 
 if TYPE_CHECKING:
     from app.domain.models import ExpensePublic
-    from app.domain.splits.config import BalanceConfig
-    from app.domain.splits.strategies import SplitStrategy
 
 
 @dataclass(frozen=True)
@@ -90,114 +88,51 @@ class SettlementTransaction:
     amount: Money
 
 
-def calculate_balances(
+def calculate_balances_from_splits(
     expenses: list[ExpensePublic],
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]],
     member_ids: list[int],
-    config: BalanceConfig,
-    strategy: SplitStrategy | None = None,
 ) -> dict[int, MemberBalance]:
-    """Calculate balances for all group members.
+    """Calculate balances using pre-loaded split amounts.
 
-    Computes how much each member paid vs. their fair share, resulting
-    in net balances (positive = owed money, negative = owes money).
-
-    The calculation works for any number of members (2, 3, N) and uses
-    the provided split strategy to determine fair shares.
+    This is the canonical balance calculation that respects all split types
+    (even, percentage, shares, exact) by reading persisted split rows rather
+    than re-deriving them. Used by both the dashboard and settlement flows.
 
     Args:
-        expenses: List of pending expenses to calculate from
-        member_ids: All member user IDs in the group
-        config: Rounding configuration (precision, mode)
-        strategy: Split strategy (default: EvenSplitStrategy)
+        expenses: List of expenses to calculate from
+        splits_by_expense: {expense_id: [(user_id, amount), ...]} from expense_splits table
+        member_ids: All user IDs in the household
 
     Returns:
         Dictionary mapping user_id to MemberBalance
-
-    Raises:
-        CurrencyMismatchError: If expenses have different currencies
-        InvalidShareError: If share calculation fails
-
-    Example:
-        >>> expenses = [ExpensePublic(amount=Decimal("100.00"), payer_id=1, ...)]
-        >>> member_ids = [1, 2, 3]
-        >>> config = BalanceConfig()
-        >>> balances = calculate_balances(expenses, member_ids, config)
-        >>> balances[1].net_balance.amount  # Payer is owed
-        Decimal('33.34')
-        >>> balances[2].net_balance.amount  # Others owe
-        Decimal('-33.33')
     """
-    from app.domain.errors import CurrencyMismatchError, InvalidShareError
-    from app.domain.splits.strategies import EvenSplitStrategy
     from app.domain.value_objects import Money
 
-    # Validate inputs
-    if not member_ids:
-        raise InvalidShareError("Cannot calculate balances for empty group")
-
     if not expenses:
-        # No expenses means everyone has zero balance
-        currency = "EUR"  # Default
+        currency = "EUR"
         zero = Money(Decimal("0"), currency)
-        return {user_id: MemberBalance(user_id, zero, zero, zero) for user_id in member_ids}
+        return {uid: MemberBalance(uid, zero, zero, zero) for uid in member_ids}
 
-    # Validate all expenses have same currency
-    currencies = {e.currency for e in expenses}
-    if len(currencies) > 1:
-        raise CurrencyMismatchError(currencies)
+    currency = expenses[0].currency
 
-    currency = next(iter(currencies))
+    amount_paid: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
+    fair_share: dict[int, Decimal] = {uid: Decimal("0") for uid in member_ids}
 
-    # Use default strategy if none provided
-    if strategy is None:
-        strategy = EvenSplitStrategy()
-
-    # Initialize tracking for each member
-    amount_paid: dict[int, Money] = {uid: Money(Decimal("0"), currency) for uid in member_ids}
-    fair_share: dict[int, Money] = {uid: Money(Decimal("0"), currency) for uid in member_ids}
-
-    # Process each expense
     for expense in expenses:
-        # Track how much each person paid
-        payer_id = expense.payer_id
-        if payer_id in amount_paid:
-            expense_amount = Money(expense.amount, expense.currency)
-            amount_paid[payer_id] = amount_paid[payer_id] + expense_amount
+        if expense.payer_id in amount_paid:
+            amount_paid[expense.payer_id] += expense.amount
 
-        # Calculate fair shares using strategy
-        try:
-            shares = strategy.calculate_shares(expense, member_ids)
-        except Exception as e:
-            raise InvalidShareError(
-                f"Failed to calculate shares for expense {expense.id}: {e}"
-            ) from e
-
-        # Accumulate fair share for each member
-        for user_id, share in shares.items():
+        for user_id, split_amount in splits_by_expense.get(expense.id, []):
             if user_id in fair_share:
-                fair_share[user_id] = fair_share[user_id] + share
+                fair_share[user_id] += split_amount
 
-    # Build MemberBalance for each member
     result: dict[int, MemberBalance] = {}
-    for user_id in member_ids:
-        paid = amount_paid[user_id]
-        owed = fair_share[user_id]
-        net = paid - owed
-
-        # Apply rounding according to config
-        paid_rounded = _round_money(paid, config)
-        owed_rounded = _round_money(owed, config)
-        net_rounded = _round_money(net, config)
-
-        result[user_id] = MemberBalance(
-            user_id=user_id,
-            amount_paid=paid_rounded,
-            fair_share=owed_rounded,
-            net_balance=net_rounded,
-        )
-
-    # Handle rounding errors: ensure sum of net balances equals zero
-    _adjust_rounding_errors(result, member_ids, config)
+    for uid in member_ids:
+        paid = Money(amount_paid[uid], currency)
+        owed = Money(fair_share[uid], currency)
+        net = Money(amount_paid[uid] - fair_share[uid], currency)
+        result[uid] = MemberBalance(uid, paid, owed, net)
 
     return result
 
@@ -281,60 +216,3 @@ def minimize_transactions(balances: dict[int, MemberBalance]) -> list[Settlement
             creditors[0] = (creditor_id, remaining_credit)
 
     return transactions
-
-
-def _round_money(money: Money, config: BalanceConfig) -> Money:
-    """Round Money according to configuration.
-
-    Args:
-        money: Money to round
-        config: BalanceConfig with rounding settings
-
-    Returns:
-        Rounded Money
-    """
-    rounded = money.amount.quantize(config.rounding_precision, rounding=config.rounding_mode)
-    return Money(rounded, money.currency)
-
-
-def _adjust_rounding_errors(
-    balances: dict[int, MemberBalance],
-    member_ids: list[int],
-    config: BalanceConfig,
-) -> None:
-    """Adjust rounding errors to ensure sum of net balances equals zero.
-
-    Due to rounding, the sum of all net balances may not exactly equal zero
-    (e.g., 33.33 + 33.33 + 33.34 = 100.00, but net balances sum to 0.01).
-
-    This function adjusts the largest net balance (typically the payer)
-    to absorb any rounding discrepancy by adjusting their fair share.
-
-    Args:
-        balances: Dictionary of MemberBalance (modified in place via dict replacement)
-        member_ids: List of member IDs in input order
-        config: BalanceConfig
-    """
-    currency = next(iter(balances.values())).net_balance.currency
-
-    total_amount = sum(b.net_balance.amount for b in balances.values())
-    if total_amount == 0:
-        return
-
-    # Find member with largest absolute net balance to absorb error
-    # Prefer the first member in the list (typically the payer)
-    max_user_id = max(
-        balances.keys(),
-        key=lambda uid: (abs(balances[uid].net_balance.amount), -member_ids.index(uid)),
-    )
-
-    old_balance = balances[max_user_id]
-    new_net_balance = Money(old_balance.net_balance.amount - total_amount, currency)
-    new_fair_share = Money(old_balance.amount_paid.amount - new_net_balance.amount, currency)
-
-    balances[max_user_id] = MemberBalance(
-        user_id=max_user_id,
-        amount_paid=old_balance.amount_paid,
-        fair_share=_round_money(new_fair_share, config),
-        net_balance=_round_money(new_net_balance, config),
-    )

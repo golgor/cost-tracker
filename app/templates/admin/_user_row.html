@@ -5,31 +5,4 @@
   <td class="px-6 py-4 whitespace-nowrap text-sm text-stone-600">
     {{ u.email }}
   </td>
-  <td class="px-6 py-4 whitespace-nowrap">
-    <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{ u.role_badge_color }}">
-      {{ u.role_label }}
-    </span>
-  </td>
-  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-    <div class="flex justify-end gap-2">
-      {% if u.show_promote %}
-      <button
-        hx-post="/admin/users/{{ u.id }}/promote"
-        hx-swap="outerHTML"
-        hx-target="closest tr"
-        class="px-3 py-1 text-sm bg-stone-100 text-stone-700 rounded hover:bg-stone-200 focus-ring">
-        Promote
-      </button>
-      {% endif %}
-      {% if u.show_demote %}
-      <button
-        hx-post="/admin/users/{{ u.id }}/demote"
-        hx-swap="outerHTML"
-        hx-target="closest tr"
-        class="px-3 py-1 text-sm bg-stone-100 text-stone-700 rounded hover:bg-stone-200 focus-ring">
-        Demote
-      </button>
-      {% endif %}
-    </div>
-  </td>
 </tr>

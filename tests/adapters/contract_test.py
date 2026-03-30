@@ -8,11 +8,10 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.adapters.sqlalchemy.group_adapter import SqlAlchemyGroupAdapter
-from app.adapters.sqlalchemy.orm_models import MembershipRow, UserRow
+from app.adapters.sqlalchemy.orm_models import UserRow
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
-from app.domain.models import MemberRole, RecurringFrequency, SplitType
+from app.domain.models import RecurringFrequency, SplitType
 
 
 class TestUserAdapterContract:
@@ -116,150 +115,29 @@ class TestUserAdapterContract:
         assert not isinstance(retrieved, UserRow)
 
 
-class TestGroupAdapterContract:
-    """Contract tests for Group adapter round-trip mapping."""
-
-    def test_save_and_retrieve_group_by_id(self, db_session: Session):
-        """Group can be saved and retrieved by ID with all fields preserved."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
-
-        group = adapter.save(
-            "Home",
-            default_currency="EUR",
-            default_split_type=SplitType.EVEN,
-            tracking_threshold=45,
-        )
-        db_session.commit()
-
-        retrieved = adapter.get_by_id(group.id)
-
-        assert retrieved is not None
-        assert retrieved.id == group.id
-        assert retrieved.name == "Home"
-        assert retrieved.default_currency == "EUR"
-        assert retrieved.default_split_type == SplitType.EVEN
-        assert retrieved.tracking_threshold == 45
-        assert retrieved.created_at is not None
-        assert retrieved.updated_at is not None
-
-    def test_get_default_group_returns_singleton_group(self, db_session: Session):
-        """Default group returns the first/only persisted household group."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
-
-        created = adapter.save("Family")
-        db_session.commit()
-
-        default_group = adapter.get_default_group()
-
-        assert default_group is not None
-        assert default_group.id == created.id
-        assert default_group.name == "Family"
-
-    def test_add_member_and_get_membership_round_trip(self, db_session: Session):
-        """Membership can be added and retrieved with role/joined_at preserved."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
-
-        user = user_adapter.save(
-            oidc_sub="auth0|member_contract",
-            email="member@example.com",
-            display_name="Member User",
-        )
-        group = group_adapter.save("Apartment")
-        db_session.commit()
-
-        membership = group_adapter.add_member(group.id, user.id, MemberRole.ADMIN)
-        db_session.commit()
-
-        retrieved = group_adapter.get_membership(user.id, group.id)
-
-        assert retrieved is not None
-        assert membership.user_id == user.id
-        assert membership.group_id == group.id
-        assert membership.role == MemberRole.ADMIN
-        assert membership.joined_at is not None
-        assert retrieved.user_id == user.id
-        assert retrieved.group_id == group.id
-        assert retrieved.role == MemberRole.ADMIN
-        assert retrieved.joined_at is not None
-
-    def test_get_by_user_id_returns_users_group(self, db_session: Session):
-        """Group can be resolved from user membership."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
-
-        user = user_adapter.save(
-            oidc_sub="auth0|lookup_by_user",
-            email="lookup@example.com",
-            display_name="Lookup User",
-        )
-        group = group_adapter.save("Household")
-        group_adapter.add_member(group.id, user.id, MemberRole.USER)
-        db_session.commit()
-
-        retrieved_group = group_adapter.get_by_user_id(user.id)
-
-        assert retrieved_group is not None
-        assert retrieved_group.id == group.id
-        assert retrieved_group.name == "Household"
-
-    def test_group_row_never_leaves_adapter(self, db_session: Session):
-        """Group adapter returns GroupPublic, not GroupRow."""
-        adapter = SqlAlchemyGroupAdapter(db_session)
-
-        group = adapter.save("Boundary Group")
-        db_session.commit()
-
-        retrieved = adapter.get_by_id(group.id)
-
-        assert retrieved is not None
-        assert type(retrieved).__name__ == "GroupPublic"
-
-    def test_membership_row_never_leaves_adapter(self, db_session: Session):
-        """Membership adapter method returns MembershipPublic, not MembershipRow."""
-        user_adapter = SqlAlchemyUserAdapter(db_session)
-        group_adapter = SqlAlchemyGroupAdapter(db_session)
-
-        user = user_adapter.save(
-            oidc_sub="auth0|membership_boundary",
-            email="membership-boundary@example.com",
-            display_name="Membership Boundary",
-        )
-        group = group_adapter.save("Boundary Household")
-        db_session.commit()
-
-        membership = group_adapter.add_member(group.id, user.id, MemberRole.USER)
-        db_session.commit()
-
-        assert type(membership).__name__ == "MembershipPublic"
-        assert not isinstance(membership, MembershipRow)
-
-
 class TestRecurringDefinitionAdapterContract:
     """Contract tests for RecurringDefinition adapter round-trip mapping."""
 
     def _make_adapter(self, session: Session) -> SqlAlchemyRecurringDefinitionAdapter:
         return SqlAlchemyRecurringDefinitionAdapter(session)
 
-    def _make_group_and_payer(self, session: Session):
-        """Create a test group and user for use as payer_id/group_id."""
-        from tests.conftest import create_test_group, create_test_user
+    def _make_payer(self, session: Session):
+        """Create a test user for use as payer_id."""
+        from tests.conftest import create_test_user
 
         user = create_test_user(session, "auth0|contract_recurring", "recurring@example.com")
-        group = create_test_group(session, user.id)
-        return group, user
+        return user
 
     def test_save_and_retrieve_by_id(self, db_session: Session):
         """RecurringDefinition can be saved and retrieved by ID with all fields preserved."""
         from app.domain.models import RecurringDefinitionPublic
 
-        group, user = self._make_group_and_payer(db_session)
+        user = self._make_payer(db_session)
         adapter = self._make_adapter(db_session)
 
         defn = adapter.save(
             RecurringDefinitionPublic.model_construct(
                 id=0,
-                group_id=group.id,
                 name="Netflix",
                 amount=Decimal("14.99"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -289,14 +167,13 @@ class TestRecurringDefinitionAdapterContract:
         """split_config dict is persisted and retrieved without data loss."""
         from app.domain.models import RecurringDefinitionPublic
 
-        group, user = self._make_group_and_payer(db_session)
+        user = self._make_payer(db_session)
         adapter = self._make_adapter(db_session)
 
         split_config = {"1": "60", "2": "40"}
         defn = adapter.save(
             RecurringDefinitionPublic.model_construct(
                 id=0,
-                group_id=group.id,
                 name="Electricity",
                 amount=Decimal("75.00"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -318,13 +195,12 @@ class TestRecurringDefinitionAdapterContract:
         """EVERY_N_MONTHS frequency with interval_months is preserved."""
         from app.domain.models import RecurringDefinitionPublic
 
-        group, user = self._make_group_and_payer(db_session)
+        user = self._make_payer(db_session)
         adapter = self._make_adapter(db_session)
 
         defn = adapter.save(
             RecurringDefinitionPublic.model_construct(
                 id=0,
-                group_id=group.id,
                 name="Car Insurance",
                 amount=Decimal("340.00"),
                 frequency=RecurringFrequency.EVERY_N_MONTHS,
@@ -347,13 +223,12 @@ class TestRecurringDefinitionAdapterContract:
         """soft_delete() sets deleted_at; row is not removed from DB."""
         from app.domain.models import RecurringDefinitionPublic
 
-        group, user = self._make_group_and_payer(db_session)
+        user = self._make_payer(db_session)
         adapter = self._make_adapter(db_session)
 
         defn = adapter.save(
             RecurringDefinitionPublic.model_construct(
                 id=0,
-                group_id=group.id,
                 name="To Be Deleted",
                 amount=Decimal("9.99"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -376,13 +251,12 @@ class TestRecurringDefinitionAdapterContract:
         """adapter returns RecurringDefinitionPublic, not RecurringDefinitionRow."""
         from app.domain.models import RecurringDefinitionPublic
 
-        group, user = self._make_group_and_payer(db_session)
+        user = self._make_payer(db_session)
         adapter = self._make_adapter(db_session)
 
         defn = adapter.save(
             RecurringDefinitionPublic.model_construct(
                 id=0,
-                group_id=group.id,
                 name="Boundary Test",
                 amount=Decimal("9.99"),
                 frequency=RecurringFrequency.MONTHLY,

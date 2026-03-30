@@ -54,8 +54,7 @@ continued use.
 
 - Adding an expense: amount → location → save. Three interactions, under 30 seconds. Form resets for immediate next
   entry during batch sessions. Amount and location are both required — two fields, still fast, but ensures every expense
-  is scannable at review time. (Location requirement to be validated against real usage in MVP1a — if users consistently
-  fill it voluntarily, consider making it optional.)
+  is scannable at review time.
 - Checking the balance: open dashboard, glance at the balance bar. No clicks, no navigation — it's the first thing you
   see.
 - Switching between unsettled and settled expense views: single tap/click, instant partial swap via HTMX.
@@ -77,7 +76,6 @@ continued use.
 - Settlement review: deliberately paced, every expense visible, accept/discard is a conscious choice per item. More
   friction is acceptable here — it builds confidence. Pre-accepted default aligns with trust philosophy (assume expenses
   are correct, review is about finding exceptions).
-- First-run setup wizard: one-time, triggered by first OIDC login when no household exists. Can be methodical.
 - Recurring cost management: dedicated view, less frequent interaction. Doesn't need to be instant.
 
 ## Critical Success Moments
@@ -104,10 +102,6 @@ continued use.
 5. **"We're done already?"** — The first settlement that takes 10 minutes instead of an hour. Review, confirm, copy
    reference, transfer. The settlement completion moment should feel visually conclusive — not just a button click, but
    a clear "chapter closed" signal. The "receipts in a bowl" era is officially over.
-
-6. **(Future — MVP2) "Everyone can see what they owe"** — The first trip settlement where 4 people look at a graphical
-   balance overview and immediately understand who owes whom without explanation. Visual clarity replaces group-chat
-   confusion.
 
 ## Experience Principles
 
@@ -154,11 +148,11 @@ The following decisions surfaced during core experience definition and need reso
 | 3 | Home screen — dashboard confirmed as landing page (supports check-in loop) | All loops | Three-loop model argues for dashboard-as-home |
 | 4 | Persistent form vs. re-open for desktop batch entry | Check-in loop | Persistent form dramatically improves Partner's flow |
 | 5 | Date picker interaction — calendar widget vs. keyboard-friendly input on desktop | Check-in loop | Keyboard input faster for batch entry |
-| 6 | "What's new" indicator — needed, or is newest-first sort sufficient? | Check-in loop | Date headers + sort order may suffice. Validate in MVP1a before building dedicated feature |
+| 6 | "What's new" indicator — needed, or is newest-first sort sufficient? | Check-in loop | Date headers + sort order may suffice |
 | 7 | Settlement completion visual moment — how to signal "chapter closed" | Settlement loop | Should feel conclusive, not just a button click |
 | 8 | Pre-accepted vs. pre-unselected default in settlement review | Settlement loop | Pre-accepted aligns with trust philosophy |
 | 9 | Undo/re-accept during settlement review — how to reverse a discard | Settlement loop | Must be possible and obvious since review is stateless |
 | 10 | "Settle Up" button visibility — always visible or contextual based on unsettled count | Settlement loop | Edge case — what if zero unsettled expenses? |
-| 11 | Location field required vs. optional — required improves review quality but adds capture friction | Capture vs. review tension | Validate against real usage in MVP1a. Trust philosophy says optional; review quality says required |
-| 12 | Mobile bottom nav with 4 items + FAB — too crowded? Does FAB need to become a different pattern when nav grows in MVP1d? | Navigation | 4 items + elevated FAB may crowd smaller phones. Test at implementation. Consider collapsing to 3 items + "More" or repositioning FAB |
+| 11 | Location field required vs. optional — required improves review quality but adds capture friction | Capture vs. review tension | Trust philosophy says optional; review quality says required |
+| 12 | Mobile bottom nav with 4 items + FAB — too crowded? | Navigation | 4 items + elevated FAB may crowd smaller phones. Test at implementation. Consider collapsing to 3 items + "More" or repositioning FAB |
 | 13 | Recurring cost definition form — progressive disclosure grouping for 9 fields? | Recurring cost registry | Which fields are primary (always visible) vs. secondary (behind "More options")? See form hierarchy note in Create/Edit flow |

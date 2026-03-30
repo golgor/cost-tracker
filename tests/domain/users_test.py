@@ -1,162 +1,89 @@
-"""Tests for user lifecycle and admin management use cases."""
-
-import pytest
+"""Tests for user lifecycle use cases."""
 
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
-from app.domain.errors import UserNotFoundError
-from app.domain.models import UserRole
 from app.domain.use_cases import users as user_use_cases
 
 
-@pytest.fixture
-def first_user(uow: UnitOfWork):
-    """Create first user without admin role."""
-    with uow:
-        user = uow.users.save(
-            oidc_sub="user1",
-            email="user1@example.com",
-            display_name="User One",
-        )
-    return user
+class TestProvisionUser:
+    """Test user provisioning via OIDC."""
 
-
-@pytest.fixture
-def second_user(uow: UnitOfWork):
-    """Create second user without admin role."""
-    with uow:
-        user = uow.users.save(
-            oidc_sub="user2",
-            email="user2@example.com",
-            display_name="User Two",
-        )
-    return user
-
-
-class TestBootstrapAdminRole:
-    """Test first user admin bootstrap logic."""
-
-    def test_first_user_gets_admin_role_when_provisioned(self, uow: UnitOfWork):
-        """AC1: First user automatically becomes admin."""
-        assert uow.users.count_admins() == 0
-
-        # Provision first user
+    def test_provision_creates_new_user(self, uow: UnitOfWork):
+        """New OIDC user is created on first login."""
         with uow:
             user = user_use_cases.provision_user(
                 uow,
-                oidc_sub="admin@example.com",
-                email="admin@example.com",
-                display_name="admin",
+                oidc_sub="new_user_sub",
+                email="new@example.com",
+                display_name="New User",
             )
 
-            # Manually promote first user to admin (bootstrap logic)
-            admin = uow.users.promote_to_admin(user.id)
+        assert user.id is not None
+        assert user.oidc_sub == "new_user_sub"
+        assert user.email == "new@example.com"
+        assert user.display_name == "New User"
 
-        assert admin.role == UserRole.ADMIN
-        assert uow.users.count_admins() == 1
-
-    def test_second_user_gets_regular_role_when_admin_exists(
-        self, first_user: dict, uow: UnitOfWork
-    ):
-        """AC2: After first admin exists, new users are regular users by default."""
-        # Promote first user to admin
+    def test_provision_updates_existing_user(self, uow: UnitOfWork):
+        """Existing OIDC user gets updated on subsequent login."""
         with uow:
-            uow.users.promote_to_admin(first_user.id)
-
-            # Provision second user
-            user = user_use_cases.provision_user(
+            user_use_cases.provision_user(
                 uow,
-                oidc_sub="user2",
-                email="user2@example.com",
-                display_name="User Two",
+                oidc_sub="existing_sub",
+                email="old@example.com",
+                display_name="Old Name",
             )
 
-        assert user.role == UserRole.USER
-        assert uow.users.count_admins() == 1
-
-
-class TestRoleManagement:
-    """Test user role promotion and demotion."""
-
-    def test_promote_user_to_admin(self, first_user, uow: UnitOfWork):
-        """AC6: User can be promoted to admin."""
-        assert first_user.role == UserRole.USER
-
-        user = user_use_cases.promote_user_to_admin(uow, first_user.id)
-
-        assert user.role == UserRole.ADMIN
-        assert uow.users.count_admins() == 1
-
-    def test_demote_admin_to_user(self, first_user, second_user, uow: UnitOfWork):
-        """Test demoting admin to regular user."""
-        with uow:
-            uow.users.promote_to_admin(first_user.id)
-
-        user = user_use_cases.demote_user_to_regular(uow, first_user.id)
-
-        assert user.role == UserRole.USER
-
-
-class TestBootstrapFirstAdmin:
-    """Test bootstrap_first_admin use case for admin promotion on first login."""
-
-    def test_first_user_is_promoted_when_no_admins_exist(self, uow: UnitOfWork):
-        """AC: First user is promoted to admin when no active admins exist."""
         with uow:
             user = user_use_cases.provision_user(
                 uow,
-                oidc_sub="first_login@example.com",
-                email="first_login@example.com",
-                display_name="First Login",
+                oidc_sub="existing_sub",
+                email="new@example.com",
+                display_name="New Name",
             )
 
-        with uow:
-            promoted_user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id)
+        assert user.email == "new@example.com"
+        assert user.display_name == "New Name"
 
-        assert was_promoted is True
-        assert promoted_user.role == UserRole.ADMIN
-        assert uow.users.count_admins() == 1
 
-    def test_existing_admin_not_reproduced(self, first_user, uow: UnitOfWork):
-        """AC: bootstrap_first_admin returns False when an admin already exists."""
-        # Promote first user to admin
-        with uow:
-            uow.users.promote_to_admin(first_user.id)
+class TestUserCount:
+    """Test user count functionality."""
 
-        # Create second user
+    def test_count_returns_zero_initially(self, uow: UnitOfWork):
+        """No users initially."""
+        assert uow.users.count() == 0
+
+    def test_count_increments_after_provision(self, uow: UnitOfWork):
+        """Count increases after provisioning users."""
         with uow:
-            second = user_use_cases.provision_user(
-                uow,
-                oidc_sub="second_login@example.com",
-                email="second_login@example.com",
-                display_name="Second Login",
+            user_use_cases.provision_user(
+                uow, oidc_sub="u1", email="u1@example.com", display_name="User 1"
             )
 
-        # Bootstrap second user - should not be promoted
-        with uow:
-            result_user, was_promoted = user_use_cases.bootstrap_first_admin(uow, second.id)
+        assert uow.users.count() == 1
 
-        assert was_promoted is False
-        assert result_user.role == UserRole.USER
-        assert uow.users.count_admins() == 1
-
-    def test_bootstrap_raises_on_nonexistent_user(self, uow: UnitOfWork):
-        """AC: bootstrap_first_admin raises error for nonexistent user when admin exists."""
-        # Create and promote a user to be the first admin
         with uow:
-            admin = user_use_cases.provision_user(
-                uow,
-                oidc_sub="admin@example.com",
-                email="admin@example.com",
-                display_name="Admin",
+            user_use_cases.provision_user(
+                uow, oidc_sub="u2", email="u2@example.com", display_name="User 2"
             )
-            uow.users.promote_to_admin(admin.id)
 
-        # Try to bootstrap a nonexistent user
-        with pytest.raises(UserNotFoundError), uow:
-            user_use_cases.bootstrap_first_admin(uow, 99999)
+        assert uow.users.count() == 2
 
-    def test_bootstrap_first_user_with_no_existence_check(self, uow: UnitOfWork):
-        """AC: bootstrap_first_admin promotes user if no admins exist."""
-        # Note: This tests the actual behavior - bootstrap_first_admin
-        # doesn't check user existence until promotion (when no admins exist).
-        pass  # See code comment in bootstrap_first_admin
+
+class TestGetAllUsers:
+    """Test get_all users functionality."""
+
+    def test_get_all_returns_empty_initially(self, uow: UnitOfWork):
+        """No users initially."""
+        assert uow.users.get_all() == []
+
+    def test_get_all_returns_all_users(self, uow: UnitOfWork):
+        """Returns all provisioned users."""
+        with uow:
+            user_use_cases.provision_user(
+                uow, oidc_sub="u1", email="u1@example.com", display_name="User 1"
+            )
+            user_use_cases.provision_user(
+                uow, oidc_sub="u2", email="u2@example.com", display_name="User 2"
+            )
+
+        all_users = uow.users.get_all()
+        assert len(all_users) == 2

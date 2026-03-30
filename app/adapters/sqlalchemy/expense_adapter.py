@@ -27,7 +27,6 @@ class SqlAlchemyExpenseAdapter:
     ) -> ExpensePublic:
         """Create a new expense. Returns the persisted expense."""
         row = ExpenseRow(
-            group_id=expense.group_id,
             amount=expense.amount,
             description=expense.description,
             date=expense.date,
@@ -62,13 +61,9 @@ class SqlAlchemyExpenseAdapter:
             return None
         return self._to_public(row)
 
-    def list_by_group(self, group_id: int) -> list[ExpensePublic]:
-        """List all expenses for a group, ordered by date descending."""
-        statement = (
-            select(ExpenseRow)
-            .where(ExpenseRow.group_id == group_id)
-            .order_by(ExpenseRow.date.desc())  # type: ignore
-        )
+    def list_all(self) -> list[ExpensePublic]:
+        """List all expenses, ordered by date descending."""
+        statement = select(ExpenseRow).order_by(ExpenseRow.date.desc())  # type: ignore
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
 
@@ -160,7 +155,6 @@ class SqlAlchemyExpenseAdapter:
             raise RuntimeError("Row ID must not be None for persisted rows")
         return ExpensePublic(
             id=row.id,
-            group_id=row.group_id,
             amount=row.amount,
             description=row.description,
             date=row.date,

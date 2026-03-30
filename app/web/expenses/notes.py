@@ -32,10 +32,6 @@ async def get_expense_notes(
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
     return _render_expense_notes_section(request, expense_id, user_id, uow)
 
 
@@ -67,10 +63,6 @@ async def add_expense_note(
     user = uow.users.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
     # Cannot add notes to settled expenses
     if expense.status == ExpenseStatus.SETTLED:

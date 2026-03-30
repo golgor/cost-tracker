@@ -29,7 +29,6 @@ class SqlAlchemySettlementAdapter:
     ) -> SettlementPublic:
         """Create a new settlement with linked expenses and transactions."""
         row = SettlementRow(
-            group_id=settlement.group_id,
             reference_id=settlement.reference_id,
             settled_by_id=settlement.settled_by_id,
             settled_at=settlement.settled_at,
@@ -73,14 +72,9 @@ class SqlAlchemySettlementAdapter:
             return None
         return self._to_public(row)
 
-    def list_by_group(self, group_id: int, limit: int = 100) -> list[SettlementPublic]:
-        """List settlements for a group, newest first."""
-        statement = (
-            select(SettlementRow)
-            .where(SettlementRow.group_id == group_id)
-            .order_by(SettlementRow.settled_at.desc())
-            .limit(limit)
-        )
+    def list_all(self, limit: int = 100) -> list[SettlementPublic]:
+        """List settlements, newest first."""
+        statement = select(SettlementRow).order_by(SettlementRow.settled_at.desc()).limit(limit)
         rows = self._session.exec(statement).all()
         return [self._to_public(row) for row in rows]
 
@@ -102,13 +96,9 @@ class SqlAlchemySettlementAdapter:
         rows = self._session.exec(statement).all()
         return [self._to_transaction_public(row) for row in rows]
 
-    def reference_exists(self, group_id: int, reference_id: str) -> bool:
-        """Check if a reference_id already exists for the group (unbounded query)."""
-        statement = (
-            select(SettlementRow)
-            .where(SettlementRow.group_id == group_id)
-            .where(SettlementRow.reference_id == reference_id)
-        )
+    def reference_exists(self, reference_id: str) -> bool:
+        """Check if a reference_id already exists (unbounded query)."""
+        statement = select(SettlementRow).where(SettlementRow.reference_id == reference_id)
         result = self._session.exec(statement).first()
         return result is not None
 
@@ -119,7 +109,6 @@ class SqlAlchemySettlementAdapter:
 
         return SettlementPublic(
             id=row.id,
-            group_id=row.group_id,
             reference_id=row.reference_id,
             settled_by_id=row.settled_by_id,
             settled_at=row.settled_at,

@@ -10,9 +10,6 @@ from app.domain.models import (
     ExpenseNotePublic,
     ExpensePublic,
     ExpenseSplitPublic,
-    GroupPublic,
-    MemberRole,
-    MembershipPublic,
     RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
@@ -44,80 +41,12 @@ class UserPort(Protocol):
         """Create or update a user. Returns the persisted user."""
         ...
 
-    def promote_to_admin(self, user_id: int) -> UserPublic:
-        """Promote user to admin role."""
+    def count(self) -> int:
+        """Count the total number of users."""
         ...
 
-    def demote_to_user(self, user_id: int) -> UserPublic:
-        """Demote user to regular user role."""
-        ...
-
-    def count_admins(self) -> int:
-        """Count the number of admin users."""
-        ...
-
-    def get_admins(self) -> list[UserPublic]:
-        """Get list of all admin users."""
-        ...
-
-
-class GroupPort(Protocol):
-    """Port for Group persistence operations."""
-
-    def get_by_id(self, group_id: int) -> GroupPublic | None:
-        """Retrieve group by database ID."""
-        ...
-
-    def get_by_user_id(self, user_id: int) -> GroupPublic | None:
-        """Retrieve group that user belongs to (MVP1: single household)."""
-        ...
-
-    def get_default_group(self) -> GroupPublic | None:
-        """Get the default/only household group (MVP1: single household)."""
-        ...
-
-    def save(
-        self,
-        name: str,
-        *,
-        default_currency: str = "EUR",
-        default_split_type: SplitType = SplitType.EVEN,
-        tracking_threshold: int = 30,
-    ) -> GroupPublic:
-        """Create a new group. Returns the persisted group."""
-        ...
-
-    def update(
-        self,
-        group_id: int,
-        *,
-        name: str | None = None,
-        default_currency: str | None = None,
-        default_split_type: SplitType | None = None,
-        tracking_threshold: int | None = None,
-    ) -> GroupPublic:
-        """Update group configuration. Returns the updated group."""
-        ...
-
-    def add_member(
-        self,
-        group_id: int,
-        user_id: int,
-        role: MemberRole,
-    ) -> MembershipPublic:
-        """Add a user to a group with specified role."""
-        ...
-
-    def get_membership(self, user_id: int, group_id: int) -> MembershipPublic | None:
-        """Get membership for a specific user and group."""
-        ...
-
-    def get_member_role(self, user_id: int, group_id: int) -> MemberRole | None:
-        """Get a user's role within a specific group."""
-        ...
-
-    def has_active_admin(self) -> bool:
-        """Check if any active admin exists in the system (admin bootstrap trigger)."""
+    def get_all(self) -> list[UserPublic]:
+        """Get list of all users."""
         ...
 
 
@@ -135,8 +64,8 @@ class ExpensePort(Protocol):
         """Retrieve expense by database ID."""
         ...
 
-    def list_by_group(self, group_id: int) -> list[ExpensePublic]:
-        """List all expenses for a group, ordered by date descending."""
+    def list_all(self) -> list[ExpensePublic]:
+        """List all expenses, ordered by date descending."""
         ...
 
     def update(
@@ -206,16 +135,15 @@ class SettlementPort(Protocol):
         """Retrieve settlement by database ID."""
         ...
 
-    def list_by_group(
+    def list_all(
         self,
-        group_id: int,
         limit: int = 100,
     ) -> list[SettlementPublic]:
-        """List settlements for a group, newest first."""
+        """List settlements, newest first."""
         ...
 
-    def reference_exists(self, group_id: int, reference_id: str) -> bool:
-        """Check if a reference_id already exists for the group (unbounded query)."""
+    def reference_exists(self, reference_id: str) -> bool:
+        """Check if a reference_id already exists (unbounded query)."""
         ...
 
     def get_expense_ids(self, settlement_id: int) -> list[int]:
@@ -238,14 +166,13 @@ class RecurringDefinitionPort(Protocol):
         """Retrieve recurring definition by database ID."""
         ...
 
-    def list_by_group(
+    def list_all(
         self,
-        group_id: int,
         *,
         active_only: bool = False,
         include_deleted: bool = False,
     ) -> list[RecurringDefinitionPublic]:
-        """List recurring definitions for a group.
+        """List recurring definitions.
 
         Excludes soft-deleted rows by default (include_deleted=False).
         """
@@ -291,12 +218,11 @@ class UnitOfWorkPort(Protocol):
     Usage:
         with uow:
             user = uow.users.save(...)
-            group = uow.groups.save(...)
+            expense = uow.expenses.save(...)
         # Transaction commits on success or rolls back on exception
     """
 
     users: UserPort
-    groups: GroupPort
     expenses: ExpensePort
     settlements: SettlementPort
     recurring: RecurringDefinitionPort

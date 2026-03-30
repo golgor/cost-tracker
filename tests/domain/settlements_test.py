@@ -5,10 +5,13 @@ from decimal import Decimal
 
 import pytest
 
-from app.domain.balance import SettlementTransaction, calculate_balances, minimize_transactions
+from app.domain.balance import (
+    SettlementTransaction,
+    calculate_balances_from_splits,
+    minimize_transactions,
+)
 from app.domain.errors import EmptySettlementError, StaleExpenseError
 from app.domain.models import ExpenseStatus
-from app.domain.splits import BalanceConfig
 from app.domain.use_cases.settlements import (
     confirm_settlement,
     format_transfer_message,
@@ -41,29 +44,19 @@ def user2(uow):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow):
-    """Create a test group with two members."""
-    with uow:
-        group = uow.groups.save(name="Test Household")
-        uow.groups.add_member(group.id, user1.id, "ADMIN")
-        uow.groups.add_member(group.id, user2.id, "USER")
-    return group
-
-
-@pytest.fixture
-def test_expense(user1, user2, test_group, uow):
+def test_expense(user1, user2, uow):
     """Create a test expense."""
     from app.domain.use_cases.expenses import create_expense
 
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("100.00"),
             description="Test expense",
             creator_id=user1.id,
             payer_id=user1.id,
             member_ids=[user1.id, user2.id],
+            currency="EUR",
         )
     return expense
 
@@ -99,10 +92,10 @@ class TestFormatTransferMessage:
 class TestGenerateReferenceId:
     """Tests for generate_reference_id function."""
 
-    def test_generate_reference_id_format(self, uow, test_group):
+    def test_generate_reference_id_format(self, uow):
         """Test reference ID follows Month Year format."""
         with uow:
-            ref = generate_reference_id(uow, test_group.id)
+            ref = generate_reference_id(uow)
 
         import calendar
 
@@ -110,7 +103,7 @@ class TestGenerateReferenceId:
         assert current_month in ref
         assert str(date.today().year) in ref
 
-    def test_generate_reference_id_unique(self, uow, test_group, user1, user2, test_expense):
+    def test_generate_reference_id_unique(self, uow, user1, user2, test_expense):
         """Test duplicate reference IDs get numbered suffix."""
         display_names = {user1.id: "Alice", user2.id: "Bob"}
         member_ids = list(display_names.keys())
@@ -118,7 +111,6 @@ class TestGenerateReferenceId:
         with uow:
             settlement1 = confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
                 member_ids=member_ids,
@@ -129,37 +121,35 @@ class TestGenerateReferenceId:
         with uow:
             create_expense(
                 uow=uow,
-                group_id=test_group.id,
                 amount=Decimal("50.00"),
                 description="Another expense",
                 creator_id=user1.id,
                 payer_id=user1.id,
                 member_ids=[user1.id, user2.id],
+                currency="EUR",
             )
 
         with uow:
-            ref2 = generate_reference_id(uow, test_group.id)
+            ref2 = generate_reference_id(uow)
             assert ref2 != settlement1.reference_id
 
 
 class TestConfirmSettlement:
     """Tests for confirm_settlement function."""
 
-    def test_confirm_settlement_creates_record(self, uow, test_group, user1, user2, test_expense):
+    def test_confirm_settlement_creates_record(self, uow, user1, user2, test_expense):
         """Test settlement creation and expense status update."""
         member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
                 member_ids=member_ids,
             )
 
         assert settlement.id > 0
-        assert settlement.group_id == test_group.id
         assert settlement.settled_by_id == user1.id
         assert settlement.reference_id
 
@@ -167,20 +157,17 @@ class TestConfirmSettlement:
             updated_expense = uow.expenses.get_by_id(test_expense.id)
             assert updated_expense.status == ExpenseStatus.SETTLED
 
-    def test_confirm_settlement_empty_expenses_raises_error(self, uow, test_group, user1):
+    def test_confirm_settlement_empty_expenses_raises_error(self, uow, user1):
         """Test that empty expense list raises error."""
         with pytest.raises(EmptySettlementError), uow:
             confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[],
                 settled_by_id=user1.id,
                 member_ids=[user1.id],
             )
 
-    def test_confirm_settlement_already_settled_raises_error(
-        self, uow, test_group, user1, user2, test_expense
-    ):
+    def test_confirm_settlement_already_settled_raises_error(self, uow, user1, user2, test_expense):
         """Test that already settled expenses raise error."""
         from app.adapters.sqlalchemy.orm_models import ExpenseRow
 
@@ -196,22 +183,18 @@ class TestConfirmSettlement:
         with pytest.raises(StaleExpenseError), uow:
             confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
                 member_ids=member_ids,
             )
 
-    def test_confirm_settlement_stores_transactions(
-        self, uow, test_group, user1, user2, test_expense
-    ):
+    def test_confirm_settlement_stores_transactions(self, uow, user1, user2, test_expense):
         """Test that settlement stores transactions."""
         member_ids = [user1.id, user2.id]
 
         with uow:
             settlement = confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[test_expense.id],
                 settled_by_id=user1.id,
                 member_ids=member_ids,
@@ -224,28 +207,28 @@ class TestConfirmSettlement:
         assert transactions[0].to_user_id == user1.id
         assert transactions[0].amount == Decimal("50.00")
 
-    def test_confirm_settlement_multiple_expenses(self, uow, test_group, user1, user2):
+    def test_confirm_settlement_multiple_expenses(self, uow, user1, user2):
         """Test settlement with multiple expenses."""
         from app.domain.use_cases.expenses import create_expense
 
         with uow:
             expense1 = create_expense(
                 uow=uow,
-                group_id=test_group.id,
                 amount=Decimal("100.00"),
                 description="Expense 1",
                 creator_id=user1.id,
                 payer_id=user1.id,
                 member_ids=[user1.id, user2.id],
+                currency="EUR",
             )
             expense2 = create_expense(
                 uow=uow,
-                group_id=test_group.id,
                 amount=Decimal("50.00"),
                 description="Expense 2",
                 creator_id=user1.id,
                 payer_id=user2.id,
                 member_ids=[user1.id, user2.id],
+                currency="EUR",
             )
 
         member_ids = [user1.id, user2.id]
@@ -253,7 +236,6 @@ class TestConfirmSettlement:
         with uow:
             settlement = confirm_settlement(
                 uow,
-                group_id=test_group.id,
                 expense_ids=[expense1.id, expense2.id],
                 settled_by_id=user1.id,
                 member_ids=member_ids,
@@ -285,7 +267,6 @@ class TestCalculateBalancesIntegration:
         expenses = [
             ExpensePublic(
                 id=1,
-                group_id=1,
                 amount=Decimal("100.00"),
                 description="User1 paid",
                 date=date.today(),
@@ -299,8 +280,8 @@ class TestCalculateBalancesIntegration:
             ),
         ]
 
-        config = BalanceConfig()
-        balances = calculate_balances(expenses, [user1.id, user2.id], config)
+        splits = {1: [(user1.id, Decimal("50.00")), (user2.id, Decimal("50.00"))]}
+        balances = calculate_balances_from_splits(expenses, splits, [user1.id, user2.id])
 
         assert balances[user1.id].net_balance.amount == Decimal("50.00")
         assert balances[user2.id].net_balance.amount == Decimal("-50.00")
@@ -315,7 +296,6 @@ class TestCalculateBalancesIntegration:
         expenses = [
             ExpensePublic(
                 id=1,
-                group_id=1,
                 amount=Decimal("100.00"),
                 description="User1 paid",
                 date=date.today(),
@@ -329,8 +309,8 @@ class TestCalculateBalancesIntegration:
             ),
         ]
 
-        config = BalanceConfig()
-        balances = calculate_balances(expenses, [user1.id, user2.id], config)
+        splits = {1: [(user1.id, Decimal("50.00")), (user2.id, Decimal("50.00"))]}
+        balances = calculate_balances_from_splits(expenses, splits, [user1.id, user2.id])
         transactions = minimize_transactions(balances)
 
         assert len(transactions) == 1

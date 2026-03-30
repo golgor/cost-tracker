@@ -8,45 +8,42 @@ from sqlmodel import Session, func, select
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseNoteRow,
     ExpenseRow,
-    MembershipRow,
+    ExpenseSplitRow,
     RecurringDefinitionRow,
+    UserRow,
 )
 from app.adapters.sqlalchemy.queries.mappings import expense_row_to_public
-from app.domain.balance import calculate_balances
-from app.domain.models import ExpensePublic, MembershipPublic
-from app.domain.splits.config import BalanceConfig
+from app.domain.balance import calculate_balances_from_splits
+from app.domain.models import ExpensePublic, UserPublic
 
 
-def get_group_members(session: Session, group_id: int) -> list[MembershipPublic]:
-    """Fetch all members of a group with their roles.
+def get_all_users(session: Session) -> list[UserPublic]:
+    """Fetch all users.
 
-    Used for dashboard to display group member info (badges, names, etc).
+    Used for member lists, payer dropdowns, and split calculations.
     """
-    statement = select(MembershipRow).where(MembershipRow.group_id == group_id)
-    rows = session.exec(statement).all()
-
+    rows = session.exec(select(UserRow)).all()
     return [
-        MembershipPublic(
-            user_id=row.user_id,
-            group_id=row.group_id,
-            role=row.role,
-            joined_at=row.joined_at,
+        UserPublic(
+            id=row.id,
+            oidc_sub=row.oidc_sub,
+            email=row.email,
+            display_name=row.display_name,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
         for row in rows
+        if row.id is not None
     ]
 
 
-def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> list[ExpensePublic]:
-    """Fetch all unsettled expenses for a group, newest first.
+def get_all_expenses(session: Session, limit: int = 100) -> list[ExpensePublic]:
+    """Fetch all expenses, newest first.
 
     Used for dashboard expense feed. Sorted by date descending for feed display.
-
-    Note: In Epic 4 (Story 4.3), this will filter out gift-status expenses.
-    Epic 4 (Story 4.2) will switch to selecting from expense_splits table for split-mode support.
     """
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.group_id == group_id)
         .order_by(
             ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
         )
@@ -59,7 +56,6 @@ def get_group_expenses(session: Session, group_id: int, limit: int = 100) -> lis
 
 def get_filtered_expenses(
     session: Session,
-    group_id: int,
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
@@ -71,7 +67,6 @@ def get_filtered_expenses(
 
     Args:
         session: Database session
-        group_id: Group ID to fetch expenses for
         date_from: Optional start date (inclusive)
         date_to: Optional end date (inclusive)
         payer_id: Optional payer user ID filter
@@ -84,7 +79,7 @@ def get_filtered_expenses(
 
     Used by /expenses route for filtered expense list viewing.
     """
-    statement = select(ExpenseRow).where(ExpenseRow.group_id == group_id)
+    statement = select(ExpenseRow)
 
     # Apply optional filters
     if date_from:
@@ -120,47 +115,42 @@ def get_filtered_expenses(
 
 def calculate_balance(
     session: Session,
-    group_id: int,
     user_id: int,
     date_from: date | None = None,
     date_to: date | None = None,
     payer_id: int | None = None,
     search_query: str | None = None,
 ) -> dict:
-    """Calculate current balance for a group using domain balance logic.
+    """Calculate current balance using persisted split amounts.
 
-    Uses the same calculate_balances() function as the settlement flow to
-    ensure consistent results. Fetches filtered pending expenses, then
-    delegates to the pure domain function.
+    Delegates to the same calculate_balances_from_splits() used by the
+    settlement flow, ensuring consistent results. Fetches filtered pending
+    expenses, loads their splits, then computes net balances.
 
     Returns: {
-        "current_user_is_owed": Decimal,  # positive = current user is owed, negative = owes
+        "current_user_is_owed": Decimal,
         "partner_id": int | None,
-        "formatted_message": str,  # "All square!" if zero, else formatted balance
+        "formatted_message": str,
         "is_positive": bool,
         "is_negative": bool,
         "is_zero": bool,
     }
-
-    Optionally filters by date range, payer, and search query.
     """
-    # Get group members to identify partner
-    members = get_group_members(session, group_id)
-    if not members:
+    users = get_all_users(session)
+    if not users:
         return {
             "current_user_is_owed": Decimal("0.00"),
             "partner_id": None,
             "formatted_message": "All square!",
         }
 
-    other_members = [m.user_id for m in members if m.user_id != user_id]
-    partner_id = other_members[0] if other_members else None
-    member_ids = [m.user_id for m in members]
+    other_users = [u.id for u in users if u.id != user_id]
+    partner_id = other_users[0] if other_users else None
+    member_ids = [u.id for u in users]
 
     # Fetch pending expenses with optional filters
     expenses = get_filtered_expenses(
         session,
-        group_id,
         date_from=date_from,
         date_to=date_to,
         payer_id=payer_id,
@@ -178,9 +168,16 @@ def calculate_balance(
             "is_zero": True,
         }
 
-    # Use proven domain logic (same as settlement flow)
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    # Load persisted splits for each expense
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]] = {}
+    for expense in expenses:
+        rows = session.exec(
+            select(ExpenseSplitRow).where(ExpenseSplitRow.expense_id == expense.id)
+        ).all()
+        splits_by_expense[expense.id] = [(r.user_id, r.amount) for r in rows]
+
+    # Use shared domain logic (same as settlement flow)
+    balances = calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
     balance = balances[user_id].net_balance.amount
 
     # Format message
@@ -215,12 +212,10 @@ def get_recurring_definition_names(session: Session, definition_ids: list[int]) 
     return {row.id: row.name for row in rows if row.id is not None}
 
 
-def get_this_month_total(session: Session, group_id: int) -> Decimal:
-    """Sum all expenses in the current calendar month for a group.
+def get_this_month_total(session: Session) -> Decimal:
+    """Sum all expenses in the current calendar month.
 
     Used for "This Month" widget display.
-
-    In Epic 4 (Story 4.3), this will exclude GIFT status expenses.
     """
     today = date.today()
     first_of_month = date(today.year, today.month, 1)
@@ -233,7 +228,6 @@ def get_this_month_total(session: Session, group_id: int) -> Decimal:
 
     statement = (
         select(func.sum(ExpenseRow.amount))
-        .where(ExpenseRow.group_id == group_id)
         .where(ExpenseRow.date >= first_of_month)
         .where(ExpenseRow.date <= last_of_month)
     )

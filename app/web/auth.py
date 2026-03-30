@@ -10,12 +10,6 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.oidc import get_oauth
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.errors import (
-    DuplicateMembershipError,
-    GroupNotFoundError,
-)
-from app.domain.models import MemberRole
-from app.domain.use_cases import groups as group_use_cases
 from app.domain.use_cases import users as user_use_cases
 from app.settings import settings
 
@@ -63,45 +57,6 @@ def _extract_user_info_from_token(token: dict) -> tuple[str, str, str]:
     return oidc_sub, email, display_name
 
 
-def _determine_redirect_url(uow: UnitOfWork, user_id: int) -> str:
-    """Determine where to redirect after successful login.
-
-    Returns:
-        "/" for dashboard (user already in group or will be auto-assigned)
-        "/setup" for setup wizard (first admin on onboarding)
-    """
-    # Check if user already has group membership
-    existing_group = uow.groups.get_by_user_id(user_id)
-    if existing_group:
-        return "/"
-
-    # Check if we need setup wizard (no active admin yet)
-    if not uow.groups.has_active_admin():
-        return "/setup"
-
-    # Active admin exists - auto-provision user to default group
-    group = uow.groups.get_default_group()
-    if group is None:
-        raise GroupNotFoundError("Active admin exists but no default group found")
-
-    try:
-        group_use_cases.add_member(
-            uow=uow,
-            group_id=group.id,
-            user_id=user_id,
-            role=MemberRole.USER,
-        )
-        logger.info("Auto-provisioned user %d to group %d as USER", user_id, group.id)
-    except DuplicateMembershipError:
-        logger.info(
-            "User %d already had membership in group %d during callback auto-provision",
-            user_id,
-            group.id,
-        )
-
-    return "/"
-
-
 @router.get("/callback")
 async def callback(request: Request, uow: UowDep):
     """Handle OIDC callback, provision user if needed, create session."""
@@ -137,22 +92,39 @@ async def callback(request: Request, uow: UowDep):
             status_code=400,
         )
 
-    # Step 3: Provision user and handle all database mutations in transaction
+    # Step 3: Check if user exists or provision new user
     with uow:
-        user = user_use_cases.provision_user(
-            uow,
-            oidc_sub=oidc_sub,
-            email=email,
-            display_name=display_name,
-        )
+        existing_user = uow.users.get_by_oidc_sub(oidc_sub)
 
-        # Bootstrap first admin if needed
-        user, was_promoted = user_use_cases.bootstrap_first_admin(uow, user.id)
-        if was_promoted:
-            logger.info("Promoted first user %d to admin role", user.id)
+        if existing_user is not None:
+            user = existing_user
+        else:
+            # New user — check MAX_USERS limit
+            if uow.users.count() >= settings.MAX_USERS:
+                logger.warning(
+                    "User limit reached (%d), rejecting new user with sub=%s",
+                    settings.MAX_USERS,
+                    oidc_sub,
+                )
+                return templates.TemplateResponse(
+                    request,
+                    "auth/error.html",
+                    {
+                        "csrf_token": "",
+                        "error_message": (
+                            f"User limit reached. This instance only allows "
+                            f"{settings.MAX_USERS} users."
+                        ),
+                    },
+                    status_code=403,
+                )
 
-        # Determine redirect and auto-provision to group if needed
-        redirect_url = _determine_redirect_url(uow, user.id)
+            user = user_use_cases.provision_user(
+                uow,
+                oidc_sub=oidc_sub,
+                email=email,
+                display_name=display_name,
+            )
 
     # Step 4: Trigger auto-generation on login (best-effort, limit to avoid slow logins)
     try:
@@ -166,7 +138,7 @@ async def callback(request: Request, uow: UowDep):
 
     # Step 5: Create session cookie and redirect
     session_value = encode_session(user.id)
-    response = RedirectResponse(redirect_url, status_code=302)
+    response = RedirectResponse("/", status_code=302)
     response.set_cookie(
         "cost_tracker_session",
         session_value,

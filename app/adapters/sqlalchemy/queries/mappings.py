@@ -19,7 +19,6 @@ def expense_row_to_public(row: ExpenseRow) -> ExpensePublic:
 
     return ExpensePublic(
         id=row.id,
-        group_id=row.group_id,
         amount=row.amount,
         description=row.description,
         date=row.date,
@@ -43,7 +42,6 @@ def settlement_row_to_public(row: SettlementRow) -> SettlementPublic:
 
     return SettlementPublic(
         id=row.id,
-        group_id=row.group_id,
         reference_id=row.reference_id,
         settled_by_id=row.settled_by_id,
         settled_at=row.settled_at,

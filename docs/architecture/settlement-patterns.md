@@ -123,7 +123,7 @@ def generate_settlement_reference(
 
 ### Uniqueness Constraints
 
-- **Database**: `UNIQUE(group_id, reference)`
+- **Database**: `UNIQUE(reference)` — one settlement per month, app-wide
 - **Application**: Check for existing settlement before creation
 - **Race condition**: DB constraint catches concurrent creation attempts
 
@@ -132,21 +132,19 @@ def generate_settlement_reference(
 def create(
     self,
     reference: str,
-    group_id: int,
     actor_id: int,
 ) -> Settlement:
     try:
         row = SettlementRow(
             reference=reference,
-            group_id=group_id,
             # ... other fields
         )
         self._session.add(row)
         self._session.flush()  # Trigger constraint check
         return self._to_public(row)
     except IntegrityError as e:
-        if "settlements_group_id_reference_key" in str(e):
-            raise DuplicateSettlementError(reference, group_id)
+        if "uq_settlements_reference" in str(e):
+            raise DuplicateSettlementError(reference)
         raise
 ```
 
@@ -175,7 +173,7 @@ def calculate_settlement_transfer(
 ) -> TransferDirection:
     """Calculate who should pay whom to settle balances.
 
-    In a 2-person group, balances should be roughly inverse:
+    In a 2-person household, balances should be roughly inverse:
     - If user1 owes $100, user2 should be owed $100
     - But actual values may differ due to rounding
 
@@ -247,9 +245,7 @@ async def review_settlement(
     uow: UowDep,
 ):
     with uow:
-        expenses = uow.queries.list_unsettled_expenses(
-            group_id=get_group_id_for_user(user_id)
-        )
+        expenses = uow.queries.list_unsettled_expenses()
 
     return templates.TemplateResponse(
         "settlements/review.html",
@@ -330,7 +326,6 @@ async def create_settlement(
             uow=uow,
             expense_ids=form.expense_ids,
             actor_id=user_id,
-            group_id=get_group_id_for_user(user_id),
         )
 
     return RedirectResponse(
@@ -349,7 +344,7 @@ async def create_settlement(
 | Empty selection | Validation error on confirm page |
 | Partial selection already settled | Error message listing which expenses settled |
 
-## Group-Centric Design
+## App-Wide Settlement Scope
 
 ### Schema Design
 
@@ -359,29 +354,26 @@ class SettlementRow(SettlementBase, table=True):
     __tablename__ = "settlements"
 
     id: int | None = Field(default=None, primary_key=True)
-    group_id: int = Field(foreign_key="groups.id", nullable=False)
     reference: str = Field(nullable=False)
     # ... other fields
 
-    # Unique per group, not globally
     __table_args__ = (
-        UniqueConstraint("group_id", "reference"),
+        UniqueConstraint("reference", name="uq_settlements_reference"),
     )
 ```
 
 ### Query Patterns
 
-All settlement queries must filter by `group_id`:
+Settlements are app-wide (single household of two partners):
 
 ```python
 # adapters/sqlalchemy/queries/settlement_queries.py
 def list_settlements(
-    session: Session, group_id: int
+    session: Session,
 ) -> list[SettlementSummary]:
-    """List all settlements for a group."""
+    """List all settlements."""
     stmt = (
         select(SettlementRow)
-        .where(SettlementRow.group_id == group_id)
         .order_by(SettlementRow.created_at.desc())
     )
     rows = session.execute(stmt).scalars().all()
@@ -390,26 +382,21 @@ def list_settlements(
 def get_settlement_detail(
     session: Session,
     settlement_id: int,
-    group_id: int
 ) -> SettlementDetail | None:
-    """Get settlement detail scoped to group."""
+    """Get settlement detail."""
     stmt = (
         select(SettlementRow)
-        .where(
-            SettlementRow.id == settlement_id,
-            SettlementRow.group_id == group_id
-        )
+        .where(SettlementRow.id == settlement_id)
         .options(selectinload(SettlementRow.expenses))
     )
     row = session.execute(stmt).scalar_one_or_none()
     return to_detail(row) if row else None
 ```
 
-### Security Implications
+### Security
 
-- **Authorization**: Group membership verified before any settlement access
-- **Isolation**: Settlement ID 123 in group A is distinct from settlement ID 123 in group B
-- **Future-proof**: Adding multi-group support requires no schema changes
+- **Authorization**: OIDC login required; `MAX_USERS` setting limits household to two partners
+- **Isolation**: Single household scope -- all data is shared between both partners
 
 ## Concurrency Protection
 
@@ -452,7 +439,6 @@ def confirm_settlement(
     uow: UnitOfWork,
     expense_ids: list[int],
     actor_id: int,
-    group_id: int,
 ) -> Settlement:
     """Atomically create settlement and link expenses."""
     reference = generate_settlement_reference()
@@ -460,7 +446,6 @@ def confirm_settlement(
     # All operations in single transaction via UoW context manager
     settlement = uow.settlements.create(
         reference=reference,
-        group_id=group_id,
         actor_id=actor_id,
     )
 
@@ -529,14 +514,14 @@ def test_concurrent_settlement_creation_prevented(postgresql_engine):
 ```python
 # tests/web/settlement_routes_test.py
 def test_settlement_review_shows_unsettled_expenses(
-    client, group_with_expenses
+    client, expenses_fixture
 ):
     response = client.get("/settlements/review")
     assert response.status_code == 200
     assert b"Unsettled Expense 1" in response.content
 
 def test_settlement_create_links_expenses(
-    client, group_with_expenses
+    client, expenses_fixture
 ):
     expense_ids = get_unsettled_expense_ids()
     response = client.post(
@@ -553,14 +538,13 @@ def test_settlement_create_links_expenses(
 - [ADR-012: Human-Readable Settlement References](./core-architectural-decisions.md)
 - [ADR-013: Soft Immutability for Settled Expenses](./core-architectural-decisions.md)
 - [ADR-014: Stateless Settlement Review Flow](./core-architectural-decisions.md)
-- [ADR-015: Group-Centric Settlement Design](./core-architectural-decisions.md)
 
 ## Migration Notes
 
 When adding settlements to existing schema:
 
 1. **Add `settlement_id` to expenses table** (nullable FK)
-2. **Create settlements table** with group_id FK and unique constraint
+2. **Create settlements table** with unique constraint on reference
 3. **Backfill**: Existing expenses have `settlement_id = NULL` (PENDING state)
 4. **No data migration needed** for new settlement feature
 
@@ -572,7 +556,6 @@ CREATE INDEX idx_expenses_settlement_id ON expenses(settlement_id);
 
 CREATE TABLE settlements (
     id SERIAL PRIMARY KEY,
-    group_id INTEGER NOT NULL REFERENCES groups(id),
     reference VARCHAR(255) NOT NULL,
     total_amount DECIMAL(12, 2) NOT NULL,
     from_user_id INTEGER REFERENCES users(id),
@@ -580,6 +563,6 @@ CREATE TABLE settlements (
     transfer_amount DECIMAL(12, 2) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by INTEGER NOT NULL REFERENCES users(id),
-    UNIQUE(group_id, reference)
+    UNIQUE(reference)
 );
 ```

@@ -207,34 +207,11 @@ flowchart TD
 
 ---
 
-## First-Run Setup
+## First Login
 
-**Who:** Golgor as admin (first OIDC login), then Partner (second OIDC login)
-**Entry point:** First OIDC login — user auto-provisioned from OIDC claims, app detects no household exists
-**Goal:** Create household group and start using the app
-
-```mermaid
-flowchart TD
-    A[Deploy Docker Image<br>ArgoCD Syncs<br>Health Probes Pass] --> B[Golgor Opens App<br>Redirected to Authentik Login]
-    B --> C[OIDC Login via Authentik]
-    C --> D[Redirect Back to App<br>OIDC Claims Received<br>User Auto-Provisioned]
-    D --> E{Household Exists?}
-    E -->|No — first user ever| F[Setup Wizard]
-    F --> G[Step 1: Confirm Your Profile<br>Name + Display Initials<br>Pre-Filled from OIDC Claims]
-    G -->|Validation error| G1[Inline Error<br>e.g. 'Name required'<br>Fix and Continue]
-    G1 --> G
-    G --> H[Step 2: Create Household Group<br>Group Name<br>You Are the First Co-Admin]
-    H -->|Back| G
-    H --> I[Step 3: Configuration<br>Default Currency: EUR<br>Default Split: Even<br>Tracking Threshold]
-    I -->|Back| H
-    I --> J[Setup Complete<br>'Your household is ready!<br>Invite your partner to log in.'<br>Dashboard Appears]
-    J --> K[Empty State:<br>'No shared expenses yet.<br>Tap + to add your first one.']
-    K -->|Tap FAB or + Add Expense| L[First Expense Capture<br>to Capture Flow]
-
-    E -->|Yes — household exists<br>but user is new| M[Auto-Provision User<br>from OIDC Claims]
-    M --> N[Join Household<br>Added as Co-Admin]
-    N --> O[Dashboard<br>Normal App Experience]
-```
+**Who:** Either partner
+**Entry point:** OIDC login via Authentik
+**Goal:** Log in and start using the app
 
 **Key interaction details:**
 
@@ -242,24 +219,12 @@ flowchart TD
   as the OIDC client library. There is no in-app login screen — login is a redirect to Authentik's hosted login page,
   and the app receives identity via OIDC claims on callback
 - **User auto-provisioning:** On first OIDC login, the app creates a user record from OIDC claims (name, email, etc.).
-  No manual user creation step — the identity provider is the source of truth for user identity
-- **Setup wizard triggers for the first user only** — when no household exists. The wizard confirms the auto-provisioned
-  profile (pre-filled from OIDC claims, editable) and creates the household
-- **Second user (Partner) flow:** When Partner logs in via OIDC for the first time, the app auto-provisions her user
-  from OIDC claims and adds her to the existing household as co-admin. No wizard needed — she lands directly on the
-  dashboard
-- Setup wizard is one-time, admin-only — can be methodical (friction tolerated here)
-- **Back navigation available** between steps — mistakes are correctable
-- **Tracking threshold:** Step 3 includes a "Track expenses over €___" field with a suggested default (e.g., €5). This
-  sets shared expectations and eliminates per-expense decision fatigue ("is this worth logging?"). Threshold is editable
-  later in settings
-- Recurring cost configuration is not part of the setup wizard — it's handled through the dedicated recurring cost
-  registry view in MVP1d. The wizard focuses on the essentials: profile confirmation, household creation, currency,
-  split default, and tracking threshold
-- Inline validation on each step — same error pattern as expense capture (field-level, persistent, data preserved)
-- Empty state is contextual and encouraging — "No shared expenses yet. Tap + to add your first one." Not a blank screen,
-  but a clear invitation to start
-- After setup, the normal dashboard flow takes over immediately
+  No manual user creation step — the identity provider is the source of truth for user identity. User limit is enforced
+  via `MAX_USERS` setting (default 2)
+- **First login lands on the expenses page** — no setup wizard, no onboarding steps. Household settings (currency,
+  split type, threshold) are configured via environment variables
+- **Empty state** is contextual and encouraging — "No shared expenses yet. Tap + to add your first one." Not a blank
+  screen, but a clear invitation to start
 - No email verification or password setup — Authentik handles authentication via OIDC. The app never sees or stores
   credentials
 
@@ -344,9 +309,8 @@ flowchart TD
   optional amount range. Filters apply via HTMX partial swap (list updates without page reload)
 - On desktop, the sidebar form is always present — browsing and adding coexist on the same screen
 - On mobile, the FAB remains available — users can add while browsing
-- **Keyword search (MVP1d):** FR37 adds keyword search on the expense feed (matches description and notes). In MVP1a-c,
-  date + paid-by filters cover lookup needs. In MVP1d, a search input is added to the filter bar — same HTMX partial
-  swap pattern as filters
+- **Keyword search:** A search input in the filter bar matches description and notes — same HTMX partial swap pattern as
+  filters
 - Cards are tappable to enter the edit/detail view — same pattern as dashboard feed
 
 ---
@@ -456,12 +420,12 @@ This pattern applies uniformly: expense capture, batch entry, settlement review 
 
 **Noted for future scope (not in current flows):**
 
-- **Data export (MVP1d):** PRD Journey 3 mentions CSV export for records. This will be a simple download action on the
-  settlement history page — no complex flow needed, but it should be designed when settlement history UI is detailed.
+- **Data export:** CSV export for records. This will be a simple download action on the settlement history page — no
+  complex flow needed, but it should be designed when settlement history UI is detailed.
 
 ---
 
-## Recurring Cost Registry (MVP1d)
+## Recurring Cost Registry
 
 **Who:** Either user, managing recurring shared costs
 **Entry point:** "Recurring" nav item (mobile bottom nav or desktop top nav)
@@ -640,9 +604,7 @@ in the feed:
 
 ---
 
-## Updated Navigation Structure (MVP1d)
-
-With the Recurring registry as a new primary view, navigation updates from 3 to 4 items:
+## Navigation Structure
 
 **Mobile bottom nav (4 items + FAB):**
 
@@ -660,9 +622,6 @@ With the Recurring registry as a new primary view, navigation updates from 3 to 
 - "+ Add Expense" button (right)
 - Authenticated user's name/initials badge (far-right, from OIDC session — confirms who is logged in, with a dropdown
   for logout)
-
-The "Recurring" nav item is introduced in MVP1d when the registry is built. In MVP1a-c, navigation has 3 items
-(Dashboard, Expenses, Settlements) with recurring cost management deferred.
 
 ---
 

@@ -130,47 +130,19 @@ def uow(db_session) -> UnitOfWork:
 def create_test_user(session, oidc_sub: str, email: str, display_name: str | None = None):
     """Create a test user directly in the database."""
     from app.adapters.sqlalchemy.orm_models import UserRow
-    from app.domain.models import UserRole
 
     user = UserRow(
         oidc_sub=oidc_sub,
         email=email,
         display_name=display_name or email.split("@")[0],
-        role=UserRole.USER,
     )
     session.add(user)
     session.flush()
     return user
 
 
-def create_test_group(session, user_id: int, name: str = "Test Group"):
-    """Create a test group with the user as admin member."""
-    from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow
-    from app.domain.models import MemberRole, SplitType
-
-    group = GroupRow(
-        name=name,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-        tracking_threshold=30,
-    )
-    session.add(group)
-    session.flush()
-
-    assert group.id is not None  # guaranteed after flush
-    membership = MembershipRow(
-        group_id=group.id,
-        user_id=user_id,
-        role=MemberRole.ADMIN,
-    )
-    session.add(membership)
-    session.flush()
-    return group
-
-
 def create_test_expense(
     session,
-    group_id: int,
     amount: str,
     creator_id: int,
     payer_id: int,
@@ -184,7 +156,6 @@ def create_test_expense(
     from app.domain.models import ExpenseStatus, SplitType
 
     expense = ExpenseRow(
-        group_id=group_id,
         amount=amount,
         description=description,
         date=date.today(),

@@ -61,7 +61,7 @@ def upgrade() -> None:
     op.create_table(
         "widgets",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("group_id", sa.Integer(), nullable=False),
+        sa.Column("payer_id", sa.Integer(), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
         sa.Column("amount", sa.Numeric(precision=19, scale=2), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
@@ -74,14 +74,14 @@ def upgrade() -> None:
             "updated_at", sa.DateTime(timezone=True), nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(["group_id"], ["groups.id"]),
+        sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_widgets_group_id", "widgets", ["group_id"])
+    op.create_index("ix_widgets_payer_id", "widgets", ["payer_id"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_widgets_group_id", table_name="widgets")
+    op.drop_index("ix_widgets_payer_id", table_name="widgets")
     op.drop_table("widgets")
 ```
 

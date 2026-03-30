@@ -6,22 +6,45 @@ rounding edge cases, transaction minimization, and error conditions.
 All tests are pure unit tests with no database dependencies.
 """
 
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 
 import pytest
 
 from app.domain.balance import (
     MemberBalance,
-    calculate_balances,
+    calculate_balances_from_splits,
     minimize_transactions,
 )
-from app.domain.errors import (
-    CurrencyMismatchError,
-    InvalidShareError,
-)
 from app.domain.models import ExpensePublic, ExpenseStatus
-from app.domain.splits import VALID_ROUNDING_MODES, BalanceConfig, EvenSplitStrategy
+from app.domain.splits import VALID_ROUNDING_MODES, BalanceConfig
 from app.domain.value_objects import Money
+
+
+def _even_splits(
+    expense_id: int,
+    amount: Decimal,
+    payer_id: int,
+    member_ids: list[int],
+) -> list[tuple[int, Decimal]]:
+    """Compute even splits for an expense, mirroring EvenSplitStrategy.
+
+    Distributes the rounding remainder to the payer.
+    """
+    n = len(member_ids)
+    base = (amount / n).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+    splits = {uid: base for uid in member_ids}
+    remainder = amount - base * n
+    if remainder != 0:
+        splits[payer_id] = splits[payer_id] + remainder
+    return [(uid, splits[uid]) for uid in member_ids]
+
+
+def _build_splits(
+    expenses: list[ExpensePublic],
+    member_ids: list[int],
+) -> dict[int, list[tuple[int, Decimal]]]:
+    """Build splits_by_expense dict for a list of expenses using even splits."""
+    return {exp.id: _even_splits(exp.id, exp.amount, exp.payer_id, member_ids) for exp in expenses}
 
 
 class TestMoneyValueObject:
@@ -213,6 +236,8 @@ class TestBalanceConfig:
 class TestCalculateBalancesTwoPeople:
     """Test balance calculation with 2 people."""
 
+    _next_id = 1
+
     def _create_expense(
         self,
         amount: str,
@@ -222,9 +247,10 @@ class TestCalculateBalancesTwoPeople:
         """Helper to create expense for testing."""
         from datetime import date, datetime
 
+        expense_id = TestCalculateBalancesTwoPeople._next_id
+        TestCalculateBalancesTwoPeople._next_id += 1
         return ExpensePublic(
-            id=1,
-            group_id=1,
+            id=expense_id,
             amount=Decimal(amount),
             description="Test expense",
             date=date.today(),
@@ -243,9 +269,9 @@ class TestCalculateBalancesTwoPeople:
             self._create_expense("100.00", payer_id=2),
         ]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("0.00")
         assert result[2].net_balance.amount == Decimal("0.00")
@@ -256,9 +282,9 @@ class TestCalculateBalancesTwoPeople:
         """When user1 pays 100, user2 owes 50."""
         expenses = [self._create_expense("100.00", payer_id=1)]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # User 1 paid 100, fair share is 50, so user 2 owes user 1
         assert result[1].net_balance.amount == Decimal("50.00")
@@ -270,9 +296,9 @@ class TestCalculateBalancesTwoPeople:
         """When user2 pays 100, user1 owes 50."""
         expenses = [self._create_expense("100.00", payer_id=2)]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # User 2 paid 100, fair share is 50, so user 1 owes user 2
         assert result[1].net_balance.amount == Decimal("-50.00")
@@ -289,9 +315,9 @@ class TestCalculateBalancesTwoPeople:
             self._create_expense("50.00", payer_id=2),
         ]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # Both paid 150 total, fair share 150 each
         assert result[1].net_balance.amount == Decimal("0.00")
@@ -304,9 +330,9 @@ class TestCalculateBalancesTwoPeople:
             self._create_expense("25.00", payer_id=2),
         ]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # Total 100, fair share 50 each
         # User 1 paid 75, so is owed 25
@@ -316,11 +342,11 @@ class TestCalculateBalancesTwoPeople:
 
     def test_empty_expenses_zero_balance(self):
         """No expenses means everyone has zero balance."""
-        expenses = []
+        expenses: list[ExpensePublic] = []
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits: dict[int, list[tuple[int, Decimal]]] = {}
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("0.00")
         assert result[2].net_balance.amount == Decimal("0.00")
@@ -340,7 +366,6 @@ class TestCalculateBalancesThreePeople:
 
         return ExpensePublic(
             id=expense_id,
-            group_id=1,
             amount=Decimal(amount),
             description="Test expense",
             date=date.today(),
@@ -356,11 +381,11 @@ class TestCalculateBalancesThreePeople:
         """100€ / 3 = 33.34 for payer, 33.33 for others."""
         expenses = [self._create_expense("100.00", payer_id=1)]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
-        # User 1 paid 100, fair share is 33.33...
+        # User 1 paid 100, fair share is 33.34 (payer gets remainder)
         # Net balance = paid - fair_share = 100 - 33.34 = 66.66
         # Others: 0 - 33.33 = -33.33
         assert result[1].net_balance.amount == Decimal("66.66")  # Payer is owed
@@ -378,9 +403,9 @@ class TestCalculateBalancesThreePeople:
             self._create_expense("50.00", payer_id=2, expense_id=2),
         ]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         total = sum(r.net_balance.amount for r in result.values())
         assert total == Decimal("0"), f"Balances sum to {total}, should be 0"
@@ -389,9 +414,9 @@ class TestCalculateBalancesThreePeople:
         """User1 pays 300, users 2&3 each owe 100."""
         expenses = [self._create_expense("300.00", payer_id=1)]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("200.00")
         assert result[2].net_balance.amount == Decimal("-100.00")
@@ -405,16 +430,11 @@ class TestCalculateBalancesThreePeople:
             self._create_expense("50.00", payer_id=3, expense_id=3),
         ]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # Total 300, fair share ~100 each (with rounding)
-        # User 1: paid 150, owes ~100, net ~+50
-        # User 2: paid 100, owes ~100, net ~0 (small rounding error)
-        # User 3: paid 50, owes ~100, net ~-50
-
-        # Due to rounding in split calculations, net balances may have small errors
         # The key invariant is that sum of nets equals zero
         total_net = sum(r.net_balance.amount for r in result.values())
         assert total_net == Decimal("0"), f"Sum of nets should be 0, got {total_net}"
@@ -433,12 +453,12 @@ class TestCalculateBalancesThreePeople:
             self._create_expense("100.00", payer_id=2, expense_id=2),
         ]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
-        # Total 200, fair share 66.67 each
-        # User 3 paid 0, so owes 66.67
+        # Total 200, fair share ~66.67 each
+        # User 3 paid 0, so owes ~66.67
         assert result[3].net_balance.amount < Decimal("0")
         assert result[3].owes
 
@@ -452,7 +472,6 @@ class TestCalculateBalancesFourPlusPeople:
 
         return ExpensePublic(
             id=expense_id,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -468,9 +487,9 @@ class TestCalculateBalancesFourPlusPeople:
         """100€ / 4 = 25 each."""
         expenses = [self._create_expense("100.00", payer_id=1)]
         member_ids = [1, 2, 3, 4]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("75.00")
         assert result[2].net_balance.amount == Decimal("-25.00")
@@ -488,9 +507,9 @@ class TestCalculateBalancesFourPlusPeople:
             self._create_expense("50.00", payer_id=2, expense_id=2),
         ]
         member_ids = list(range(1, 9))  # 1-8
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # Verify sum is zero
         total = sum(r.net_balance.amount for r in result.values())
@@ -506,7 +525,6 @@ class TestRoundingEdgeCases:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -522,9 +540,9 @@ class TestRoundingEdgeCases:
         """0.01€ split 3 ways."""
         expenses = [self._create_expense("0.01")]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # Should handle gracefully
         total = sum(r.net_balance.amount for r in result.values())
@@ -534,31 +552,12 @@ class TestRoundingEdgeCases:
         """Very large amounts (millions)."""
         expenses = [self._create_expense("1000000.00")]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("500000.00")
         assert result[2].net_balance.amount == Decimal("-500000.00")
-
-    def test_0_1_precision_mode(self):
-        """With 0.1 precision, amounts round to dimes."""
-        expenses = [self._create_expense("100.00")]
-        member_ids = [1, 2, 3]
-        config = BalanceConfig.dimes()  # 0.1 precision
-
-        result = calculate_balances(expenses, member_ids, config)
-
-        # All balances should have at most 1 decimal place
-        for balance in result.values():
-            str_amount = str(balance.net_balance.amount)
-            if "." in str_amount:
-                decimals = len(str_amount.split(".")[1])
-                assert decimals <= 1
-
-        # Net balances must still sum to exactly zero under 0.1 precision
-        total = sum(b.net_balance.amount for b in result.values())
-        assert total == Decimal("0")
 
 
 class TestMinimizeTransactions:
@@ -646,7 +645,12 @@ class TestMinimizeTransactions:
 
 
 class TestErrorConditions:
-    """Test error handling and edge cases."""
+    """Test error handling and edge cases.
+
+    Note: currency mismatch and empty member list validation now happen at
+    expense creation time, not at balance calculation time. Tests for those
+    conditions have been removed.
+    """
 
     def _create_expense(
         self,
@@ -659,7 +663,6 @@ class TestErrorConditions:
 
         return ExpensePublic(
             id=1,
-            group_id=1,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -671,34 +674,13 @@ class TestErrorConditions:
             updated_at=datetime.now(),
         )
 
-    def test_empty_member_list_raises(self):
-        """Empty member list raises error."""
-        expenses = [self._create_expense("100.00")]
-        member_ids = []
-        config = BalanceConfig()
-
-        with pytest.raises(InvalidShareError, match="empty group"):
-            calculate_balances(expenses, member_ids, config)
-
-    def test_mixed_currencies_raises(self):
-        """Mixed currencies raise CurrencyMismatchError."""
-        expenses = [
-            self._create_expense("100.00", currency="EUR"),
-            self._create_expense("100.00", currency="USD"),
-        ]
-        member_ids = [1, 2]
-        config = BalanceConfig()
-
-        with pytest.raises(CurrencyMismatchError):
-            calculate_balances(expenses, member_ids, config)
-
     def test_single_person_zero_balance(self):
         """One person paying alone has zero balance."""
         expenses = [self._create_expense("100.00")]
         member_ids = [1]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         # One person: paid 100, fair share 100, net 0
         assert result[1].net_balance.amount == Decimal("0.00")
@@ -707,26 +689,25 @@ class TestErrorConditions:
         """Same inputs produce same outputs."""
         expenses = [self._create_expense("100.00")]
         member_ids = [1, 2, 3]
-        config = BalanceConfig()
+        splits = _build_splits(expenses, member_ids)
 
-        result1 = calculate_balances(expenses, member_ids, config)
-        result2 = calculate_balances(expenses, member_ids, config)
+        result1 = calculate_balances_from_splits(expenses, splits, member_ids)
+        result2 = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result1[1].net_balance == result2[1].net_balance
         assert result1[2].net_balance == result2[2].net_balance
         assert result1[3].net_balance == result2[3].net_balance
 
 
-class TestIntegrationWithEvenSplitStrategy:
-    """Test integration of balance calculation with EvenSplitStrategy."""
+class TestCalculateBalancesWithPreComputedSplits:
+    """Test balance calculation with pre-computed splits of various types."""
 
-    def _create_expense(self, amount: str, payer_id: int = 1) -> ExpensePublic:
+    def _create_expense(self, amount: str, payer_id: int = 1, expense_id: int = 1) -> ExpensePublic:
         """Helper to create expense."""
         from datetime import date, datetime
 
         return ExpensePublic(
-            id=1,
-            group_id=1,
+            id=expense_id,
             amount=Decimal(amount),
             description="Test",
             date=date.today(),
@@ -738,27 +719,27 @@ class TestIntegrationWithEvenSplitStrategy:
             updated_at=datetime.now(),
         )
 
-    def test_explicit_strategy_parameter(self):
-        """Can pass explicit strategy to calculate_balances."""
+    def test_even_splits(self):
+        """Pre-computed even splits produce correct balances."""
         expenses = [self._create_expense("100.00")]
         member_ids = [1, 2]
-        config = BalanceConfig()
-        strategy = EvenSplitStrategy()
+        splits = _build_splits(expenses, member_ids)
 
-        result = calculate_balances(expenses, member_ids, config, strategy)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
         assert result[1].net_balance.amount == Decimal("50.00")
         assert result[2].net_balance.amount == Decimal("-50.00")
 
-    def test_default_strategy_when_none_provided(self):
-        """EvenSplitStrategy used by default."""
+    def test_uneven_splits(self):
+        """Pre-computed uneven splits (e.g. 70/30) produce correct balances."""
         expenses = [self._create_expense("100.00")]
         member_ids = [1, 2]
-        config = BalanceConfig()
+        # User 1 (payer) responsible for 70, user 2 for 30
+        splits = {expenses[0].id: [(1, Decimal("70.00")), (2, Decimal("30.00"))]}
 
-        # No strategy parameter
-        result = calculate_balances(expenses, member_ids, config)
+        result = calculate_balances_from_splits(expenses, splits, member_ids)
 
-        # Should still work with EvenSplitStrategy as default
-        assert result[1].net_balance.amount == Decimal("50.00")
-        assert result[2].net_balance.amount == Decimal("-50.00")
+        # User 1 paid 100, fair share 70 => net +30
+        assert result[1].net_balance.amount == Decimal("30.00")
+        # User 2 paid 0, fair share 30 => net -30
+        assert result[2].net_balance.amount == Decimal("-30.00")

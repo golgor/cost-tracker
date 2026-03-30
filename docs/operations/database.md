@@ -149,14 +149,12 @@ Core tables:
 | Table | Purpose |
 | --- | --- |
 | `users` | User accounts (synced from OIDC) |
-| `groups` | Households / groups |
-| `memberships` | User-group membership with roles |
 | `expenses` | Shared expenses |
 | `expense_splits` | How expenses are divided |
 | `expense_notes` | Comments on expenses |
 | `settlements` | Settled payment records |
+| `settlement_expenses` | Expenses included in a settlement |
 | `settlement_transactions` | Individual payments within settlements |
 | `recurring_definitions` | Templates for recurring costs |
-| `audit_log` | Audit trail for all mutations |
 
 All tables use `DateTime(timezone=True)` for timestamps and `Numeric(19,2)` for money values.

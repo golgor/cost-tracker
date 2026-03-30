@@ -7,7 +7,7 @@
 - ORM mapping style: Declarative with domain/ORM separation via adapter pattern
 - Session-based transactions mapped to UnitOfWork port
 - Port/adapter naming: `XxxPort` (domain), `SqlAlchemyXxxAdapter` (infrastructure), `XxxRow` (ORM internal)
-- Authorization split: group membership as FastAPI dependency, business rules in use cases
+- Authorization: business rules in use cases, user context via signed cookie
 - Sync SQLAlchemy for MVP
 
 **Important Decisions (Shape Architecture):**
@@ -49,7 +49,7 @@
 - Ports define what the domain needs: `ExpensePort(Protocol)`
 - Adapters implement ports using infrastructure: `SqlAlchemyExpenseAdapter`
 - ORM `XxxRow` inherits from domain `XxxBase` (SQLModel inheritance)
-- Adapters use `_to_public()` to convert ORM rows to public domain models (e.g., `UserPublic`, `GroupPublic`)
+- Adapters use `_to_public()` to convert ORM rows to public domain models (e.g., `UserPublic`, `ExpensePublic`)
 - No `_to_row()` helper needed — rows are created directly as `XxxRow(...)` since they inherit domain fields
 
 **View Queries (`adapters/sqlalchemy/queries.py`):**
@@ -63,12 +63,12 @@ Example — view query vs. port usage:
 
 ```python
 # adapters/sqlalchemy/queries.py — view query (read-only, optimized for display)
-def get_dashboard_summary(session: Session, group_id: int) -> DashboardData:
+def get_dashboard_summary(session: Session) -> DashboardData:
     """Joins expenses + users for dashboard display. Not domain logic."""
     rows = session.execute(
         select(ExpenseRow, UserRow.display_name)
         .join(UserRow, ExpenseRow.payer_id == UserRow.id)
-        .where(ExpenseRow.group_id == group_id, ExpenseRow.settlement_id.is_(None))
+        .where(ExpenseRow.settlement_id.is_(None))
     ).all()
     return DashboardData(...)
 
@@ -85,8 +85,7 @@ class ExpensePort(Protocol):
 | --- | --- | --- |
 | Browser auth | OIDC via Authentik + Authlib, signed cookie (user_id + issued_at) | No tokens stored |
 | API auth | Deferred post-MVP (evaluate Authentik client_credentials) | Browser-first MVP |
-| Authorization — membership | FastAPI dependency resolves user + group context | Infrastructure concern |
-| Authorization — business rules | Checked in use cases | Domain logic in domain layer |
+| Authorization | Business rules checked in use cases; user context from signed cookie | Domain logic in domain layer |
 | CSRF | Browser mutations only (HTMX + form POST) | API uses separate auth path |
 | CORS | Disabled (default deny) | Same-origin browser, non-browser API clients |
 
@@ -253,7 +252,7 @@ don't access closed sessions.
 **Status:** Accepted (Updated)
 **Context:** Audit trail is a business requirement (FR43-44), not infrastructure. Original pattern required every use
 case to call `uow.audit.log()` explicitly, which was repetitive and easy to forget.
-**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `add_member()`) accept an
+**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `delete()`) accept an
 `actor_id` keyword parameter and create audit rows automatically using SQLAlchemy `inspect()` dirty tracking.
 `compute_changes(row)` reads attribute history for updates (old→new for changed fields only). `snapshot_new(row)` builds
 a changes dict for creates (old is always null). Changes stored as `{"field": {"old": ..., "new": ...}}` JSON. No audit
@@ -336,14 +335,14 @@ is more useful than "settle_abc123".
 **Decision:**
 
 - Settlement reference format: `{Month} {Year}` (e.g., "March 2025")
-- Uniqueness scope: per-group + per-month (one settlement per month per group)
+- Uniqueness scope: global (one settlement per month, app-wide)
 - Auto-generated from settlement date, not user-editable
 - Stored as `reference: str` in `SettlementRow`
 
 **Consequences:**
 
 - Simple, readable references for 2-person settlement flow
-- Constraint: `UNIQUE(group_id, reference)` enforces one settlement per month
+- Constraint: `UNIQUE(reference)` enforces one settlement per month
 - Month names use full English names (January-December), capitalized
 - Displayed in settlement history, detail views, and audit logs
 
@@ -417,38 +416,7 @@ POST /settlements
 - Selection lost on browser refresh (acceptable trade-off)
 - Suitable for 2-person use case where both partners settle together
 
-### ADR-015: Group-Centric Settlement Design
-
-**Status:** Accepted
-**Context:** Current MVP supports single group per user, but future multi-group support requires
-clean scoping.
-**Decision:**
-
-- All settlements belong to a group: `settlements.group_id` FK (not null)
-- All settlement queries filter by `group_id`
-- Settlement use cases receive `group_id` as parameter
-- Reference IDs are unique per group, not globally
-
-**Database Schema:**
-
-```sql
-CREATE TABLE settlements (
-    id SERIAL PRIMARY KEY,
-    group_id INTEGER NOT NULL REFERENCES groups(id),
-    reference VARCHAR(255) NOT NULL,  -- e.g., "March 2025"
-    ...
-    UNIQUE(group_id, reference)
-);
-```
-
-**Consequences:**
-
-- Future multi-group support requires no schema changes
-- Natural scoping: "Show me all settlements for this group"
-- Slightly more verbose queries (always filter by group_id)
-- Group context passed through all settlement operations
-
-### ADR-016: Landing Page Simplification
+### ADR-015: Landing Page Simplification
 
 **Status:** Accepted (2026-03-25)
 **Context:** External dashboard (Glance) handles overview needs. Internal dashboard route (`/`) duplicates expense

@@ -8,9 +8,10 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.domain.errors import InvalidShareError
 from app.domain.use_cases.expenses import create_expense, delete_expense, update_expense
+from app.settings import settings
 from app.web.expenses._shared import (
     CreateExpenseForm,
     CurrentUserId,
@@ -39,14 +40,10 @@ async def create_expense_endpoint(
 ):
     """Create new expense (HTMX endpoint for mobile/desktop)."""
 
-    # Get user's group
+    # Get user
     user = uow.users.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    group = uow.groups.get_by_user_id(user_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="User has no group")
 
     # Validate form
     errors: dict[str, str] = {}
@@ -64,12 +61,12 @@ async def create_expense_endpoint(
         if expense_date and expense_date > date.today():
             errors["date"] = "Date cannot be in the future"
 
-        # Validate payer_id is a member of the group (HIGH-4)
+        # Validate payer_id is a valid user (HIGH-4)
         if payer_id:
-            group_members = get_group_members(uow.session, group.id)
-            valid_payer_ids = {member.user_id for member in group_members}
+            users = get_all_users(uow.session)
+            valid_payer_ids = {u.id for u in users}
             if payer_id not in valid_payer_ids:
-                errors["payer_id"] = "Selected payer is not a member of your group"
+                errors["payer_id"] = "Selected payer is not a valid user"
         # Validate with Pydantic if no parse errors
         if not errors:
             assert amount_decimal is not None, "amount_decimal should not be None when no errors"
@@ -97,12 +94,8 @@ async def create_expense_endpoint(
 
     # If validation errors, return form with errors (UX-DR24)
     if errors or form_data is None:
-        group_members = get_group_members(uow.session, group.id)
-
-        # Get user details (batch query)
-        member_ids = [member.user_id for member in group_members]
-        users_list = uow.users.get_by_ids(member_ids)
-        users_dict: dict[int, Any] = {u.id: u for u in users_list}
+        users = get_all_users(uow.session)
+        users_dict: dict[int, Any] = {u.id: u for u in users}
 
         # Preserve payer_id from form data for error case
         selected_payer_id = payer_id if payer_id else user_id
@@ -119,27 +112,26 @@ async def create_expense_endpoint(
                     "payer_id": payer_id,
                     "currency": currency,
                 },
-                "group": group,
-                "group_members": group_members,
                 "users": users_dict,
+                "users_list": users,
                 "current_user_id": user_id,
                 "selected_payer_id": selected_payer_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": _get_currency_symbol(group.default_currency),
+                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "default_currency": settings.DEFAULT_CURRENCY,
             },
             status_code=400,
         )
 
-    # Get group members for split calculation
-    group_members = get_group_members(uow.session, group.id)
-    member_ids = [member.user_id for member in group_members]
+    # Get all users for split calculation
+    users = get_all_users(uow.session)
+    member_ids = [u.id for u in users]
 
     # Create expense via use case
     try:
         with uow:
             create_expense(
                 uow=uow,
-                group_id=group.id,
                 amount=form_data.amount,
                 description=form_data.description,
                 date=form_data.date,
@@ -152,10 +144,8 @@ async def create_expense_endpoint(
             )
     except InvalidShareError as e:
         # Handle split validation errors
-        group_members = get_group_members(uow.session, group.id)
-        member_ids = [member.user_id for member in group_members]
-        users_list = uow.users.get_by_ids(member_ids)
-        users_dict = {u.id: u for u in users_list}
+        users = get_all_users(uow.session)
+        users_dict = {u.id: u for u in users}
 
         return templates.TemplateResponse(
             request,
@@ -169,13 +159,13 @@ async def create_expense_endpoint(
                     "payer_id": payer_id,
                     "currency": currency,
                 },
-                "group": group,
-                "group_members": group_members,
                 "users": users_dict,
+                "users_list": users,
                 "current_user_id": user_id,
                 "selected_payer_id": payer_id if payer_id else user_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": _get_currency_symbol(group.default_currency),
+                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "default_currency": settings.DEFAULT_CURRENCY,
             },
             status_code=400,
         )
@@ -217,10 +207,6 @@ async def update_expense_endpoint(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
     # Validate form
     errors = {}
     try:
@@ -238,14 +224,14 @@ async def update_expense_endpoint(
         if expense_date and expense_date > date.today():
             errors["date"] = "Date cannot be in the future"
 
-        # Validate payer_id is provided and is a member of the group
+        # Validate payer_id is provided and is a valid user
         if payer_id is None:
             errors["payer_id"] = "Payer is required"
         else:
-            group_members = get_group_members(uow.session, group.id)
-            valid_payer_ids = {member.user_id for member in group_members}
+            users = get_all_users(uow.session)
+            valid_payer_ids = {u.id for u in users}
             if payer_id not in valid_payer_ids:
-                errors["payer_id"] = "Selected payer is not a member of your group"
+                errors["payer_id"] = "Selected payer is not a valid user"
 
         # Validate with Pydantic if no parse errors
         if not errors:
@@ -275,12 +261,8 @@ async def update_expense_endpoint(
 
     # If validation errors, return form with errors
     if errors or form_data is None:
-        group_members = get_group_members(uow.session, group.id)
-
-        # Get user details (batch query)
-        member_ids = [member.user_id for member in group_members]
-        users_list = uow.users.get_by_ids(member_ids)
-        users_dict = {u.id: u for u in users_list}
+        users = get_all_users(uow.session)
+        users_dict = {u.id: u for u in users}
 
         return templates.TemplateResponse(
             request,
@@ -288,13 +270,13 @@ async def update_expense_endpoint(
             {
                 "errors": errors,
                 "expense": expense,
-                "group": group,
-                "group_members": group_members,
                 "users": users_dict,
+                "users_list": users,
                 "today": date.today().isoformat(),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
-                "currency_symbol": _get_currency_symbol(group.default_currency),
+                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "default_currency": settings.DEFAULT_CURRENCY,
                 "split_config": {},
             },
             status_code=400,
@@ -303,9 +285,8 @@ async def update_expense_endpoint(
     # Update via use case
     with uow:
         # Get member IDs for split recalculation
-        group = uow.groups.get_by_user_id(user_id)
-        group_members = get_group_members(uow.session, group.id) if group else []
-        member_ids = [m.user_id for m in group_members]
+        users = get_all_users(uow.session)
+        member_ids = [u.id for u in users]
 
         update_expense(
             uow=uow,
@@ -332,15 +313,10 @@ async def get_delete_confirmation(
     uow: UowDep,
 ):
     """Show delete confirmation modal via HTMX."""
-    # Get expense and validate authorization
+    # Get expense and validate it exists
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-
-    # Verify user has access to this expense's group
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
     # Render confirmation modal
     return templates.TemplateResponse(
@@ -360,7 +336,7 @@ async def delete_expense_route(
     uow: UowDep,
 ):
     """Delete an expense and redirect to dashboard."""
-    # Authorization check - get expense and validate group membership
+    # Validate expense exists
     expense = uow.expenses.get_by_id(expense_id)
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -368,10 +344,6 @@ async def delete_expense_route(
     user = uow.users.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    group = uow.groups.get_by_user_id(user_id)
-    if not group or group.id != expense.group_id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
     # Execute delete use case (includes immutability check)
     with uow:

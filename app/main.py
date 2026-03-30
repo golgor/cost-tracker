@@ -17,17 +17,11 @@ from app.domain.errors import (
     CannotEditSettledExpenseError,
     DomainError,
     DuplicateBillingPeriodError,
-    DuplicateHouseholdError,
-    DuplicateMembershipError,
     EmptySettlementError,
-    GroupNotFoundError,
-    MembershipNotFoundError,
     RecurringDefinitionNotFoundError,
     RecurringExpenseDescriptionError,
     StaleExpenseError,
-    UnauthorizedGroupActionError,
-    UserAlreadyAdminError,
-    UserAlreadyRegularError,
+    UserLimitReachedError,
     UserNotFoundError,
 )
 from app.logging import RequestLoggingMiddleware, configure_logging
@@ -39,14 +33,8 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 # Maps DomainError subclasses → HTTP status codes.
 # Add entries here as new domain errors are defined in later stories.
 DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
-    DuplicateHouseholdError: 409,
-    DuplicateMembershipError: 409,
-    GroupNotFoundError: 404,
-    MembershipNotFoundError: 404,
-    UnauthorizedGroupActionError: 403,
     UserNotFoundError: 404,
-    UserAlreadyAdminError: 409,
-    UserAlreadyRegularError: 409,
+    UserLimitReachedError: 403,
     CannotEditSettledExpenseError: 403,
     EmptySettlementError: 400,
     StaleExpenseError: 409,

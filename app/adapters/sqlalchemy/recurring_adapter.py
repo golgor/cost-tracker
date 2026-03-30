@@ -24,7 +24,6 @@ class SqlAlchemyRecurringDefinitionAdapter:
     def save(self, definition: RecurringDefinitionBase) -> RecurringDefinitionPublic:
         """Create a new recurring definition. Returns the persisted definition."""
         row = RecurringDefinitionRow(
-            group_id=definition.group_id,
             name=definition.name,
             amount=definition.amount,
             frequency=definition.frequency,
@@ -50,20 +49,17 @@ class SqlAlchemyRecurringDefinitionAdapter:
             return None
         return self._to_public(row)
 
-    def list_by_group(
+    def list_all(
         self,
-        group_id: int,
         *,
         active_only: bool = False,
         include_deleted: bool = False,
     ) -> list[RecurringDefinitionPublic]:
-        """List recurring definitions for a group.
+        """List recurring definitions.
 
         Excludes soft-deleted rows by default (include_deleted=False).
         """
-        statement = select(RecurringDefinitionRow).where(
-            RecurringDefinitionRow.group_id == group_id,
-        )
+        statement = select(RecurringDefinitionRow)
         if not include_deleted:
             statement = statement.where(RecurringDefinitionRow.deleted_at.is_(None))  # type: ignore[union-attr]
         if active_only:
@@ -158,7 +154,6 @@ class SqlAlchemyRecurringDefinitionAdapter:
             raise RuntimeError("Row ID must not be None for persisted rows")
         return RecurringDefinitionPublic(
             id=row.id,
-            group_id=row.group_id,
             name=row.name,
             amount=row.amount,
             frequency=row.frequency,

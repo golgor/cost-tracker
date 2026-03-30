@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError  # noqa: F401
 
-from app.adapters.sqlalchemy.queries.dashboard_queries import get_group_members
+from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.queries.recurring_queries import (
     get_active_definitions,
     get_paused_definitions,
@@ -40,6 +40,7 @@ from app.domain.use_cases.recurring import (
     reactivate_definition,
     update_recurring_definition,
 )
+from app.settings import settings
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
 from app.web.view_models import RecurringDefinitionViewModel
@@ -109,11 +110,8 @@ def _build_form_options(form_data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_users_dict(
-    members: list,
-    uow: UnitOfWork,
+    users: list[UserPublic],
 ) -> dict[int, UserPublic]:
-    member_ids = [member.user_id for member in members]
-    users = uow.users.get_by_ids(member_ids)
     return {u.id: u for u in users}
 
 
@@ -139,12 +137,6 @@ async def registry_index(
 ):
     """Render the recurring definitions registry (Active tab by default)."""
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No household group found",
-            )
         user = uow.users.get_by_id(user_id)
         if user is None:
             raise HTTPException(
@@ -152,16 +144,15 @@ async def registry_index(
                 detail="User not found",
             )
 
-        domain_defs = get_active_definitions(uow.session, group.id)
+        domain_defs = get_active_definitions(uow.session)
         definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session, group.id)
+        summary = get_registry_summary(uow.session)
 
     return templates.TemplateResponse(
         request,
         "recurring/index.html",
         {
             "user": user,
-            "group": group,
             "definitions": definitions,
             "summary": summary,
             "active_tab": "active",
@@ -178,15 +169,12 @@ async def new_recurring_form(
 ):
     """Render the create recurring definition form."""
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
         user = uow.users.get_by_id(user_id)
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
 
-        members = get_group_members(uow.session, group.id)
-        users_dict = _build_users_dict(members, uow)
+        users = get_all_users(uow.session)
+        users_dict = _build_users_dict(users)
 
     form_data: dict[str, Any] = {
         "name": "",
@@ -211,7 +199,6 @@ async def new_recurring_form(
             "definition": None,
             "form_data": form_data,
             "errors": {},
-            "members": members,
             "users": users_dict,
             **opts,
             "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -243,13 +230,10 @@ async def create_recurring(
         raise HTTPException(status_code=422, detail="Invalid payer_id") from exc
 
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         user = uow.users.get_by_id(user_id)
-        members = get_group_members(uow.session, group.id)
-        users_dict = _build_users_dict(members, uow)
+        users = get_all_users(uow.session)
+        users_dict = _build_users_dict(users)
+        member_ids = [u.id for u in users]
 
         form_data: dict[str, Any] = {
             "name": name,
@@ -267,7 +251,6 @@ async def create_recurring(
         errors, parsed = _parse_form(form_data)
 
         if not errors and parsed["split_enum"] != SplitType.EVEN:
-            member_ids = [m.user_id for m in members]
             try:
                 _validate_split_with_strategies(
                     split_type=parsed["split_enum"],
@@ -283,12 +266,12 @@ async def create_recurring(
             try:
                 create_recurring_definition(
                     uow,
-                    group_id=group.id,
                     name=name,
                     amount=parsed["amount"],
                     frequency=parsed["frequency"],
                     next_due_date=parsed["next_due_date"],
                     payer_id=payer_id,
+                    currency=settings.DEFAULT_CURRENCY,
                     split_type=parsed["split_enum"],
                     split_config=parsed["split_config"],
                     interval_months=parsed["interval_months"],
@@ -309,7 +292,6 @@ async def create_recurring(
                     "definition": None,
                     "form_data": form_data,
                     "errors": errors,
-                    "members": members,
                     "users": users_dict,
                     **opts,
                     "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -332,20 +314,13 @@ async def registry_tab(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tab")
 
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No household group found",
-            )
-
         if tab == "active":
-            domain_defs = get_active_definitions(uow.session, group.id)
+            domain_defs = get_active_definitions(uow.session)
         else:
-            domain_defs = get_paused_definitions(uow.session, group.id)
+            domain_defs = get_paused_definitions(uow.session)
 
         definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session, group.id)
+        summary = get_registry_summary(uow.session)
 
     return templates.TemplateResponse(
         request,
@@ -368,10 +343,6 @@ async def edit_recurring_form(
 ):
     """Render the edit recurring definition form."""
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         user = uow.users.get_by_id(user_id)
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
@@ -380,8 +351,8 @@ async def edit_recurring_form(
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
 
-        members = get_group_members(uow.session, group.id)
-        users_dict = _build_users_dict(members, uow)
+        users = get_all_users(uow.session)
+        users_dict = _build_users_dict(users)
 
     form_data: dict[str, Any] = {
         "name": definition.name,
@@ -408,7 +379,6 @@ async def edit_recurring_form(
             "definition": definition,
             "form_data": form_data,
             "errors": {},
-            "members": members,
             "users": users_dict,
             **opts,
             "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -441,17 +411,14 @@ async def update_recurring(
         raise HTTPException(status_code=422, detail="Invalid payer_id") from exc
 
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         user = uow.users.get_by_id(user_id)
         definition = uow.recurring.get_by_id(definition_id)
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
 
-        members = get_group_members(uow.session, group.id)
-        users_dict = _build_users_dict(members, uow)
+        users = get_all_users(uow.session)
+        users_dict = _build_users_dict(users)
+        member_ids = [u.id for u in users]
 
         form_data: dict[str, Any] = {
             "name": name,
@@ -469,7 +436,6 @@ async def update_recurring(
         errors, parsed = _parse_form(form_data)
 
         if not errors and parsed["split_enum"] != SplitType.EVEN:
-            member_ids = [m.user_id for m in members]
             try:
                 _validate_split_with_strategies(
                     split_type=parsed["split_enum"],
@@ -511,7 +477,6 @@ async def update_recurring(
                     "definition": definition,
                     "form_data": form_data,
                     "errors": errors,
-                    "members": members,
                     "users": users_dict,
                     **opts,
                     "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -531,10 +496,6 @@ async def toggle_active(
 ):
     """HTMX: toggle pause/resume on a recurring definition. Returns updated card."""
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         definition = uow.recurring.get_by_id(definition_id)
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
@@ -570,10 +531,6 @@ async def delete_recurring(
 ):
     """HTMX: soft-delete a recurring definition. Returns empty 200 (removes card from DOM)."""
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         delete_definition(uow, definition_id)
 
     return HTMLResponse(content="", status_code=200)
@@ -591,10 +548,6 @@ async def create_expense_for_definition(
     Returns the updated card so HTMX can swap it in place.
     """
     with uow:
-        group = uow.groups.get_by_user_id(user_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="No household group found")
-
         definition = uow.recurring.get_by_id(definition_id)
         if definition is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
@@ -652,7 +605,6 @@ def _mock_expense(amount: Decimal, payer_id: int) -> ExpensePublic:
     """Create a minimal mock expense for strategy validation."""
     return ExpensePublic.model_construct(
         id=0,
-        group_id=0,
         amount=amount,
         description="",
         date=date.today(),

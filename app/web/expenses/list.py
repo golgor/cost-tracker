@@ -7,12 +7,13 @@ from fastapi.responses import HTMLResponse
 
 from app.adapters.sqlalchemy.queries.dashboard_queries import (
     calculate_balance,
+    get_all_users,
     get_filtered_expenses,
-    get_group_members,
     get_recurring_definition_names,
     get_this_month_total,
 )
 from app.domain.models import ExpensePublic, UserPublic
+from app.settings import settings
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
@@ -65,24 +66,19 @@ async def expenses_list(
 ):
     """Dedicated expenses list page with filtering.
 
-    Shows all expenses for the group with filter controls.
+    Shows all expenses with filter controls.
     Distinct from dashboard which shows recent expenses only.
     """
     with uow:
-        # Get user and group
+        # Get user
         user = uow.users.get_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-
-        group = uow.groups.get_by_user_id(user_id)
-        if not group:
-            raise HTTPException(status_code=404, detail="User has no group")
 
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
         unsettled_expenses = get_filtered_expenses(
             uow.session,
-            group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
@@ -91,7 +87,6 @@ async def expenses_list(
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
-            group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
@@ -102,7 +97,6 @@ async def expenses_list(
         # Get balance data (filtered when filters are active)
         balance_data = calculate_balance(
             uow.session,
-            group.id,
             user_id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
@@ -111,15 +105,11 @@ async def expenses_list(
         )
 
         # Get this month total
-        this_month_total = get_this_month_total(uow.session, group.id)
+        this_month_total = get_this_month_total(uow.session)
 
-        # Get group members for display and filters
-        members = get_group_members(uow.session, group.id)
-
-        # Get user details for expense cards (batch query)
-        member_user_ids = [m.user_id for m in members]
-        users_list = uow.users.get_by_ids(member_user_ids)
-        users_by_id = {u.id: u for u in users_list}
+        # Get all users for display and filters
+        users = get_all_users(uow.session)
+        users_by_id = {u.id: u for u in users}
 
         # Collect recurring definition IDs for name lookup
         all_expenses = unsettled_expenses + settled_expenses
@@ -129,7 +119,7 @@ async def expenses_list(
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
         # Transform to view models
-        currency_symbol = _get_currency_symbol(group.default_currency)
+        currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
         unsettled_vms = _to_card_view_models(
             unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
         )
@@ -150,16 +140,16 @@ async def expenses_list(
         "expenses/index.html",
         {
             "user": user,
-            "group": group,
             "unsettled_expenses": unsettled_vms,
             "settled_expenses": settled_vms,
             "balance": balance_data,
             "this_month_total": this_month_total,
-            "group_members": members,
             "users": users_by_id,
+            "users_list": users,
             "current_user_id": user_id,
             "today": date.today().isoformat(),
             "currency_symbol": currency_symbol,
+            "default_currency": settings.DEFAULT_CURRENCY,
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "count_message": count_message,
             "has_active_filters": has_active_filters,
@@ -188,17 +178,11 @@ async def expenses_filtered(
     Returns only the expense feed section for HTMX partial swap.
     """
     with uow:
-        # Get user's group
-        group = uow.groups.get_by_user_id(user_id)
-        if not group:
-            raise HTTPException(status_code=404, detail="User has no group")
-
         # Parse date filters and get filtered expenses
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
         active_search = search_query.strip() if search_query else None
         unsettled_expenses = get_filtered_expenses(
             uow.session,
-            group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
@@ -207,7 +191,6 @@ async def expenses_filtered(
         )
         settled_expenses = get_filtered_expenses(
             uow.session,
-            group.id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
             payer_id=payer_id,
@@ -215,11 +198,9 @@ async def expenses_filtered(
             search_query=active_search,
         )
 
-        # Get user details (batch query)
-        members = get_group_members(uow.session, group.id)
-        member_ids = [m.user_id for m in members]
-        users_list = uow.users.get_by_ids(member_ids)
-        users_by_id = {u.id: u for u in users_list}
+        # Get all users for display
+        users = get_all_users(uow.session)
+        users_by_id = {u.id: u for u in users}
 
         # Collect recurring definition IDs for name lookup
         all_expenses = unsettled_expenses + settled_expenses
@@ -229,7 +210,7 @@ async def expenses_filtered(
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
     # Transform to view models
-    currency_symbol = _get_currency_symbol(group.default_currency)
+    currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
     unsettled_vms = _to_card_view_models(
         unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
     )
@@ -277,15 +258,10 @@ async def expenses_balance(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        group = uow.groups.get_by_user_id(user_id)
-        if not group:
-            raise HTTPException(status_code=404, detail="User has no group")
-
         date_from_parsed, date_to_parsed = _parse_date_filters(date_from, date_to)
 
         balance_data = calculate_balance(
             uow.session,
-            group.id,
             user_id,
             date_from=date_from_parsed,
             date_to=date_to_parsed,
@@ -293,10 +269,8 @@ async def expenses_balance(
             search_query=search_query.strip() if search_query else None,
         )
 
-        members = get_group_members(uow.session, group.id)
-        member_ids = [m.user_id for m in members]
-        users_list = uow.users.get_by_ids(member_ids)
-        users_by_id = {u.id: u for u in users_list}
+        users = get_all_users(uow.session)
+        users_by_id = {u.id: u for u in users}
 
     return templates.TemplateResponse(
         request,

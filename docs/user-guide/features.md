@@ -6,7 +6,7 @@ A walkthrough of everything Cost Tracker can do.
 
 The main screen shows your expense feed — a list of all shared expenses, most recent first.
 
-<!-- TODO: Add screenshot of expense list -->
+TODO: Add screenshot of expense list
 
 ### Creating an Expense
 
@@ -15,9 +15,9 @@ Tap **+** (mobile) or **Add Expense** (desktop) to open the capture form:
 - **Amount** — the total cost
 - **Description** — a short label (e.g., "ICA", "Electric bill", "Dinner at Pasta Palace")
 - **Date** — when the expense occurred (defaults to today)
-- **Paid by** — which household member actually paid
+- **Paid by** — which partner actually paid
 - **Split type** — how the cost is shared:
-  - **Even** — split equally between all members
+  - **Even** — split equally between both partners
   - **Shares** — weighted split (e.g., one person gets 2 shares, another gets 1)
   - **Percentage** — each person pays a percentage (must total 100%)
   - **Exact** — specify exact amounts per person (must total the expense amount)
@@ -161,25 +161,5 @@ You can:
 When auto-generate is enabled, expenses are created automatically when due:
 
 - Triggered on user login (best-effort)
-- Triggered by a daily cron job (if configured by your admin)
+- Triggered by a daily cron job (if configured)
 - The next due date advances automatically after each generation
-
-## Admin Features
-
-Admins have access to additional features via the admin panel.
-
-### User Management
-
-- View all users (active and deactivated)
-- **Promote** a user to admin
-- **Demote** an admin to regular user (cannot demote the last admin)
-- **Deactivate** a user — prevents login, preserves their data
-- **Reactivate** a previously deactivated user
-
-### Audit Log
-
-A read-only log of all changes in the system:
-
-- Who did what, when, and what changed
-- Covers user lifecycle, expense creation/editing, settlements, and admin actions
-- The 100 most recent entries are displayed

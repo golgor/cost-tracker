@@ -9,8 +9,6 @@ from starlette.testclient import TestClient
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
     ExpenseSplitRow,
-    GroupRow,
-    MembershipRow,
     RecurringDefinitionRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
@@ -18,7 +16,6 @@ from app.api.v1.router import api_v1
 from app.dependencies import get_db_session
 from app.domain.models import (
     ExpenseStatus,
-    MemberRole,
     RecurringFrequency,
     SplitType,
 )
@@ -50,23 +47,6 @@ def user2(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(user1, user2, uow: UnitOfWork):
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user1.id, role=MemberRole.ADMIN))
-    uow.session.add(MembershipRow(group_id=group.id, user_id=user2.id, role=MemberRole.USER))
-    uow.session.commit()
-    return group
-
-
-@pytest.fixture
 def api_client(db_session):
     """Test client with db_session override (no session cookie needed — API key auth).
 
@@ -90,7 +70,7 @@ class TestApiAuthentication:
         response = api_client.get(API_URL, headers={"Authorization": "Bearer wrong-key"})
         assert response.status_code == 403
 
-    def test_valid_auth_returns_200(self, api_client, test_group):
+    def test_valid_auth_returns_200(self, api_client, user1, user2):
         response = api_client.get(API_URL, headers={"Authorization": VALID_AUTH})
         assert response.status_code == 200
 
@@ -98,7 +78,7 @@ class TestApiAuthentication:
 class TestSummaryEmptyState:
     """Test summary endpoint with no data."""
 
-    def test_no_group_returns_empty_summary(self, api_client):
+    def test_no_users_returns_empty_summary(self, api_client):
         response = api_client.get(API_URL, headers={"Authorization": VALID_AUTH})
         assert response.status_code == 200
 
@@ -112,7 +92,7 @@ class TestSummaryEmptyState:
         assert data["recurring"]["total_monthly_cost"] == "0.00"
         assert data["recurring"]["upcoming"] == []
 
-    def test_group_no_expenses_returns_zeros(self, api_client, test_group):
+    def test_users_no_expenses_returns_zeros(self, api_client, user1, user2):
         response = api_client.get(API_URL, headers={"Authorization": VALID_AUTH})
         data = response.json()
 
@@ -127,10 +107,9 @@ class TestSummaryEmptyState:
 class TestSummaryWithExpenses:
     """Test summary endpoint with expense data."""
 
-    def test_month_total_and_count(self, api_client, test_group, user1, user2, db_session):
+    def test_month_total_and_count(self, api_client, user1, user2, db_session):
         db_session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("50.00"),
                 description="Groceries",
                 date=date.today(),
@@ -143,7 +122,6 @@ class TestSummaryWithExpenses:
         )
         db_session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("30.00"),
                 description="Coffee",
                 date=date.today(),
@@ -163,10 +141,9 @@ class TestSummaryWithExpenses:
         assert data["month"]["expense_count"] == 2
         assert data["month"]["unsettled_count"] == 2
 
-    def test_balance_with_splits(self, api_client, test_group, user1, user2, db_session):
+    def test_balance_with_splits(self, api_client, user1, user2, db_session):
         """Balance correctly reflects split amounts."""
         expense = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("100.00"),
             description="Dinner",
             date=date.today(),
@@ -197,11 +174,10 @@ class TestSummaryWithExpenses:
         assert "Alice" in balance["direction"]
         assert len(balance["members"]) == 2
 
-    def test_money_values_are_strings(self, api_client, test_group, user1, db_session):
+    def test_money_values_are_strings(self, api_client, user1, db_session):
         """All money values are serialized as strings, not floats."""
         db_session.add(
             ExpenseRow(
-                group_id=test_group.id,
                 amount=Decimal("99.99"),
                 description="Test",
                 date=date.today(),
@@ -226,10 +202,9 @@ class TestSummaryWithExpenses:
 class TestSummaryWithRecurring:
     """Test summary endpoint with recurring definitions."""
 
-    def test_recurring_summary(self, api_client, test_group, user1, db_session):
+    def test_recurring_summary(self, api_client, user1, db_session):
         db_session.add(
             RecurringDefinitionRow(
-                group_id=test_group.id,
                 name="Netflix",
                 amount=Decimal("15.99"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -243,7 +218,6 @@ class TestSummaryWithRecurring:
         )
         db_session.add(
             RecurringDefinitionRow(
-                group_id=test_group.id,
                 name="Spotify",
                 amount=Decimal("9.99"),
                 frequency=RecurringFrequency.MONTHLY,
@@ -272,12 +246,11 @@ class TestSummaryWithRecurring:
         assert data["recurring"]["upcoming"][0]["frequency"] == "monthly"
         assert data["recurring"]["upcoming"][0]["payer"] == "Alice"
 
-    def test_limit_parameter(self, api_client, test_group, user1, db_session):
+    def test_limit_parameter(self, api_client, user1, db_session):
         """?limit= controls how many upcoming items are returned."""
         for i in range(5):
             db_session.add(
                 RecurringDefinitionRow(
-                    group_id=test_group.id,
                     name=f"Service {i}",
                     amount=Decimal("10.00"),
                     frequency=RecurringFrequency.MONTHLY,
@@ -297,7 +270,7 @@ class TestSummaryWithRecurring:
         assert data["recurring"]["active_count"] == 5
         assert len(data["recurring"]["upcoming"]) == 2
 
-    def test_period_is_current_month(self, api_client, test_group):
+    def test_period_is_current_month(self, api_client, user1, user2):
         response = api_client.get(API_URL, headers={"Authorization": VALID_AUTH})
         data = response.json()
 
@@ -307,19 +280,11 @@ class TestSummaryWithRecurring:
 
 
 class TestBalanceWithTodaysExpenses:
-    """Regression test: expenses dated today must contribute to balance.
+    """Regression test: expenses dated today must contribute to balance."""
 
-    Previously, a SQL join bug (session.exec with multi-entity select) caused
-    today's expenses to be silently excluded from the balance calculation.
-    """
-
-    def test_balance_correct_with_today_expenses(
-        self, api_client, test_group, user1, user2, db_session
-    ):
+    def test_balance_correct_with_today_expenses(self, api_client, user1, user2, db_session):
         """Two expenses both dated today produce correct balance direction."""
-        # Alice (user1) pays €50, Bob (user2) pays €30 — both today
         expense1 = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Dinner",
             date=date.today(),
@@ -330,7 +295,6 @@ class TestBalanceWithTodaysExpenses:
             status=ExpenseStatus.PENDING,
         )
         expense2 = ExpenseRow(
-            group_id=test_group.id,
             amount=Decimal("30.00"),
             description="Coffee",
             date=date.today(),
@@ -363,10 +327,7 @@ class TestBalanceWithTodaysExpenses:
         data = response.json()
 
         balance = data["month"]["balance"]
-        # Alice paid €50 (owed €25), owes €15 for Bob's → net +€10
-        # Bob paid €30 (owed €15), owes €25 for Alice's → net -€10
         assert balance["net_amount"] == "10.00"
         assert "Bob" in balance["direction"]
         assert "Alice" in balance["direction"]
-        # Bob owes Alice
         assert balance["direction"] == "Bob owes Alice"

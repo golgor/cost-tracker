@@ -111,10 +111,10 @@
           {% if is_settled %}disabled{% endif %}
           class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-stone-50 disabled:text-stone-600"
         >
-          {% for member in group_members %}
-            {% set member_user = users.get(member.user_id) %}
+          {% for member in users_list %}
+            {% set member_user = users.get(member.id) %}
             {% if member_user %}
-            <option value="{{ member.user_id }}" {% if member.user_id == expense.payer_id %}selected{% endif %}>
+            <option value="{{ member.id }}" {% if member.id == expense.payer_id %}selected{% endif %}>
               {{ member_user.display_name }}
             </option>
             {% endif %}
@@ -211,10 +211,10 @@
   if (!splitSelect || !splitFields || !splitConfig) return;
 
   const members = [
-    {% for member in group_members %}
-      {% set member_user = users.get(member.user_id) %}
+    {% for member in users_list %}
+      {% set member_user = users.get(member.id) %}
       {% if member_user %}
-      { id: {{ member.user_id }}, name: {{ member_user.display_name | tojson }} },
+      { id: {{ member.id }}, name: {{ member_user.display_name | tojson }} },
       {% endif %}
     {% endfor %}
   ];

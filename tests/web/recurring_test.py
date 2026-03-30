@@ -6,11 +6,11 @@ from decimal import Decimal
 import pytest
 from starlette.testclient import TestClient
 
-from app.adapters.sqlalchemy.orm_models import GroupRow, MembershipRow, RecurringDefinitionRow
+from app.adapters.sqlalchemy.orm_models import RecurringDefinitionRow
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
 from app.dependencies import get_uow
-from app.domain.models import MemberRole, RecurringFrequency, SplitType
+from app.domain.models import RecurringFrequency, SplitType
 from app.main import app
 
 
@@ -27,23 +27,7 @@ def test_user(uow: UnitOfWork):
 
 
 @pytest.fixture
-def test_group(test_user, uow: UnitOfWork):
-    """Create a test group with the test user as admin."""
-    group = GroupRow(
-        name="Test Household",
-        singleton_guard=True,
-        default_currency="EUR",
-        default_split_type=SplitType.EVEN,
-    )
-    uow.session.add(group)
-    uow.session.flush()
-    uow.session.add(MembershipRow(group_id=group.id, user_id=test_user.id, role=MemberRole.ADMIN))
-    uow.session.commit()
-    return group
-
-
-@pytest.fixture
-def authenticated_client(test_user, test_group, uow):
+def authenticated_client(test_user, uow):
     """Test client authenticated as test_user."""
     app.dependency_overrides[get_uow] = lambda: uow
     client = TestClient(app, raise_server_exceptions=False)
@@ -64,7 +48,7 @@ class TestRecurringRegistryAccess:
         assert response.headers.get("location") == "/auth/login"
 
     def test_registry_returns_200_for_authenticated_user(self, authenticated_client):
-        """Authenticated user with group gets 200 on registry page."""
+        """Authenticated user gets 200 on registry page."""
         response = authenticated_client.get("/recurring")
         assert response.status_code == 200
 
@@ -97,9 +81,8 @@ class TestRecurringRegistryEmptyState:
 class TestRecurringRegistryWithDefinitions:
     """Test registry rendering with existing definitions."""
 
-    def _add_definition(self, uow, group, user, name="Netflix", amount="14.99"):
+    def _add_definition(self, uow, user, name="Netflix", amount="14.99"):
         row = RecurringDefinitionRow(
-            group_id=group.id,
             name=name,
             amount=Decimal(amount),
             frequency=RecurringFrequency.MONTHLY,
@@ -114,24 +97,22 @@ class TestRecurringRegistryWithDefinitions:
         uow.session.commit()
         return row
 
-    def test_definition_name_appears_in_registry(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_definition_name_appears_in_registry(self, authenticated_client, test_user, uow):
         """Definition name appears in the registry page."""
-        self._add_definition(uow, test_group, test_user, name="Netflix")
+        self._add_definition(uow, test_user, name="Netflix")
         response = authenticated_client.get("/recurring")
         assert response.status_code == 200
         assert "Netflix" in response.text
 
-    def test_summary_bar_shows_count(self, authenticated_client, test_user, test_group, uow):
+    def test_summary_bar_shows_count(self, authenticated_client, test_user, uow):
         """Summary bar shows active count when definitions exist."""
-        self._add_definition(uow, test_group, test_user, name="Spotify")
+        self._add_definition(uow, test_user, name="Spotify")
         response = authenticated_client.get("/recurring")
         assert "1 active cost" in response.text
 
-    def test_normalized_monthly_cost_shown(self, authenticated_client, test_user, test_group, uow):
+    def test_normalized_monthly_cost_shown(self, authenticated_client, test_user, uow):
         """Definition card shows the normalized monthly cost."""
-        self._add_definition(uow, test_group, test_user, amount="14.99")
+        self._add_definition(uow, test_user, amount="14.99")
         response = authenticated_client.get("/recurring")
         assert "14.99" in response.text
 
@@ -141,7 +122,7 @@ class TestRecurringRegistryWithDefinitions:
         assert "Active" in response.text
         assert "Paused" in response.text
 
-    def test_paused_tab_htmx_endpoint(self, authenticated_client, test_user, test_group, uow):
+    def test_paused_tab_htmx_endpoint(self, authenticated_client, test_user, uow):
         """HTMX tab endpoint returns 200 for 'paused' tab."""
         response = authenticated_client.get(
             "/recurring/tab/paused",
@@ -149,7 +130,7 @@ class TestRecurringRegistryWithDefinitions:
         )
         assert response.status_code == 200
 
-    def test_active_tab_htmx_endpoint(self, authenticated_client, test_user, test_group, uow):
+    def test_active_tab_htmx_endpoint(self, authenticated_client, test_user, uow):
         """HTMX tab endpoint returns 200 for 'active' tab."""
         response = authenticated_client.get(
             "/recurring/tab/active",
@@ -162,12 +143,9 @@ class TestRecurringRegistryWithDefinitions:
         response = authenticated_client.get("/recurring/tab/unknown")
         assert response.status_code == 400
 
-    def test_paused_definitions_not_in_active_tab(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_paused_definitions_not_in_active_tab(self, authenticated_client, test_user, uow):
         """Paused definitions do not appear in the Active tab."""
         paused = RecurringDefinitionRow(
-            group_id=test_group.id,
             name="Paused Service",
             amount=Decimal("9.99"),
             frequency=RecurringFrequency.MONTHLY,
@@ -185,12 +163,9 @@ class TestRecurringRegistryWithDefinitions:
         # Active tab should not show paused service
         assert "Paused Service" not in response.text
 
-    def test_paused_definitions_appear_in_paused_tab(
-        self, authenticated_client, test_user, test_group, uow
-    ):
+    def test_paused_definitions_appear_in_paused_tab(self, authenticated_client, test_user, uow):
         """Paused definitions appear in the Paused tab HTMX response."""
         paused = RecurringDefinitionRow(
-            group_id=test_group.id,
             name="Paused Service",
             amount=Decimal("9.99"),
             frequency=RecurringFrequency.MONTHLY,

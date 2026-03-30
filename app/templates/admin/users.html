@@ -4,35 +4,15 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-  <!-- Header with navigation tabs (Task 9) -->
-  <div class="mb-6">
-    <div class="border-b border-stone-200">
-      <nav class="flex gap-8" aria-label="Admin sections">
-        <a href="/admin/users" class="py-4 px-1 border-b-2 border-primary-500 text-primary-600 font-medium">
-          Users
-        </a>
-      </nav>
-    </div>
-  </div>
-
-  <h1 class="text-3xl font-semibold text-stone-900 mb-6">User Management</h1>
-
-  {% if error_message %}
-  <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-    {{ error_message }}
-  </div>
-  {% endif %}
+  <h1 class="text-3xl font-semibold text-stone-900 mb-6">Users</h1>
 
   <div class="bg-surface-card rounded-lg shadow-sm overflow-hidden">
-    <!-- Table -->
     <div class="overflow-x-auto">
       <table class="w-full" style="table-layout: fixed;">
         <thead class="bg-stone-50 border-b border-stone-200">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 25%;">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 30%;">Email</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 15%;">Role</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 30%;">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 40%;">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-stone-700 uppercase tracking-wider" style="width: 60%;">Email</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-stone-200">

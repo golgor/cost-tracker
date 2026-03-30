@@ -1,11 +1,12 @@
 """Settlement domain use cases."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from app.domain.balance import (
     MemberBalance,
     SettlementTransaction,
-    calculate_balances,
+    calculate_balances_from_splits,
     minimize_transactions,
 )
 from app.domain.errors import EmptySettlementError, SettlementError, StaleExpenseError
@@ -17,7 +18,20 @@ from app.domain.models import (
     SettlementTransactionBase,
 )
 from app.domain.ports import UnitOfWorkPort
-from app.domain.splits import BalanceConfig
+
+
+def _load_splits_and_calculate(
+    uow: UnitOfWorkPort,
+    expenses: list[ExpensePublic],
+    member_ids: list[int],
+) -> dict[int, MemberBalance]:
+    """Load persisted splits and calculate balances."""
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]] = {}
+    for expense in expenses:
+        raw_splits = uow.expenses.get_splits(expense.id)
+        splits_by_expense[expense.id] = [(s.user_id, s.amount) for s in raw_splits]
+
+    return calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
 
 
 def format_transfer_message(
@@ -43,7 +57,7 @@ def format_transfer_message(
     return f"{len(transactions)} payments required"
 
 
-def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
+def generate_reference_id(uow: UnitOfWorkPort) -> str:
     """Generate unique human-readable reference ID.
 
     Format: "March 2025" or "March 2025 (2)" if duplicate exists.
@@ -52,12 +66,12 @@ def generate_reference_id(uow: UnitOfWorkPort, group_id: int) -> str:
     now = datetime.now(UTC)
     base = now.strftime("%B %Y")
 
-    if not uow.settlements.reference_exists(group_id, base):
+    if not uow.settlements.reference_exists(base):
         return base
 
     counter = 2
     max_attempts = 100
-    while uow.settlements.reference_exists(group_id, f"{base} ({counter})"):
+    while uow.settlements.reference_exists(f"{base} ({counter})"):
         counter += 1
         if counter > max_attempts:
             raise SettlementError(
@@ -97,8 +111,7 @@ def preview_settlement(
             raise StaleExpenseError(expense_id)
         expenses.append(expense)
 
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    balances = _load_splits_and_calculate(uow, expenses, member_ids)
     transactions = minimize_transactions(balances)
     return transactions, balances
 
@@ -106,7 +119,6 @@ def preview_settlement(
 def confirm_settlement(
     uow: UnitOfWorkPort,
     *,
-    group_id: int,
     expense_ids: list[int],
     settled_by_id: int,
     member_ids: list[int],
@@ -116,10 +128,9 @@ def confirm_settlement(
 
     Args:
         uow: Unit of work for transaction boundary
-        group_id: Group being settled
         expense_ids: IDs of expenses to include
         settled_by_id: User confirming the settlement
-        member_ids: All member user IDs in the group
+        member_ids: All user IDs in the household
         reference_id: Optional custom reference (auto-generated if None)
 
     Returns:
@@ -141,8 +152,7 @@ def confirm_settlement(
             raise StaleExpenseError(expense_id)
         expenses.append(expense)
 
-    config = BalanceConfig()
-    balances = calculate_balances(expenses, member_ids, config)
+    balances = _load_splits_and_calculate(uow, expenses, member_ids)
     domain_transactions = minimize_transactions(balances)
 
     tx_models: list[SettlementTransactionBase] = [
@@ -156,10 +166,9 @@ def confirm_settlement(
     ]
 
     if reference_id is None:
-        reference_id = generate_reference_id(uow, group_id)
+        reference_id = generate_reference_id(uow)
 
     settlement = SettlementBase(
-        group_id=group_id,
         reference_id=reference_id,
         settled_by_id=settled_by_id,
         settled_at=datetime.now(UTC),

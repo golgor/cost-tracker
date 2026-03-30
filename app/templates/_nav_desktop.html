@@ -26,20 +26,18 @@
     <div class="relative group">
       <button type="button" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 focus-ring transition-colors">
         <div class="w-8 h-8 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 text-sm font-medium">
-          {{ user.avatar_initial if user else 'U' }}
+          {{ user.display_name[0]|upper if user and user.display_name else 'U' }}
         </div>
-        <span class="text-stone-700 text-sm">{{ user.display_name if user else 'User' }}</span>
+        <span class="text-stone-700 text-sm">{{ user.display_name if user and user.display_name else 'User' }}</span>
         <svg class="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
       </button>
       <!-- Dropdown menu -->
       <div class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-stone-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-        {% if user and user.is_admin %}
         <a href="/admin/users" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 transition-colors border-b border-stone-200">
-          Admin
+          Users
         </a>
-        {% endif %}
         <a href="/auth/logout" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 rounded-lg transition-colors">
           Logout
         </a>

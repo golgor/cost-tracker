@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
+    DEFAULT_CURRENCY: str = "EUR"
+    DEFAULT_SPLIT_TYPE: str = "EVEN"
+    TRACKING_THRESHOLD: int = 30
+    MAX_USERS: int = 2
     GLANCE_API_KEY: str = "change-me-glance-api-key"
 
     @property

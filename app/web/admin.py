@@ -1,4 +1,4 @@
-"""Admin endpoints for user lifecycle management."""
+"""Admin endpoints for user management."""
 
 import logging
 from typing import Annotated
@@ -10,8 +10,6 @@ from fastapi.templating import Jinja2Templates
 from app.adapters.sqlalchemy.queries import get_all_users
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
-from app.domain.models import UserRole
-from app.domain.use_cases import users as user_use_cases
 from app.web.view_models import UserProfileViewModel, UserRowViewModel
 
 logger = logging.getLogger(__name__)
@@ -23,16 +21,6 @@ UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 
 
-def _check_admin_access(user_id: int, uow: UnitOfWork) -> None:
-    """Check if user has admin role."""
-    user = uow.users.get_by_id(user_id)
-    if not user or user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can perform this action",
-        )
-
-
 # HTML pages for admin UI
 @router.get("/users", response_class=HTMLResponse)
 async def admin_users_page(
@@ -41,19 +29,13 @@ async def admin_users_page(
     uow: UowDep,
 ):
     """Admin user management page."""
-    _check_admin_access(user_id, uow)
-
     # Fetch all users for display
     users_domain = get_all_users(uow.session)
     user_domain = uow.users.get_by_id(user_id)
     if user_domain is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Count admins to determine demote button visibility
-    admin_count = sum(1 for u in users_domain if u.role == UserRole.ADMIN)
-
-    # Transform to view models with admin count context
-    users_view = [UserRowViewModel.from_domain(u, admin_count=admin_count) for u in users_domain]
+    users_view = [UserRowViewModel.from_domain(u) for u in users_domain]
     user_view = UserProfileViewModel.from_domain(user_domain)
 
     return templates.TemplateResponse(
@@ -64,56 +46,4 @@ async def admin_users_page(
             "users": users_view,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
-    )
-
-
-# HTMX endpoints for user lifecycle actions
-
-
-@router.post("/users/{target_user_id}/promote")
-async def promote_user(
-    target_user_id: int,
-    request: Request,
-    actor_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Promote user to admin role."""
-    _check_admin_access(actor_id, uow)
-
-    with uow:
-        user_use_cases.promote_user_to_admin(uow, target_user_id)
-        # Return updated row
-        user_domain = uow.users.get_by_id(target_user_id)
-        if user_domain is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        user_view = UserRowViewModel.from_domain(user_domain)
-
-    return templates.TemplateResponse(
-        request,
-        "admin/_user_row.html",
-        {"u": user_view},
-    )
-
-
-@router.post("/users/{target_user_id}/demote")
-async def demote_user(
-    target_user_id: int,
-    request: Request,
-    actor_id: CurrentUserId,
-    uow: UowDep,
-):
-    """Demote admin to regular user role."""
-    _check_admin_access(actor_id, uow)
-
-    with uow:
-        user_use_cases.demote_user_to_regular(uow, target_user_id)
-        user_domain = uow.users.get_by_id(target_user_id)
-        if user_domain is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        user_view = UserRowViewModel.from_domain(user_domain)
-
-    return templates.TemplateResponse(
-        request,
-        "admin/_user_row.html",
-        {"u": user_view},
     )

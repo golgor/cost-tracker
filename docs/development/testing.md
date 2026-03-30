@@ -70,14 +70,12 @@ fixture.
 `conftest.py` provides helper functions for creating test data:
 
 ```python
-# Create a user
-user = create_test_user(session, "user1@test", "user1@test.com")
-
-# Create a group with the user as admin
-group = create_test_group(session, user.id)
+# Create users
+user1 = create_test_user(session, "user1@test", "user1@test.com")
+user2 = create_test_user(session, "user2@test", "user2@test.com")
 
 # Create an expense
-expense = create_test_expense(session, group.id, "50.00", user.id, user.id)
+expense = create_test_expense(session, "50.00", payer_id=user1.id, creator_id=user1.id)
 ```
 
 ## Test Patterns
@@ -87,12 +85,12 @@ expense = create_test_expense(session, group.id, "50.00", user.id, user.id)
 For testing business logic in isolation, mock the `UnitOfWork`:
 
 ```python
-def test_create_expense_validates_group(mocker):
+def test_create_expense_validates_payer(mocker):
     uow = MagicMock()
-    uow.groups.get_by_id.return_value = None  # Group doesn't exist
+    uow.users.get_by_id.return_value = None  # User doesn't exist
 
-    with pytest.raises(GroupNotFoundError):
-        create_expense(uow=uow, group_id=999, ...)
+    with pytest.raises(UserNotFoundError):
+        create_expense(uow=uow, payer_id=999, ...)
 ```
 
 Use for: business rules, validation, error handling, decision logic.
@@ -102,16 +100,14 @@ Use for: business rules, validation, error handling, decision logic.
 For testing use cases end-to-end through real adapters:
 
 ```python
-def test_update_expense_changes_amount(uow, test_group, user1, user2):
+def test_update_expense_changes_amount(uow, user1, user2):
     with uow:
         expense = create_expense(
             uow=uow,
-            group_id=test_group.id,
             amount=Decimal("50.00"),
             description="Groceries",
             creator_id=user1.id,
             payer_id=user1.id,
-            member_ids=[user1.id, user2.id],
         )
 
     with uow:
@@ -148,14 +144,14 @@ Test HTTP endpoints with `TestClient`:
 
 ```python
 @pytest.fixture
-def authenticated_client(user1, test_group, uow):
+def authenticated_client(user1, uow):
     app.dependency_overrides[get_uow] = lambda: uow
     client = TestClient(app, raise_server_exceptions=False)
     client.cookies.set("cost_tracker_session", encode_session(user1.id))
     yield client
     app.dependency_overrides.clear()
 
-def test_dashboard_shows_balance(authenticated_client, user1, test_group, uow):
+def test_dashboard_shows_balance(authenticated_client, user1, uow):
     # Create test data
     uow.session.add(ExpenseRow(..., amount=Decimal("100.00")))
     uow.session.commit()
