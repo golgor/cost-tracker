@@ -61,3 +61,81 @@ class TestGetExpenses:
     def test_get_by_id_returns_404_for_missing(self, api_client):
         response = api_client.get("/expenses/999999")
         assert response.status_code == 404
+
+
+class TestCreateExpense:
+    def test_create_returns_201(self, api_client, two_users):
+        user1, user2 = two_users
+        payload = {
+            "amount": "42.00",
+            "description": "Spar",
+            "creator_id": user1.id,
+            "payer_id": user1.id,
+            "member_ids": [user1.id, user2.id],
+            "currency": "EUR",
+            "split_type": "EVEN",
+        }
+        response = api_client.post("/expenses", json=payload)
+        assert response.status_code == 201
+
+    def test_create_returns_expense_data(self, api_client, two_users):
+        user1, user2 = two_users
+        payload = {
+            "amount": "100.00",
+            "description": "Ikea",
+            "creator_id": user1.id,
+            "payer_id": user1.id,
+            "member_ids": [user1.id, user2.id],
+            "currency": "EUR",
+            "split_type": "EVEN",
+        }
+        response = api_client.post("/expenses", json=payload)
+        data = response.json()
+        assert data["description"] == "Ikea"
+        assert data["amount"] == "100.00"
+        assert "id" in data
+
+    def test_create_with_date(self, api_client, two_users):
+        user1, user2 = two_users
+        payload = {
+            "amount": "55.00",
+            "description": "OMV",
+            "date": "2025-07-06",
+            "creator_id": user1.id,
+            "payer_id": user1.id,
+            "member_ids": [user1.id, user2.id],
+            "currency": "EUR",
+        }
+        response = api_client.post("/expenses", json=payload)
+        assert response.status_code == 201
+        assert response.json()["date"] == "2025-07-06"
+
+    def test_create_with_invalid_split_type_returns_422(self, api_client, two_users):
+        user1, user2 = two_users
+        payload = {
+            "amount": "50.00",
+            "description": "Bad",
+            "creator_id": user1.id,
+            "payer_id": user1.id,
+            "member_ids": [user1.id, user2.id],
+            "currency": "EUR",
+            "split_type": "NOT_A_VALID_TYPE",
+        }
+        response = api_client.post("/expenses", json=payload)
+        assert response.status_code == 422
+
+    def test_create_shares_split_without_config_returns_domain_error(self, api_client, two_users):
+        user1, user2 = two_users
+        payload = {
+            "amount": "50.00",
+            "description": "Bad",
+            "creator_id": user1.id,
+            "payer_id": user1.id,
+            "member_ids": [user1.id, user2.id],
+            "currency": "EUR",
+            "split_type": "SHARES",
+            # Missing split_config for SHARES type
+        }
+        response = api_client.post("/expenses", json=payload)
+        # InvalidShareError is a DomainError → handled by api_v1 domain_error_handler → 422
+        assert response.status_code == 422
