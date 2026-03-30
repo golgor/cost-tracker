@@ -6,8 +6,8 @@
   <meta name="description" content="Cost Tracker - Household expense sharing made simple">
   <meta name="csrf-token" content="{{ csrf_token | default('') }}">
   <title>{% block title %}Cost Tracker{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='css/output.css') }}">
-  <script src="{{ url_for('static', path='js/htmx.min.js') }}" defer></script>
+  <link rel="stylesheet" href="/static/css/output.css">
+  <script src="/static/js/htmx.min.js" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       document.body.addEventListener('htmx:configRequest', function(event) {
