@@ -25,6 +25,16 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown logic."""
     configure_logging(env=settings.ENV, log_level=settings.LOG_LEVEL)
+
+    if settings.DEV_BYPASS_AUTH:
+        from sqlmodel import Session
+
+        from app.auth.dev import ensure_dev_user
+
+        with Session(engine) as session:
+            ensure_dev_user(session)
+            session.commit()
+
     yield
     engine.dispose()
 

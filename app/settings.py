@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     SESSION_MAX_AGE: int = 86400  # 24 hours in seconds
     LOG_LEVEL: str = "INFO"
     ENV: str = "dev"  # "dev" | "prod"
+    DEV_BYPASS_AUTH: bool = False  # Set True in .env for local dev without OIDC. Never in prod.
     INTERNAL_WEBHOOK_SECRET: str = "change-me-webhook-secret"
     DEFAULT_CURRENCY: str = "EUR"
     DEFAULT_SPLIT_TYPE: str = "EVEN"
@@ -43,6 +44,8 @@ class Settings(BaseSettings):
     def validate_production_settings(self) -> Settings:
         """Validate settings are secure for production."""
         if self.is_production:
+            if self.DEV_BYPASS_AUTH:
+                raise ValueError("DEV_BYPASS_AUTH must not be enabled in production")
             if self.SECRET_KEY in _INSECURE_SECRETS:
                 raise ValueError("SECRET_KEY must be set to a secure value in production")
             if self.OIDC_CLIENT_SECRET in _INSECURE_SECRETS:

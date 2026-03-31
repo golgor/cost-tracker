@@ -36,6 +36,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware to enforce authentication on protected routes."""
 
     async def dispatch(self, request: Request, call_next):
+        # Dev bypass: inject the synthetic dev user and skip all auth checks.
+        # Only active when DEV_BYPASS_AUTH=True and ensure_dev_user() has run
+        # at startup. Falls through to normal auth if the ID is not cached yet
+        # (guards against misconfiguration where lifespan did not complete).
+        if settings.DEV_BYPASS_AUTH:
+            from app.auth.dev import get_dev_user_id
+
+            dev_user_id = get_dev_user_id()
+            if dev_user_id is not None:
+                request.state.user_id = dev_user_id
+                return await call_next(request)
+
         # Skip auth for public paths
         if is_public_path(request.url.path):
             return await call_next(request)
