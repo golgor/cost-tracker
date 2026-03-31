@@ -221,3 +221,5 @@ _bmad-output/*
 .windsurf/*
 .gemini/*
 .github/skills/*
+CLAUDE.md
+scripts/*
