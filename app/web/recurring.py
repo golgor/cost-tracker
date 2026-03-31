@@ -116,7 +116,6 @@ def _build_users_dict(
 
 def _to_view_models(
     definitions: list[RecurringDefinitionPublic],
-    uow: UnitOfWork,
     member_names: dict[int, str],
 ) -> list[RecurringDefinitionViewModel]:
     """Convert domain models to template-ready view models."""
@@ -149,7 +148,7 @@ async def registry_index(
 
         domain_defs = get_active_definitions(uow.session)
         active_categories = sorted({d.category for d in domain_defs if d.category})
-        definitions = _to_view_models(domain_defs, uow, member_names)
+        definitions = _to_view_models(domain_defs, member_names)
         summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
@@ -324,12 +323,13 @@ async def registry_tab(
         all_users = get_all_users(uow.session)
         member_names = {u.id: u.display_name for u in all_users}
 
+        # always load active defs for filter chips regardless of current tab
         all_active = get_active_definitions(uow.session)
         active_categories = sorted({d.category for d in all_active if d.category})
 
         domain_defs = all_active if tab == "active" else get_paused_definitions(uow.session)
 
-        definitions = _to_view_models(domain_defs, uow, member_names)
+        definitions = _to_view_models(domain_defs, member_names)
         summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
@@ -524,7 +524,7 @@ async def toggle_active(
             raise HTTPException(status_code=404, detail="Recurring definition not found")
         all_users = get_all_users(uow.session)
         member_names = {u.id: u.display_name for u in all_users}
-        view_models = _to_view_models([updated], uow, member_names)
+        view_models = _to_view_models([updated], member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(
@@ -574,7 +574,7 @@ async def create_expense_for_definition(
             raise HTTPException(status_code=404, detail="Recurring definition not found")
         all_users = get_all_users(uow.session)
         member_names = {u.id: u.display_name for u in all_users}
-        view_models = _to_view_models([updated], uow, member_names)
+        view_models = _to_view_models([updated], member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(

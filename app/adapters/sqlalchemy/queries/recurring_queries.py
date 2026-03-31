@@ -83,6 +83,8 @@ def get_paused_definitions(
     return [_row_to_public(row) for row in rows]
 
 
+# Used by the API layer (/api/v1/).
+# Web layer uses compute_registry_stats() from view_models.py instead.
 def get_registry_summary(
     session: Session,
 ) -> dict[str, Any]:
