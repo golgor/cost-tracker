@@ -159,6 +159,7 @@ class TestComputeRegistryStats:
         assert stats["shared_monthly_total"] == "80.00"
         assert stats["total_monthly_cost"] == "80.00"
         assert stats["personal_monthly_totals"] == {}
+        assert stats["per_person_shared_cost"] == {1: "40.00", 2: "40.00"}
 
     def test_personal_isolated(self):
         vms = [_mock_vm(True, 1, "35.00", {1: "35.00", 2: "0.00"})]
@@ -177,6 +178,7 @@ class TestComputeRegistryStats:
         assert stats["personal_monthly_totals"] == {2: "40.00"}
         assert stats["total_monthly_cost"] == "60.00"
         assert stats["active_count"] == 2
+        assert stats["per_person_shared_cost"] == {1: "10.00", 2: "10.00"}
 
     def test_member_stats_contains_initials(self):
         vms = [_mock_vm(False, None, "20.00", {1: "10.00", 2: "10.00"})]
