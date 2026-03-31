@@ -61,6 +61,7 @@ class TestGetExpenses:
     def test_get_by_id_returns_404_for_missing(self, api_client):
         response = api_client.get("/expenses/999999")
         assert response.status_code == 404
+        assert response.json()["detail"] == "Expense 999999 not found"
 
 
 class TestCreateExpense:

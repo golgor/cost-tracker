@@ -59,7 +59,7 @@ class ExpenseCreateRequest(BaseModel):
     creator_id: int
     payer_id: int
     member_ids: list[int]
-    currency: str = Field(default="EUR", max_length=3)
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
     split_type: SplitType = SplitType.EVEN
     split_config: dict[int, Decimal] | None = None
 
@@ -69,7 +69,7 @@ class ExpenseUpdateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=255)
     date: datetime.date | None = None
     payer_id: int | None = None
-    currency: str | None = Field(default=None, max_length=3)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
     split_type: SplitType | None = None
     split_config: dict[int, Decimal] | None = None
     member_ids: list[int] | None = None

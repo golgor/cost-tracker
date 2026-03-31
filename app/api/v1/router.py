@@ -35,18 +35,7 @@ from app.api.v1.schemas import (
     UpcomingRecurring,
 )
 from app.dependencies import get_db_session
-from app.domain.errors import (
-    CannotEditSettledExpenseError,
-    DomainError,
-    DuplicateBillingPeriodError,
-    EmptySettlementError,
-    ExpenseNotFoundError,
-    RecurringDefinitionNotFoundError,
-    RecurringExpenseDescriptionError,
-    StaleExpenseError,
-    UserLimitReachedError,
-    UserNotFoundError,
-)
+from app.domain.errors import HTTP_STATUS_MAP, DomainError
 from app.domain.models import RecurringFrequency
 from app.settings import settings
 
@@ -57,23 +46,11 @@ api_v1 = FastAPI(
     dependencies=[Depends(verify_api_key)],
 )
 
-_API_ERROR_MAP: dict[type[DomainError], int] = {
-    UserNotFoundError: 404,
-    UserLimitReachedError: 403,
-    CannotEditSettledExpenseError: 403,
-    EmptySettlementError: 400,
-    StaleExpenseError: 409,
-    RecurringDefinitionNotFoundError: 404,
-    DuplicateBillingPeriodError: 409,
-    RecurringExpenseDescriptionError: 400,
-    ExpenseNotFoundError: 404,
-}
-
 
 @api_v1.exception_handler(DomainError)
 async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     """Translate domain errors to JSON HTTP responses for the API."""
-    status_code = _API_ERROR_MAP.get(type(exc), 422)
+    status_code = HTTP_STATUS_MAP.get(type(exc), 422)
     return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
 

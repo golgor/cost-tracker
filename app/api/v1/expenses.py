@@ -28,9 +28,9 @@ def get_expense(expense_id: int, uow: UowDep) -> ExpensePublic:
     """Retrieve a single expense by ID."""
     with uow:
         expense = uow.expenses.get_by_id(expense_id)
-    if expense is None:
-        raise ExpenseNotFoundError(expense_id)
-    return expense
+        if expense is None:
+            raise ExpenseNotFoundError(expense_id)
+        return expense
 
 
 @router.post("", response_model=ExpensePublic, status_code=status.HTTP_201_CREATED)

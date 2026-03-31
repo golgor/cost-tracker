@@ -109,3 +109,18 @@ class ExpenseNotFoundError(DomainError):
     def __init__(self, expense_id: int):
         super().__init__(f"Expense {expense_id} not found")
         self.expense_id = expense_id
+
+
+# Centralised mapping from domain errors to HTTP status codes.
+# Used by both the web app (main.py) and the API sub-app (router.py).
+HTTP_STATUS_MAP: dict[type[DomainError], int] = {
+    UserNotFoundError: 404,
+    UserLimitReachedError: 403,
+    CannotEditSettledExpenseError: 403,
+    EmptySettlementError: 400,
+    StaleExpenseError: 409,
+    RecurringDefinitionNotFoundError: 404,
+    DuplicateBillingPeriodError: 409,
+    RecurringExpenseDescriptionError: 400,
+    ExpenseNotFoundError: 404,
+}
