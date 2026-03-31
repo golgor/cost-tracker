@@ -418,6 +418,43 @@ class TestFilterChips:
         assert "category=membership" not in response.text
 
 
+class TestMakePersonalToggle:
+    """Test the Make Personal toggle in the recurring form."""
+
+    def test_form_shows_make_personal_button(self, authenticated_client):
+        response = authenticated_client.get("/recurring/new")
+        assert "Make Personal" in response.text
+
+    def test_edit_form_pre_activates_toggle_for_personal_definition(
+        self, authenticated_client, test_user, uow
+    ):
+        with uow:
+            partner = uow.users.save(
+                oidc_sub="personal_toggle@test.com",
+                email="personal_toggle@test.com",
+                display_name="Partner Toggle",
+            )
+        row = RecurringDefinitionRow(
+            name="Gym",
+            amount=Decimal("35.00"),
+            frequency=RecurringFrequency.MONTHLY,
+            next_due_date=date(2026, 5, 1),
+            payer_id=test_user.id,
+            split_type=SplitType.PERCENTAGE,
+            split_config={test_user.id: "100", partner.id: "0"},
+            auto_generate=False,
+            is_active=True,
+            currency="EUR",
+        )
+        uow.session.add(row)
+        uow.session.flush()
+
+        response = authenticated_client.get(f"/recurring/{row.id}/edit")
+        assert response.status_code == 200
+        # When editing a personal definition, the toggle renders "Undo — make shared"
+        assert "Undo" in response.text
+
+
 class TestSummaryBarStatsGrid:
     """Test the stats grid summary bar rendered by compute_registry_stats."""
 
