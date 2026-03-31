@@ -32,6 +32,9 @@ mise run lint             # ruff check + ruff format --check + ty
 mise run lint:fix         # Auto-fix (always run this first)
 mise run lint:docs        # Lint markdown in docs/
 
+# Type-checking
+mise run types            # Run type-checks with `ty`
+
 # Dependencies
 uv add <package>          # Add dependency (never use pip)
 uv sync --locked          # Install from lockfile

@@ -57,7 +57,6 @@ async def create_widget(
         widget = create_widget_use_case(
             uow=uow,
             payer_id=user_id,
-            actor_id=user_id,
             name=name,
             amount=Decimal(amount),
         )

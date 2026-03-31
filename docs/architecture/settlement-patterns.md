@@ -57,7 +57,7 @@ Instead, we use **application-layer enforcement**:
 ```python
 # use_cases/expenses.py
 def update_expense(
-    uow: UnitOfWork, expense_id: int, actor_id: int, **kwargs
+    uow: UnitOfWork, expense_id: int, **kwargs
 ):
     expense = uow.expenses.get_by_id(expense_id)
     if expense.settlement_id is not None:
@@ -70,11 +70,6 @@ def update_expense(
 - Disable edit/delete buttons for settled expenses
 - Show "Settled" badge in expense lists
 - Return 400 error with message if somehow triggered
-
-1. **Audit Trail** (accountability)
-
-- All edits logged with before/after state
-- Admin can identify who modified settled expense
 
 ### Error Handling
 
@@ -132,7 +127,7 @@ def generate_settlement_reference(
 def create(
     self,
     reference: str,
-    actor_id: int,
+
 ) -> Settlement:
     try:
         row = SettlementRow(
@@ -325,7 +320,6 @@ async def create_settlement(
         settlement = use_cases.settlements.confirm_settlement(
             uow=uow,
             expense_ids=form.expense_ids,
-            actor_id=user_id,
         )
 
     return RedirectResponse(
@@ -411,7 +405,7 @@ def link_expenses_to_settlement(
     self,
     expense_ids: list[int],
     settlement_id: int,
-    actor_id: int,
+
 ) -> None:
     """Link expenses to settlement with concurrency protection."""
     # Lock rows for update to prevent concurrent modification
@@ -426,7 +420,6 @@ def link_expenses_to_settlement(
         if row.settlement_id is not None:
             raise ExpenseAlreadySettledError(row.id)
         row.settlement_id = settlement_id
-        # Auto-audit via adapter
 ```
 
 ### Transaction Boundaries
@@ -438,7 +431,7 @@ Entire settlement creation is atomic:
 def confirm_settlement(
     uow: UnitOfWork,
     expense_ids: list[int],
-    actor_id: int,
+
 ) -> Settlement:
     """Atomically create settlement and link expenses."""
     reference = generate_settlement_reference()
@@ -446,13 +439,11 @@ def confirm_settlement(
     # All operations in single transaction via UoW context manager
     settlement = uow.settlements.create(
         reference=reference,
-        actor_id=actor_id,
     )
 
     uow.expenses.link_to_settlement(
         expense_ids=expense_ids,
         settlement_id=settlement.id,
-        actor_id=actor_id,
     )
 
     # UoW commit happens automatically on successful context exit

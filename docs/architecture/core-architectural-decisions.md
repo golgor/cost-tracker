@@ -26,8 +26,6 @@
 
 **Deferred Decisions (Post-MVP):**
 
-- API key authentication (evaluate Authentik client_credentials flow)
-- API route layer (`/api/v1/`) — architecture supports adding later without domain changes
 - Rate limiting
 - Caching strategy
 - CORS (not needed — same-origin browser + non-browser API clients)
@@ -93,7 +91,7 @@ class ExpensePort(Protocol):
 
 | Decision | Choice | Rationale |
 | --- | --- | --- |
-| API style | REST at `/api/v1/` (deferred post-MVP) | Use cases ready, route layer added later |
+| API style | REST at `/api/v1/` (implemented) | Read-only Glance dashboard integration with Bearer token auth |
 | HTMX style | View-oriented fragments at shared page paths | Optimized for UI |
 | API docs | Swagger UI at `/docs`, publicly viewable. API execution requires OIDC auth | Open-source project, no secrets in endpoint definitions |
 | Error handling | FastAPI exception handlers mapping domain errors to HTTP | Per-layer response format (JSON for API, HTML fragment for HTMX) |
@@ -122,7 +120,7 @@ class ExpensePort(Protocol):
 | Database hosting | External PostgreSQL (Proxmox VM) | Separate from k3s cluster |
 | Logging | `structlog` — JSON in production, console in dev (`LOG_FORMAT` env var) | Same structured data, format switchable |
 | CI/CD | GitHub Actions, split by path filters | Code (pytest/ruff/ty), Docs (markdownlint), Docker (build/push) |
-| Health check | `/health` endpoint | K8s liveness/readiness probe |
+| Health check | `/health/live` + `/health/ready` | K8s liveness/readiness probes (ready checks DB) |
 | Sync/Async | Sync SQLAlchemy for MVP | Simpler, sufficient for scale. Async is localized future change (adapter layer only) |
 
 ## Layer Import Rules
@@ -136,9 +134,9 @@ class ExpensePort(Protocol):
 | `api/v1/` | fastapi + pydantic + domain (models/errors) |
 | `dependencies.py` | everything (composition root) |
 
-Domain layer does not log. It raises errors or uses `AuditPort`. Infrastructure logging (request timing, DB query stats)
-happens in middleware and adapters only. Domain models use SQLModel for validation; ORM models inherit from domain
-models with `table=True`.
+Domain layer does not log. It raises errors. Infrastructure logging (request timing, DB query stats) happens in
+middleware and adapters only. Domain models use SQLModel for validation; ORM models inherit from domain models with
+`table=True`.
 
 ## Testing Strategy (Updated)
 
@@ -213,7 +211,7 @@ contains `_to_domain()` / `_to_row()` helpers.~~
 ### ADR-003: UnitOfWork as Domain Port
 
 **Status:** Accepted
-**Context:** Settlement flow requires atomic operations across expenses + settlements + audit.
+**Context:** Settlement flow requires atomic operations across expenses + settlements.
 **Decision:** `UnitOfWork(Protocol)` exposes all ports + `commit()`/`rollback()`. SQLAlchemy adapter shares single
 `Session`. UnitOfWork implements context manager protocol (`__enter__`/`__exit__`) for automatic transaction management.
 
@@ -249,19 +247,15 @@ don't access closed sessions.
 
 ### ADR-004: Audit Logging as Domain Concern
 
-**Status:** Accepted (Updated)
-**Context:** Audit trail is a business requirement (FR43-44), not infrastructure. Original pattern required every use
-case to call `uow.audit.log()` explicitly, which was repetitive and easy to forget.
-**Decision:** Adapter-driven auto-auditing. Mutating adapter methods (`save()`, `update()`, `delete()`) accept an
-`actor_id` keyword parameter and create audit rows automatically using SQLAlchemy `inspect()` dirty tracking.
-`compute_changes(row)` reads attribute history for updates (old→new for changed fields only). `snapshot_new(row)` builds
-a changes dict for creates (old is always null). Changes stored as `{"field": {"old": ..., "new": ...}}` JSON. No audit
-row is created if nothing actually changed. Audit rows share the same transaction as business data (atomicity via UoW).
-User adapter's `save()` auto-audits with `actor_id` set to the user's own ID (self-provisioning via OIDC). `AuditPort`
-still exists for direct use if needed, but adapters handle the common case.
-**Consequences:** Audit logging cannot be accidentally omitted from mutations. Use case code is cleaner — no explicit
-audit calls needed. Adapters receive the audit adapter via constructor injection. Slight coupling between adapters and
-audit concern, accepted as pragmatic trade-off.
+**Status:** Superseded (PR #24, 2026-03-28)
+**Context:** Audit trail was originally a business requirement (FR43-44). Adapter-driven auto-auditing was implemented
+with `actor_id` threading through all port methods and `compute_changes()`/`snapshot_new()` utilities.
+**Decision:** Removed. The audit system added ~12% of codebase complexity (1,700 LOC) for a purely observational
+feature in a 2-person household app. Structured logging via `structlog` (already in the project) provides sufficient
+observability with zero coupling. All `actor_id` parameters, `AuditPort`, `AuditEntryBase`, `audit_logs` table, and
+auto-auditing utilities were removed.
+**Consequences:** Simpler port signatures, cleaner adapters, reduced testing surface. Observability now relies on
+structured request logging in middleware.
 
 ### ADR-005: Sync SQLAlchemy for MVP
 
@@ -278,21 +272,20 @@ audit concern, accepted as pragmatic trade-off.
 through domain ports.
 **Consequences:** Controlled bypass of hexagonal boundary. Enforced read-only by architectural test.
 
-### ADR-007: API Routes Deferred Past MVP
+### ADR-007: API Routes
 
-**Status:** Accepted (Amended 2026-03-25)
-**Context:** MVP is browser-first. Ports & adapters makes adding API consumers trivial.
-**Decision:** HTMX/page routes for MVP. `/api/v1/` added as separate phase (target: Week 3-4 for external
-dashboard integration).
-**Consequences:** Faster MVP delivery. No domain changes needed when API is added. External dashboard (Glance)
-satisfies dashboard requirements; cost-tracker focuses on expense management UI.
+**Status:** Accepted (Implemented 2026-03-25)
+**Context:** MVP was browser-first. Ports & adapters made adding API consumers trivial.
+**Decision:** `/api/v1/` implemented for external dashboard integration (Glance). Read-only endpoints with Bearer
+token authentication (`GLANCE_API_KEY`). Includes `/api/v1/summary` and `/api/v1/expenses`.
+**Consequences:** External dashboard (Glance) satisfies overview needs; cost-tracker focuses on expense management UI.
+API layer is a separate FastAPI sub-application mounted at `/api/v1`.
 
 ### ADR-008: Structured Logging with structlog
 
 **Status:** Accepted
 **Context:** Need machine-parseable logs in production and readable logs in dev.
-**Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors or uses
-AuditPort.
+**Decision:** `structlog` with `LOG_FORMAT` env var (json/console). Domain doesn't log — raises errors.
 **Consequences:** One library, two output modes. Infrastructure logging in middleware/adapters only.
 
 ### ADR-009: Split CI Workflows by Path
@@ -344,7 +337,7 @@ is more useful than "settle_abc123".
 - Simple, readable references for 2-person settlement flow
 - Constraint: `UNIQUE(reference)` enforces one settlement per month
 - Month names use full English names (January-December), capitalized
-- Displayed in settlement history, detail views, and audit logs
+- Displayed in settlement history and detail views
 
 ### ADR-013: Soft Immutability for Settled Expenses
 
@@ -363,7 +356,7 @@ constraints prevent admin override for corrections.
 ```python
 # use_cases/expenses.py
 def update_expense(
-    uow: UnitOfWork, expense_id: int, actor_id: int, ...
+    uow: UnitOfWork, expense_id: int, ...
 ):
     expense = uow.expenses.get_by_id(expense_id)
     if expense.settlement_id is not None:
@@ -374,9 +367,8 @@ def update_expense(
 **Consequences:**
 
 - Simpler schema (no complex constraint)
-- Admin can override if necessary (direct DB access for corrections)
+- Direct DB access available for corrections if necessary
 - UI shows "Settled" badge, disables edit buttons for settled expenses
-- Audit trail maintains history if changes are made
 
 ### ADR-014: Stateless Settlement Review Flow
 
@@ -405,7 +397,7 @@ GET /settlements/confirm?expense_ids=1,2,3
 
 POST /settlements
   → Use case validates expenses still unsettled
-  → Creates settlement, links expenses, creates audit log
+  → Creates settlement, links expenses
   → Redirect to settlement detail
 ```
 

@@ -13,35 +13,12 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.router import api_v1
 from app.auth.middleware import AuthMiddleware, CSRFMiddleware
 from app.dependencies import engine, get_db_session
-from app.domain.errors import (
-    CannotEditSettledExpenseError,
-    DomainError,
-    DuplicateBillingPeriodError,
-    EmptySettlementError,
-    RecurringDefinitionNotFoundError,
-    RecurringExpenseDescriptionError,
-    StaleExpenseError,
-    UserLimitReachedError,
-    UserNotFoundError,
-)
+from app.domain.errors import HTTP_STATUS_MAP, DomainError
 from app.logging import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
 from app.web.router import router as web_router
 
 DbSession = Annotated[Session, Depends(get_db_session)]
-
-# Maps DomainError subclasses → HTTP status codes.
-# Add entries here as new domain errors are defined in later stories.
-DOMAIN_ERROR_MAP: dict[type[DomainError], int] = {
-    UserNotFoundError: 404,
-    UserLimitReachedError: 403,
-    CannotEditSettledExpenseError: 403,
-    EmptySettlementError: 400,
-    StaleExpenseError: 409,
-    RecurringDefinitionNotFoundError: 404,
-    DuplicateBillingPeriodError: 409,
-    RecurringExpenseDescriptionError: 400,
-}
 
 
 @asynccontextmanager
@@ -92,7 +69,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 @app.exception_handler(DomainError)
 async def domain_error_handler(request: Request, exc: DomainError):
     """Handle domain errors - return HTML for HTMX, JSON for API requests."""
-    status_code = DOMAIN_ERROR_MAP.get(type(exc), 422)
+    status_code = HTTP_STATUS_MAP.get(type(exc), 422)
 
     # Check if this is an HTMX request
     is_htmx = request.headers.get("HX-Request") == "true"

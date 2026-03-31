@@ -4,7 +4,12 @@ Money values are serialized as string Decimals (e.g. "123.45"), never floats.
 Dates are ISO 8601 strings.
 """
 
-from pydantic import BaseModel
+import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+from app.domain.models import SplitType
 
 
 class MemberBalance(BaseModel):
@@ -45,3 +50,26 @@ class RecurringSummary(BaseModel):
 class GlanceSummary(BaseModel):
     month: MonthSummary
     recurring: RecurringSummary
+
+
+class ExpenseCreateRequest(BaseModel):
+    amount: Decimal = Field(gt=0, decimal_places=2)
+    description: str = Field(min_length=1, max_length=255)
+    date: datetime.date | None = None
+    creator_id: int
+    payer_id: int
+    member_ids: list[int]
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
+    split_type: SplitType = SplitType.EVEN
+    split_config: dict[int, Decimal] | None = None
+
+
+class ExpenseUpdateRequest(BaseModel):
+    amount: Decimal | None = Field(default=None, gt=0, decimal_places=2)
+    description: str | None = Field(default=None, max_length=255)
+    date: datetime.date | None = None
+    payer_id: int | None = None
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    split_type: SplitType | None = None
+    split_config: dict[int, Decimal] | None = None
+    member_ids: list[int] | None = None

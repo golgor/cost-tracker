@@ -111,14 +111,14 @@ def test_update_expense_changes_amount(uow, user1, user2):
         )
 
     with uow:
-        update_expense(uow=uow, expense_id=expense.id, amount=Decimal("99.99"), actor_id=user1.id)
+        update_expense(uow=uow, expense_id=expense.id, amount=Decimal("99.99"))
 
     with uow:
         updated = uow.expenses.get_by_id(expense.id)
         assert updated.amount == Decimal("99.99")
 ```
 
-Use for: persistence, workflows, side effects like audit logging.
+Use for: persistence, workflows, side effects like cascading updates.
 
 ### Adapter Contract Tests
 
@@ -127,7 +127,7 @@ Verify that adapters correctly round-trip domain models without data loss:
 ```python
 class TestUserAdapterContract:
     def test_save_and_retrieve_by_id(self, db_session):
-        adapter = SqlAlchemyUserAdapter(db_session, SqlAlchemyAuditAdapter(db_session))
+        adapter = SqlAlchemyUserAdapter(db_session)
         user = adapter.save(oidc_sub="auth0|12345", email="test@example.com", ...)
         db_session.commit()
 
@@ -186,7 +186,7 @@ These tests use AST analysis and regex scanning — they run fast and catch viol
 2. Use `uow` fixture for database tests, `MagicMock` for unit tests
 3. Wrap database operations in `with uow:` context manager
 4. Test both success and error paths
-5. Verify side effects (audit logs, cascading updates)
+5. Verify side effects (cascading updates, split recalculations)
 6. Use descriptive test names: `test_delete_expense_removes_from_db`
 
 ### Transaction Pattern

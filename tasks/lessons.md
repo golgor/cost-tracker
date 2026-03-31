@@ -71,3 +71,14 @@ def test_entity(uow: UnitOfWork):
 - Audit logging: pass `actor_id` to adapter methods, don't call `uow.audit.log()` manually
 
 <!-- New lessons go below this line. Format: ## Category heading, then bullet points. -->
+
+## Commands
+
+- Use `mise run lint:fix` (auto-fix) then `mise run lint` (verify) — never raw `ruff` commands
+- Use `mise run types` for type-checking — never raw `ty` commands
+- Use `mise run test` or `uv run pytest tests/path/file.py -v` for running tests — never `python -c` for verification
+
+## API Sub-Application
+
+- `api_v1` is a separate FastAPI sub-app mounted at `/api/v1`. It does NOT inherit exception handlers from the main `app`. Add a JSON-only domain error handler directly to `api_v1` in `router.py`.
+- When adding new domain errors that need 404/40x treatment in both web and API routes, add them to `DOMAIN_ERROR_MAP` in `main.py` AND to the equivalent handler in `api_v1`.
