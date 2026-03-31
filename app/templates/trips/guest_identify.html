@@ -1,0 +1,30 @@
+{% extends "trips/guest_base.html" %}
+
+{% block content %}
+<div class="h-full flex flex-col items-center justify-center p-6 max-w-md mx-auto">
+  
+  <div class="bg-white p-8 rounded-2xl shadow-sm border border-stone-200 w-full text-center">
+    <div class="w-16 h-16 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    
+    <h2 class="text-2xl font-bold text-stone-900 mb-2">Welcome to {{ trip.name }}</h2>
+    <p class="text-stone-500 text-sm mb-8">Please select your name so we can record your expenses and balances correctly.</p>
+    
+    <form action="/trips/guest/{{ trip.id }}/identify" method="POST" class="space-y-3">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      {% for participant in participants %}
+      <button type="submit" name="guest_id" value="{{ participant.id }}" class="w-full flex items-center justify-between p-4 bg-stone-50 hover:bg-stone-100 border border-stone-200 hover:border-primary-300 rounded-xl transition group">
+        <span class="font-medium text-stone-800 group-hover:text-primary-700">{{ participant.name }}</span>
+        <svg class="w-5 h-5 text-stone-400 group-hover:text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+      {% else %}
+      <div class="p-4 bg-yellow-50 text-yellow-800 rounded-xl text-sm border border-yellow-200">
+        No participants have been added to this trip yet. Have the admin invite you!
+      </div>
+      {% endfor %}
+    </form>
+  </div>
+
+</div>
+{% endblock %}

@@ -7,6 +7,8 @@ from app.web.dashboard import router as dashboard_router
 from app.web.expenses import router as expenses_router
 from app.web.recurring import router as recurring_router
 from app.web.settlements import router as settlements_router
+from app.web.trips_admin import router as trips_admin_router
+from app.web.trips_guest import router as trips_guest_router
 
 router = APIRouter()
 
@@ -17,3 +19,5 @@ router.include_router(expenses_router)
 router.include_router(recurring_router)
 router.include_router(settlements_router)
 router.include_router(admin_router)
+router.include_router(trips_admin_router)
+router.include_router(trips_guest_router)

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <meta name="csrf-token" content="{{ csrf_token | default('') }}">
+  <title>{% block title %}Trip{% endblock %}</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.addEventListener('htmx:configRequest', function(event) {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        if (csrfToken) {
+          event.detail.headers['X-CSRF-Token'] = csrfToken;
+        }
+      });
+    });
+  </script>
+  
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .safe-area-inset-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-stone-50 text-stone-900 font-sans h-screen flex flex-col overflow-hidden">
+  
+  <!-- Fixed Header -->
+  <header class="bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </div>
+      <h1 class="text-lg font-bold text-stone-800">{{ trip.name if trip else 'Cost Tracker' }}</h1>
+    </div>
+    
+    {% if active_guest_id and trip %}
+    <!-- Small User Avatar & Menu -->
+    <a href="/trips/guest/{{ trip.id }}/logout" class="text-xs font-semibold text-stone-500 uppercase tracking-wider hover:text-red-500 transition px-2 py-1 bg-stone-100 rounded-md">
+      Logout
+    </a>
+    {% endif %}
+  </header>
+
+  <!-- Scrollable Main Content -->
+  <main class="flex-1 overflow-y-auto hide-scrollbar bg-stone-50 relative pb-20 md:pb-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bottom Navigation (if identified) -->
+  {% if active_guest_id and trip %}
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 safe-area-inset-bottom flex justify-around items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 md:relative md:h-14 md:shadow-none md:border-b">
+    <a href="/trips/guest/{{ trip.id }}/summary" class="flex flex-col items-center justify-center gap-1 w-full h-full {% if 'summary' in request.url.path %}text-primary-600 font-medium{% else %}text-stone-500{% endif %}">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span class="text-[10px] uppercase tracking-wide">Expenses</span>
+    </a>
+    <a href="/trips/guest/{{ trip.id }}/balances" class="flex flex-col items-center justify-center gap-1 w-full h-full {% if 'balances' in request.url.path %}text-primary-600 font-medium{% else %}text-stone-500{% endif %}">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+      <span class="text-[10px] uppercase tracking-wide">Balances</span>
+    </a>
+  </nav>
+  {% endif %}
+
+</body>
+</html>

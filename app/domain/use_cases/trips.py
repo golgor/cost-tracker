@@ -1,0 +1,152 @@
+"""Trip domain use cases."""
+
+import secrets
+from datetime import date
+from decimal import Decimal
+
+from app.domain.balance import (
+    MemberBalance,
+    SettlementTransaction,
+    calculate_balances_from_splits,
+    minimize_transactions,
+)
+from app.domain.models import (
+    ExpensePublic,
+    ExpenseStatus,
+    GuestBase,
+    GuestPublic,
+    SplitType,
+    TripBase,
+    TripExpenseBase,
+    TripExpensePublic,
+    TripPublic,
+)
+from app.domain.ports import UnitOfWorkPort
+
+
+def create_guest(uow: UnitOfWorkPort, name: str, user_id: int | None = None) -> GuestPublic:
+    """Create a new global guest."""
+    guest = GuestBase(name=name, user_id=user_id)
+    return uow.guests.save(guest)
+
+
+def get_all_guests(uow: UnitOfWorkPort) -> list[GuestPublic]:
+    """Retrieve all global guests."""
+    return uow.guests.list_all()
+
+
+def create_trip(
+    uow: UnitOfWorkPort,
+    name: str,
+    currency: str,
+    created_by_id: int,
+    participant_ids: list[int],
+) -> TripPublic:
+    """Create a new trip and add its initial participants."""
+    token = secrets.token_urlsafe(32)
+    trip = TripBase(
+        name=name,
+        currency=currency,
+        sharing_token=token,
+        is_active=True,
+        created_by_id=created_by_id,
+    )
+    saved_trip = uow.trips.save(trip)
+
+    if participant_ids:
+        uow.trips.add_participants(saved_trip.id, participant_ids)
+
+    return saved_trip
+
+
+def get_trip_details(
+    uow: UnitOfWorkPort, trip_id: int
+) -> tuple[TripPublic, list[GuestPublic], list[TripExpensePublic]]:
+    """Load trip along with participants and expenses."""
+    trip = uow.trips.get_by_id(trip_id)
+    if not trip:
+        raise ValueError(f"Trip {trip_id} not found")
+    participants = uow.trips.get_participants(trip_id)
+    expenses = uow.trips.list_expenses(trip_id)
+    return trip, participants, expenses
+
+
+def add_expense(
+    uow: UnitOfWorkPort,
+    trip_id: int,
+    description: str,
+    amount: Decimal,
+    expense_date: date,
+    paid_by_id: int,
+    created_by_guest_id: int,
+) -> TripExpensePublic:
+    """Add a new expense to a trip."""
+    expense = TripExpenseBase(
+        trip_id=trip_id,
+        description=description,
+        amount=amount,
+        date=expense_date,
+        paid_by_id=paid_by_id,
+        created_by_guest_id=created_by_guest_id,
+    )
+    return uow.trips.save_expense(expense)
+
+
+def calculate_trip_settlement(
+    uow: UnitOfWorkPort, trip_id: int
+) -> tuple[list[SettlementTransaction], dict[int, MemberBalance]]:
+    """
+    Calculate the minimal network of transactions to settle the trip.
+
+    Maps TripExpense models into the expected ExpensePublic interface
+    so that balance.py can optimize them transparently using Guest IDs.
+    """
+    trip = uow.trips.get_by_id(trip_id)
+    if not trip:
+        raise ValueError(f"Trip {trip_id} not found")
+
+    participants = uow.trips.get_participants(trip_id)
+    member_ids = [p.id for p in participants]
+
+    trip_expenses = uow.trips.list_expenses(trip_id)
+
+    expenses: list[ExpensePublic] = []
+    splits_by_expense: dict[int, list[tuple[int, Decimal]]] = {}
+
+    for tx in trip_expenses:
+        exp = ExpensePublic(
+            id=tx.id,
+            amount=tx.amount,
+            description=tx.description,
+            date=tx.date,
+            creator_id=tx.created_by_guest_id,
+            payer_id=tx.paid_by_id,
+            currency=trip.currency,
+            status=ExpenseStatus.PENDING,
+            created_at=tx.created_at,
+            updated_at=tx.updated_at,
+            split_type=SplitType.EVEN,
+        )
+        expenses.append(exp)
+
+        # In a Trip, all expenses are evenly split among all active participants
+        splits: list[tuple[int, Decimal]] = []
+        num_participants = len(member_ids)
+        if num_participants == 0:
+            continue
+
+        amount_per_person = round(tx.amount / num_participants, 2)
+        remainder = tx.amount - (amount_per_person * num_participants)
+
+        for i, pid in enumerate(member_ids):
+            share = amount_per_person
+            if i == 0:
+                share += remainder
+            splits.append((pid, share))
+
+        splits_by_expense[tx.id] = splits
+
+    balances = calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
+    transactions = minimize_transactions(balances)
+
+    return transactions, balances
