@@ -108,7 +108,7 @@ def get_filtered_expenses(
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
     )
-    if limit:
+    if limit is not None:
         statement = statement.limit(limit)
 
     rows = session.exec(statement).all()
