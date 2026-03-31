@@ -459,7 +459,7 @@ splitFieldsDiv.addEventListener('input', () => {
       if (splitTypeSelect) splitTypeSelect.value = 'PERCENTAGE';
       var config = {};
       config[currentUserId] = '100';
-      if (partnerId) config[partnerId] = '0';
+      memberIds.forEach(function(id) { if (id !== currentUserId) config[id] = '0'; });
       if (splitConfigInput) splitConfigInput.value = JSON.stringify(config);
       if (payerSelect) payerSelect.value = String(currentUserId);
     } else {

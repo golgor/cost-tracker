@@ -290,6 +290,15 @@ async def create_recurring(
 
         if errors:
             opts = _build_form_options(form_data)
+            try:
+                _config = json.loads(split_config_json) if split_config_json else {}
+            except (ValueError, TypeError):
+                _config = {}
+            is_personal_edit_rerender = (
+                split_type != "EVEN"
+                and bool(_config)
+                and any(Decimal(str(v)) == 0 for v in _config.values())
+            )
             return templates.TemplateResponse(
                 request,
                 "recurring/form.html",
@@ -301,7 +310,7 @@ async def create_recurring(
                     "errors": errors,
                     "users": users_dict,
                     "members": users,
-                    "is_personal_edit": False,
+                    "is_personal_edit": is_personal_edit_rerender,
                     **opts,
                     "csrf_token": getattr(request.state, "csrf_token", ""),
                 },
@@ -535,7 +544,7 @@ async def update_recurring(
             opts = _build_form_options(form_data)
             try:
                 _config = json.loads(split_config_json) if split_config_json else {}
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 _config = {}
             is_personal_edit_rerender = (
                 split_type != "EVEN"
