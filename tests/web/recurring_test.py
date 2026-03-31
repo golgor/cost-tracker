@@ -323,3 +323,58 @@ class TestFilteredEndpoint:
         response = authenticated_client.get(f"/recurring/filtered?payer_id={test_user.id}")
         assert "User1 Cost" in response.text
         assert "User2 Cost" not in response.text
+
+
+class TestCardContent:
+    """Test card rendering with the new view model fields."""
+
+    def _add_definition(self, uow, user, **kwargs):
+        defaults = dict(
+            name="Netflix",
+            amount=Decimal("19.99"),
+            frequency=RecurringFrequency.MONTHLY,
+            next_due_date=date(2027, 1, 15),
+            payer_id=user.id,
+            split_type=SplitType.EVEN,
+            split_config=None,
+            auto_generate=False,
+            is_active=True,
+            currency="EUR",
+            category="subscription",
+        )
+        defaults.update(kwargs)
+        row = RecurringDefinitionRow(**defaults)
+        uow.session.add(row)
+        uow.session.flush()
+        return row
+
+    def test_card_shows_due_date_with_year(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, next_due_date=date(2027, 1, 15))
+        response = authenticated_client.get("/recurring")
+        assert "Jan 15, 2027" in response.text
+
+    def test_card_shows_personal_badge(self, authenticated_client, test_user, uow):
+        with uow:
+            partner = uow.users.save(
+                oidc_sub="card_partner@test.com",
+                email="card_partner@test.com",
+                display_name="Card Partner",
+            )
+        self._add_definition(
+            uow,
+            test_user,
+            split_type=SplitType.PERCENTAGE,
+            split_config={test_user.id: "100", partner.id: "0"},
+        )
+        response = authenticated_client.get("/recurring")
+        assert "personal" in response.text
+
+    def test_card_shows_auto_badge(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, auto_generate=True)
+        response = authenticated_client.get("/recurring")
+        assert "auto" in response.text
+
+    def test_card_footer_shows_category(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, category="insurance")
+        response = authenticated_client.get("/recurring")
+        assert "insurance" in response.text
