@@ -1,5 +1,6 @@
 """Read-only queries for the recurring definitions registry view."""
 
+from decimal import Decimal
 from typing import Any
 
 from sqlmodel import Session, select
@@ -121,3 +122,57 @@ def get_registry_summary(
         "total_monthly_cost": str(total),
         "currency": currency,
     }
+
+
+def _is_personal_domain(defn: RecurringDefinitionPublic) -> bool:
+    """Return True if this definition is personal (one user bears 100% of cost).
+
+    Assumes a 2-person household. Personal = exactly one user has 0 share.
+    """
+    if defn.split_type.value == "EVEN" or not defn.split_config:
+        return False
+    zero_count = sum(1 for v in defn.split_config.values() if Decimal(str(v)) == 0)
+    nonzero_count = sum(1 for v in defn.split_config.values() if Decimal(str(v)) != 0)
+    return zero_count == 1 and nonzero_count == 1
+
+
+def get_filtered_definitions(
+    session: Session,
+    *,
+    scope: str = "all",
+    payer_id: int | None = None,
+    category: str | None = None,
+    active_only: bool = True,
+) -> list[RecurringDefinitionPublic]:
+    """Fetch filtered recurring definitions for the HTMX filter endpoint.
+
+    Args:
+        scope: "all" | "shared" | "personal" — scope filtering applied in Python
+               because personal detection requires reading split_config values.
+        payer_id: Filter by payer_id column.
+        category: Filter by category string.
+        active_only: If True, only return is_active=True rows.
+    """
+    statement = select(RecurringDefinitionRow).where(
+        RecurringDefinitionRow.deleted_at.is_(None),  # type: ignore[union-attr]
+    )
+
+    if active_only:
+        statement = statement.where(
+            RecurringDefinitionRow.is_active.is_(True),  # type: ignore[union-attr]
+        )
+    if payer_id is not None:
+        statement = statement.where(RecurringDefinitionRow.payer_id == payer_id)
+    if category is not None:
+        statement = statement.where(RecurringDefinitionRow.category == category)
+
+    statement = statement.order_by(RecurringDefinitionRow.next_due_date)  # type: ignore[arg-type]
+    rows = session.exec(statement).all()
+    results = [_row_to_public(row) for row in rows]
+
+    if scope == "personal":
+        results = [r for r in results if _is_personal_domain(r)]
+    elif scope == "shared":
+        results = [r for r in results if not _is_personal_domain(r)]
+
+    return results

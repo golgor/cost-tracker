@@ -218,3 +218,108 @@ class TestRecurringForm:
         assert response.status_code == 200
         assert test_user.display_name in response.text
         assert second_user.display_name in response.text
+
+
+class TestFilteredEndpoint:
+    """Test the /recurring/filtered HTMX endpoint."""
+
+    def _add_definition(
+        self,
+        uow,
+        user,
+        name: str = "Netflix",
+        amount: str = "14.99",
+        category: str | None = None,
+        split_type: SplitType = SplitType.EVEN,
+        split_config: dict | None = None,
+    ):
+        row = RecurringDefinitionRow(
+            name=name,
+            amount=Decimal(amount),
+            frequency=RecurringFrequency.MONTHLY,
+            next_due_date=date(2026, 4, 1),
+            payer_id=user.id,
+            split_type=split_type,
+            split_config=split_config,
+            auto_generate=False,
+            is_active=True,
+            currency="EUR",
+            category=category,
+        )
+        uow.session.add(row)
+        uow.session.flush()
+        return row
+
+    def test_filtered_endpoint_returns_200(self, authenticated_client):
+        response = authenticated_client.get(
+            "/recurring/filtered",
+            headers={"HX-Request": "true"},
+        )
+        assert response.status_code == 200
+
+    def test_filtered_scope_all_returns_all_active(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, name="Netflix")
+        self._add_definition(uow, test_user, name="Spotify")
+        response = authenticated_client.get("/recurring/filtered?scope=all")
+        assert "Netflix" in response.text
+        assert "Spotify" in response.text
+
+    def test_filtered_scope_personal_shows_only_personal(
+        self, authenticated_client, test_user, uow
+    ):
+        with uow:
+            partner = uow.users.save(
+                oidc_sub="filter_partner@test.com",
+                email="filter_partner@test.com",
+                display_name="Filter Partner",
+            )
+        self._add_definition(
+            uow,
+            test_user,
+            name="Gym",
+            split_type=SplitType.PERCENTAGE,
+            split_config={test_user.id: "100", partner.id: "0"},
+        )
+        self._add_definition(uow, test_user, name="Shared Netflix")
+        response = authenticated_client.get("/recurring/filtered?scope=personal")
+        assert "Gym" in response.text
+        assert "Shared Netflix" not in response.text
+
+    def test_filtered_scope_shared_excludes_personal(self, authenticated_client, test_user, uow):
+        with uow:
+            partner = uow.users.save(
+                oidc_sub="filter_partner2@test.com",
+                email="filter_partner2@test.com",
+                display_name="Filter Partner2",
+            )
+        self._add_definition(
+            uow,
+            test_user,
+            name="Personal Gym",
+            split_type=SplitType.PERCENTAGE,
+            split_config={test_user.id: "100", partner.id: "0"},
+        )
+        self._add_definition(uow, test_user, name="Shared Netflix")
+        response = authenticated_client.get("/recurring/filtered?scope=shared")
+        assert "Shared Netflix" in response.text
+        assert "Personal Gym" not in response.text
+
+    def test_filtered_by_category(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, name="Netflix", category="subscription")
+        self._add_definition(uow, test_user, name="Home Insurance", category="insurance")
+        response = authenticated_client.get("/recurring/filtered?category=subscription")
+        assert "Netflix" in response.text
+        assert "Home Insurance" not in response.text
+
+    def test_filtered_by_payer(self, authenticated_client, test_user, uow):
+        with uow:
+            second = uow.users.save(
+                oidc_sub="filter_second@test.com",
+                email="filter_second@test.com",
+                display_name="Filter Second",
+            )
+        self._add_definition(uow, test_user, name="User1 Cost")
+        self._add_definition(uow, second, name="User2 Cost")
+        response = authenticated_client.get(f"/recurring/filtered?payer_id={test_user.id}")
+        assert "User1 Cost" in response.text
+        assert "User2 Cost" not in response.text

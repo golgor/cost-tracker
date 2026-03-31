@@ -12,6 +12,7 @@ from pydantic import ValidationError  # noqa: F401
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.queries.recurring_queries import (
     get_active_definitions,
+    get_filtered_definitions,
     get_paused_definitions,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
@@ -329,6 +330,50 @@ async def registry_tab(
 
         domain_defs = all_active if tab == "active" else get_paused_definitions(uow.session)
 
+        definitions = _to_view_models(domain_defs, member_names)
+        summary = compute_registry_stats(definitions, member_names)
+
+    return templates.TemplateResponse(
+        request,
+        "recurring/_definition_list.html",
+        {
+            "definitions": definitions,
+            "summary": summary,
+            "active_tab": tab,
+            "active_categories": active_categories,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.get("/recurring/filtered", response_class=HTMLResponse)
+async def registry_filtered(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    scope: str = "all",
+    payer_id: int | None = None,
+    category: str | None = None,
+    tab: str = "active",
+):
+    """HTMX partial: filtered definition list + updated summary bar."""
+    active_only = tab != "paused"
+
+    with uow:
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+
+        # always load active defs for filter chips regardless of current filter
+        all_active = get_active_definitions(uow.session)
+        active_categories = sorted({d.category for d in all_active if d.category})
+
+        domain_defs = get_filtered_definitions(
+            uow.session,
+            scope=scope,
+            payer_id=payer_id,
+            category=category,
+            active_only=active_only,
+        )
         definitions = _to_view_models(domain_defs, member_names)
         summary = compute_registry_stats(definitions, member_names)
 
