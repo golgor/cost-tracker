@@ -292,7 +292,7 @@ async def create_recurring(
             opts = _build_form_options(form_data)
             try:
                 _config = json.loads(split_config_json) if split_config_json else {}
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 _config = {}
             is_personal_edit_rerender = (
                 split_type != "EVEN"
@@ -544,7 +544,7 @@ async def update_recurring(
             opts = _build_form_options(form_data)
             try:
                 _config = json.loads(split_config_json) if split_config_json else {}
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 _config = {}
             is_personal_edit_rerender = (
                 split_type != "EVEN"
