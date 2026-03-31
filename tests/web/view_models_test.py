@@ -2,9 +2,10 @@
 
 from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import MagicMock
 
 from app.domain.models import RecurringDefinitionPublic, RecurringFrequency, SplitType
-from app.web.view_models import RecurringDefinitionViewModel
+from app.web.view_models import RecurringDefinitionViewModel, compute_registry_stats
 
 _MEMBER_IDS = [1, 2]
 _MEMBER_NAMES = {1: "Robert", 2: "Anna"}
@@ -133,3 +134,60 @@ class TestDisplayHelpers:
 
     def test_category_border_color_none_uses_default(self):
         assert _vm(category=None).category_border_color == "#a8a29e"
+
+
+def _mock_vm(
+    is_personal: bool, personal_owner_id: int | None, monthly_cost: str, per_person: dict
+) -> MagicMock:
+    vm = MagicMock(spec=RecurringDefinitionViewModel)
+    vm.is_personal = is_personal
+    vm.personal_owner_id = personal_owner_id
+    vm.normalized_monthly_cost = monthly_cost
+    vm.per_person_monthly_cost = per_person
+    return vm
+
+
+class TestComputeRegistryStats:
+    _NAMES = {1: "Robert", 2: "Anna"}
+
+    def test_all_shared(self):
+        vms = [
+            _mock_vm(False, None, "50.00", {1: "25.00", 2: "25.00"}),
+            _mock_vm(False, None, "30.00", {1: "15.00", 2: "15.00"}),
+        ]
+        stats = compute_registry_stats(vms, self._NAMES)
+        assert stats["shared_monthly_total"] == "80.00"
+        assert stats["total_monthly_cost"] == "80.00"
+        assert stats["personal_monthly_totals"] == {}
+
+    def test_personal_isolated(self):
+        vms = [_mock_vm(True, 1, "35.00", {1: "35.00", 2: "0.00"})]
+        stats = compute_registry_stats(vms, self._NAMES)
+        assert stats["shared_monthly_total"] == "0.00"
+        assert stats["personal_monthly_totals"] == {1: "35.00"}
+        assert stats["total_monthly_cost"] == "35.00"
+
+    def test_mixed(self):
+        vms = [
+            _mock_vm(False, None, "20.00", {1: "10.00", 2: "10.00"}),
+            _mock_vm(True, 2, "40.00", {1: "0.00", 2: "40.00"}),
+        ]
+        stats = compute_registry_stats(vms, self._NAMES)
+        assert stats["shared_monthly_total"] == "20.00"
+        assert stats["personal_monthly_totals"] == {2: "40.00"}
+        assert stats["total_monthly_cost"] == "60.00"
+        assert stats["active_count"] == 2
+
+    def test_member_stats_contains_initials(self):
+        vms = [_mock_vm(False, None, "20.00", {1: "10.00", 2: "10.00"})]
+        stats = compute_registry_stats(vms, self._NAMES)
+        initials = [m["initials"] for m in stats["member_stats"]]
+        assert "R" in initials
+        assert "A" in initials
+
+    def test_empty_returns_zeros(self):
+        stats = compute_registry_stats([], self._NAMES)
+        assert stats["shared_monthly_total"] == "0.00"
+        assert stats["total_monthly_cost"] == "0.00"
+        assert stats["has_active_definitions"] is False
+        assert stats["active_count"] == 0

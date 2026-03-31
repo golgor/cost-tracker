@@ -13,7 +13,6 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.queries.recurring_queries import (
     get_active_definitions,
     get_paused_definitions,
-    get_registry_summary,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
@@ -43,7 +42,7 @@ from app.domain.use_cases.recurring import (
 from app.settings import settings
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
-from app.web.view_models import RecurringDefinitionViewModel
+from app.web.view_models import RecurringDefinitionViewModel, compute_registry_stats
 
 router = APIRouter(tags=["recurring"])
 templates = setup_templates("app/templates")
@@ -118,11 +117,10 @@ def _build_users_dict(
 def _to_view_models(
     definitions: list[RecurringDefinitionPublic],
     uow: UnitOfWork,
+    member_names: dict[int, str],
 ) -> list[RecurringDefinitionViewModel]:
     """Convert domain models to template-ready view models."""
-    all_users = uow.users.get_all()
-    member_ids = [u.id for u in all_users]
-    member_names = {u.id: u.display_name for u in all_users}
+    member_ids = list(member_names.keys())
     return [
         RecurringDefinitionViewModel.from_domain(
             d, member_names.get(d.payer_id, "Unknown"), member_ids, member_names
@@ -146,9 +144,13 @@ async def registry_index(
                 detail="User not found",
             )
 
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+
         domain_defs = get_active_definitions(uow.session)
-        definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session)
+        active_categories = sorted({d.category for d in domain_defs if d.category})
+        definitions = _to_view_models(domain_defs, uow, member_names)
+        summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
         request,
@@ -158,6 +160,7 @@ async def registry_index(
             "definitions": definitions,
             "summary": summary,
             "active_tab": "active",
+            "active_categories": active_categories,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -318,13 +321,16 @@ async def registry_tab(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tab")
 
     with uow:
-        if tab == "active":
-            domain_defs = get_active_definitions(uow.session)
-        else:
-            domain_defs = get_paused_definitions(uow.session)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
 
-        definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session)
+        all_active = get_active_definitions(uow.session)
+        active_categories = sorted({d.category for d in all_active if d.category})
+
+        domain_defs = all_active if tab == "active" else get_paused_definitions(uow.session)
+
+        definitions = _to_view_models(domain_defs, uow, member_names)
+        summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
         request,
@@ -333,6 +339,7 @@ async def registry_tab(
             "definitions": definitions,
             "summary": summary,
             "active_tab": tab,
+            "active_categories": active_categories,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -515,7 +522,9 @@ async def toggle_active(
         updated = uow.recurring.get_by_id(definition_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        view_models = _to_view_models([updated], uow)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+        view_models = _to_view_models([updated], uow, member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(
@@ -563,7 +572,9 @@ async def create_expense_for_definition(
         updated = uow.recurring.get_by_id(definition_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        view_models = _to_view_models([updated], uow)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+        view_models = _to_view_models([updated], uow, member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(

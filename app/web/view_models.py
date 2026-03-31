@@ -7,6 +7,7 @@ This keeps templates dumb (no logic) and makes presentation decisions testable.
 
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -355,3 +356,73 @@ class SettlementHistoryViewModel(BaseModel):
             transaction_count=len(transactions),
             transaction_summaries=summaries,
         )
+
+
+def compute_registry_stats(
+    definitions: list[RecurringDefinitionViewModel],
+    member_names: dict[int, str],
+) -> dict[str, Any]:
+    """Compute shared/personal/total monthly cost breakdown from view models.
+
+    Returns:
+        - shared_monthly_total (str)
+        - personal_monthly_totals (dict[int, str])
+        - per_person_shared_cost (dict[int, str])
+        - total_monthly_cost (str)
+        - active_count (int)
+        - has_active_definitions (bool)
+        - active_plural (str)
+        - member_stats (list[dict]) — per-member breakdown for summary bar
+        - currency (str)
+    """
+    from app.settings import settings
+
+    _TWO = Decimal("0.01")
+    shared_total = Decimal("0")
+    personal_totals: dict[int, Decimal] = {}
+    per_person_shared: dict[int, Decimal] = {}
+    grand_total = Decimal("0")
+
+    for defn in definitions:
+        monthly = Decimal(defn.normalized_monthly_cost)
+        grand_total += monthly
+
+        if defn.is_personal and defn.personal_owner_id is not None:
+            uid = defn.personal_owner_id
+            personal_totals[uid] = personal_totals.get(uid, Decimal("0")) + monthly
+        else:
+            shared_total += monthly
+            for uid, cost_str in defn.per_person_monthly_cost.items():
+                cost = Decimal(cost_str)
+                per_person_shared[uid] = per_person_shared.get(uid, Decimal("0")) + cost
+
+    member_stats = [
+        {
+            "initials": _initials(name),
+            "shared_cost": str(
+                per_person_shared.get(uid, Decimal("0")).quantize(_TWO, rounding=ROUND_HALF_UP)
+            ),
+            "personal_cost": str(
+                personal_totals.get(uid, Decimal("0")).quantize(_TWO, rounding=ROUND_HALF_UP)
+            ),
+        }
+        for uid, name in member_names.items()
+    ]
+
+    count = len(definitions)
+    return {
+        "shared_monthly_total": str(shared_total.quantize(_TWO, rounding=ROUND_HALF_UP)),
+        "personal_monthly_totals": {
+            uid: str(v.quantize(_TWO, rounding=ROUND_HALF_UP)) for uid, v in personal_totals.items()
+        },
+        "per_person_shared_cost": {
+            uid: str(v.quantize(_TWO, rounding=ROUND_HALF_UP))
+            for uid, v in per_person_shared.items()
+        },
+        "total_monthly_cost": str(grand_total.quantize(_TWO, rounding=ROUND_HALF_UP)),
+        "active_count": count,
+        "has_active_definitions": count > 0,
+        "active_plural": "s" if count != 1 else "",
+        "member_stats": member_stats,
+        "currency": settings.DEFAULT_CURRENCY,
+    }
