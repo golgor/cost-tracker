@@ -380,6 +380,44 @@ class TestCardContent:
         assert "insurance" in response.text
 
 
+class TestFilterChips:
+    """Test filter chips are rendered and include dynamic categories."""
+
+    def _add_definition(self, uow, user, category=None):
+        row = RecurringDefinitionRow(
+            name="Test",
+            amount=Decimal("10.00"),
+            frequency=RecurringFrequency.MONTHLY,
+            next_due_date=date(2026, 4, 1),
+            payer_id=user.id,
+            split_type=SplitType.EVEN,
+            split_config=None,
+            auto_generate=False,
+            is_active=True,
+            currency="EUR",
+            category=category,
+        )
+        uow.session.add(row)
+        uow.session.flush()
+
+    def test_scope_chips_always_shown(self, authenticated_client):
+        response = authenticated_client.get("/recurring")
+        assert "Shared" in response.text
+        assert "Personal" in response.text
+
+    def test_category_chip_shown_for_active_category(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user, category="insurance")
+        response = authenticated_client.get("/recurring")
+        assert "category=insurance" in response.text
+
+    def test_category_chip_not_shown_for_absent_category(
+        self, authenticated_client, test_user, uow
+    ):
+        self._add_definition(uow, test_user, category="insurance")
+        response = authenticated_client.get("/recurring")
+        assert "category=membership" not in response.text
+
+
 class TestSummaryBarStatsGrid:
     """Test the stats grid summary bar rendered by compute_registry_stats."""
 

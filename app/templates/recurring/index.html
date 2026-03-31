@@ -37,18 +37,9 @@
     </button>
   </div>
 
-  <!-- Definition list (swappable via HTMX tab switching) -->
+  <!-- Definition list (swappable via HTMX tab switching and filters) -->
   <div id="definition-list">
-    {% if definitions %}
-      {% include "recurring/_summary_bar.html" %}
-      <div class="space-y-3">
-        {% for defn in definitions %}
-          {% include "recurring/_definition_card.html" %}
-        {% endfor %}
-      </div>
-    {% else %}
-      {% include "recurring/_empty_state.html" %}
-    {% endif %}
+    {% include "recurring/_definition_list.html" %}
   </div>
 </div>
 
