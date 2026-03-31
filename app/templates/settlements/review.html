@@ -7,7 +7,17 @@
   <!-- Page Header -->
   <header class="mb-6">
     <h1 class="text-2xl font-semibold text-stone-800">Review Expenses for Settlement</h1>
-    <p class="text-stone-600 mt-1">Select the expenses to include in this settlement</p>
+    <div class="flex items-center justify-between mt-1">
+      <p class="text-stone-600">Select the expenses to include in this settlement</p>
+      <button
+        type="button"
+        id="select-all-btn"
+        data-selected="false"
+        onclick="toggleSelectAll(this)"
+        class="text-sm font-medium text-terracotta-600 hover:text-terracotta-700 underline">
+        Select All
+      </button>
+    </div>
   </header>
 
   <!-- Error Message -->
@@ -110,4 +120,17 @@
   </form>
   {% endif %}
 </div>
+
+<script>
+  function toggleSelectAll(btn) {
+    const shouldSelect = btn.dataset.selected === "false";
+    const checkboxes = document.querySelectorAll("input[name='expense_ids']");
+    checkboxes.forEach(cb => { cb.checked = shouldSelect; });
+    btn.dataset.selected = shouldSelect ? "true" : "false";
+    btn.textContent = shouldSelect ? "Deselect All" : "Select All";
+    if (checkboxes.length > 0) {
+      htmx.trigger(checkboxes[0], "change");
+    }
+  }
+</script>
 {% endblock %}
