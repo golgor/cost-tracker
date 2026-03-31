@@ -120,11 +120,13 @@ def _to_view_models(
     uow: UnitOfWork,
 ) -> list[RecurringDefinitionViewModel]:
     """Convert domain models to template-ready view models."""
-    payer_ids = list({d.payer_id for d in definitions})
-    payer_users = uow.users.get_by_ids(payer_ids)
-    payer_map = {u.id: u.display_name for u in payer_users}
+    all_users = uow.users.get_all()
+    member_ids = [u.id for u in all_users]
+    member_names = {u.id: u.display_name for u in all_users}
     return [
-        RecurringDefinitionViewModel.from_domain(d, payer_map.get(d.payer_id, "Unknown"))
+        RecurringDefinitionViewModel.from_domain(
+            d, member_names.get(d.payer_id, "Unknown"), member_ids, member_names
+        )
         for d in definitions
     ]
 
