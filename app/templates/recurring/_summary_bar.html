@@ -1,6 +1,38 @@
-<!-- Summary bar: active count + normalized monthly total -->
+<!-- Summary stats grid — data from compute_registry_stats -->
 {% if summary.has_active_definitions %}
-<div class="text-sm text-stone-600 mb-4">
-  {{ summary.active_count }} active cost{{ summary.active_plural }} · {{ summary.currency | currency_symbol }}{{ summary.total_monthly_cost | format_decimal }}/mo
+<div class="grid grid-cols-3 gap-4 bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 mb-4">
+
+  <div class="flex flex-col">
+    <span class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-1">Shared /mo</span>
+    <span class="text-base font-bold text-stone-800">
+      {{ summary.currency | currency_symbol }}{{ summary.shared_monthly_total | format_decimal }}
+    </span>
+    {% if summary.member_stats %}
+      <span class="text-xs text-stone-500 mt-0.5">
+        {% for m in summary.member_stats %}{{ m.initials }}: {{ summary.currency | currency_symbol }}{{ m.shared_cost | format_decimal }}{% if not loop.last %} · {% endif %}{% endfor %}
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-col">
+    <span class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-1">Personal /mo</span>
+    <span class="text-base font-bold text-stone-800">
+      {{ summary.currency | currency_symbol }}{{ summary.personal_monthly_total | format_decimal }}
+    </span>
+    {% if summary.member_stats %}
+      <span class="text-xs text-stone-500 mt-0.5">
+        {% for m in summary.member_stats %}{{ m.initials }}: {{ summary.currency | currency_symbol }}{{ m.personal_cost | format_decimal }}{% if not loop.last %} · {% endif %}{% endfor %}
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-col">
+    <span class="text-xs font-medium text-stone-400 uppercase tracking-wide mb-1">Total /mo</span>
+    <span class="text-base font-bold text-stone-800">
+      {{ summary.currency | currency_symbol }}{{ summary.total_monthly_cost | format_decimal }}
+    </span>
+    <span class="text-xs text-stone-500 mt-0.5">{{ summary.active_count }} cost{{ summary.active_plural }}</span>
+  </div>
+
 </div>
 {% endif %}

@@ -422,6 +422,11 @@ def compute_registry_stats(
             for uid, v in per_person_shared.items()
         },
         "total_monthly_cost": str(grand_total.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)),
+        "personal_monthly_total": str(
+            sum(personal_totals.values(), Decimal("0")).quantize(
+                _TWO_PLACES, rounding=ROUND_HALF_UP
+            )
+        ),
         "active_count": count,
         "has_active_definitions": count > 0,
         "active_plural": "s" if count != 1 else "",

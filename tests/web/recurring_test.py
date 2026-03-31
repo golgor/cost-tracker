@@ -108,7 +108,7 @@ class TestRecurringRegistryWithDefinitions:
         """Summary bar shows active count when definitions exist."""
         self._add_definition(uow, test_user, name="Spotify")
         response = authenticated_client.get("/recurring")
-        assert "1 active cost" in response.text
+        assert "1 cost" in response.text
 
     def test_normalized_monthly_cost_shown(self, authenticated_client, test_user, uow):
         """Definition card shows the normalized monthly cost."""
@@ -378,3 +378,40 @@ class TestCardContent:
         self._add_definition(uow, test_user, category="insurance")
         response = authenticated_client.get("/recurring")
         assert "insurance" in response.text
+
+
+class TestSummaryBarStatsGrid:
+    """Test the stats grid summary bar rendered by compute_registry_stats."""
+
+    def _add_definition(
+        self, uow, user, amount="20.00", split_type=SplitType.EVEN, split_config=None
+    ):
+        row = RecurringDefinitionRow(
+            name="Test Cost",
+            amount=Decimal(amount),
+            frequency=RecurringFrequency.MONTHLY,
+            next_due_date=date(2026, 4, 1),
+            payer_id=user.id,
+            split_type=split_type,
+            split_config=split_config,
+            auto_generate=False,
+            is_active=True,
+            currency="EUR",
+        )
+        uow.session.add(row)
+        uow.session.flush()
+
+    def test_summary_shows_shared_label(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user)
+        response = authenticated_client.get("/recurring")
+        assert "Shared" in response.text
+
+    def test_summary_shows_personal_label(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user)
+        response = authenticated_client.get("/recurring")
+        assert "Personal" in response.text
+
+    def test_summary_shows_total_label(self, authenticated_client, test_user, uow):
+        self._add_definition(uow, test_user)
+        response = authenticated_client.get("/recurring")
+        assert "Total" in response.text
