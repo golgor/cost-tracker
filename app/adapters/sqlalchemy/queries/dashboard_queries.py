@@ -61,7 +61,7 @@ def get_filtered_expenses(
     payer_id: int | None = None,
     status: str | None = None,
     search_query: str | None = None,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[ExpensePublic]:
     """Fetch expenses with optional filters, sorted newest first.
 
@@ -72,7 +72,7 @@ def get_filtered_expenses(
         payer_id: Optional payer user ID filter
         status: Optional expense status filter (e.g., 'PENDING', 'SETTLED')
         search_query: Optional keyword search against description and note content (ILIKE)
-        limit: Maximum number of results (default 100)
+        limit: Maximum number of results (no limit by default)
 
     Returns:
         List of expenses matching filters
@@ -107,7 +107,9 @@ def get_filtered_expenses(
 
     statement = statement.order_by(
         ExpenseRow.date.desc()  # type: ignore[attr-defined] - SQLAlchemy column descriptor
-    ).limit(limit)
+    )
+    if limit is not None:
+        statement = statement.limit(limit)
 
     rows = session.exec(statement).all()
     return [expense_row_to_public(row) for row in rows]

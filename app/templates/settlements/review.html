@@ -7,7 +7,16 @@
   <!-- Page Header -->
   <header class="mb-6">
     <h1 class="text-2xl font-semibold text-stone-800">Review Expenses for Settlement</h1>
-    <p class="text-stone-600 mt-1">Select the expenses to include in this settlement</p>
+    <div class="flex items-center justify-between mt-1">
+      <p class="text-stone-600">Select the expenses to include in this settlement</p>
+      <button
+        type="button"
+        id="select-all-btn"
+        onclick="toggleSelectAll(this)"
+        class="text-sm font-medium text-terracotta-600 hover:text-terracotta-700 underline">
+        Select All
+      </button>
+    </div>
   </header>
 
   <!-- Error Message -->
@@ -110,4 +119,30 @@
   </form>
   {% endif %}
 </div>
+
+<script>
+  function updateSelectAllButton() {
+    const btn = document.getElementById("select-all-btn");
+    if (!btn) return;
+    const checkboxes = document.querySelectorAll("input[name='expense_ids']");
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    btn.textContent = allChecked ? "Deselect All" : "Select All";
+  }
+
+  function toggleSelectAll(btn) {
+    const checkboxes = document.querySelectorAll("input[name='expense_ids']");
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => { cb.checked = !allChecked; });
+    btn.textContent = !allChecked ? "Deselect All" : "Select All";
+    if (checkboxes.length > 0 && window.htmx) {
+      htmx.trigger(checkboxes[0], "change");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("input[name='expense_ids']").forEach(cb => {
+      cb.addEventListener("change", updateSelectAllButton);
+    });
+  });
+</script>
 {% endblock %}
