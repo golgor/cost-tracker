@@ -182,3 +182,39 @@ class TestRecurringRegistryWithDefinitions:
         response = authenticated_client.get("/recurring/tab/paused")
         assert response.status_code == 200
         assert "Paused Service" in response.text
+
+
+class TestRecurringForm:
+    """Test the new and edit recurring definition form pages."""
+
+    def test_new_form_requires_authentication(self):
+        """Unauthenticated users are redirected to login."""
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/recurring/new", follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers.get("location") == "/auth/login"
+
+    def test_new_form_returns_200(self, authenticated_client):
+        """Authenticated user gets 200 on the new form page."""
+        response = authenticated_client.get("/recurring/new")
+        assert response.status_code == 200
+
+    def test_new_form_shows_user_in_payer_dropdown(self, authenticated_client, test_user):
+        """The payer dropdown includes the current user's display name."""
+        response = authenticated_client.get("/recurring/new")
+        assert response.status_code == 200
+        assert test_user.display_name in response.text
+
+    def test_new_form_shows_all_users_in_payer_dropdown(self, authenticated_client, test_user, uow):
+        """The payer dropdown includes all registered users."""
+        with uow:
+            second_user = uow.users.save(
+                oidc_sub="second@test.com",
+                email="second@test.com",
+                display_name="Second User",
+            )
+
+        response = authenticated_client.get("/recurring/new")
+        assert response.status_code == 200
+        assert test_user.display_name in response.text
+        assert second_user.display_name in response.text
