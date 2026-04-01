@@ -27,7 +27,7 @@ from app.domain.models import (
     TripExpensePublic,
     TripPublic,
 )
-from app.domain.ports import UnitOfWorkPort
+from app.domain.ports import UNSET, UpdateValue, UnitOfWorkPort, Unset
 
 
 def _get_trip_or_raise(uow: UnitOfWorkPort, trip_id: int) -> TripPublic:
@@ -195,20 +195,20 @@ def update_trip(
     user_id: int,
     *,
     name: str | None = None,
-    description: str | None = ...,
+    description: UpdateValue[str | None] = UNSET,
     currency: str | None = None,
-    start_date: date | None = ...,
-    end_date: date | None = ...,
+    start_date: UpdateValue[date | None] = UNSET,
+    end_date: UpdateValue[date | None] = UNSET,
 ) -> TripPublic:
     """Update trip details (admin only)."""
     trip = _get_trip_or_raise(uow, trip_id)
     _assert_trip_owner(trip, user_id)
     kwargs: dict = {"name": name, "currency": currency}
-    if description is not ...:
+    if not isinstance(description, Unset):
         kwargs["description"] = description
-    if start_date is not ...:
+    if not isinstance(start_date, Unset):
         kwargs["start_date"] = start_date
-    if end_date is not ...:
+    if not isinstance(end_date, Unset):
         kwargs["end_date"] = end_date
     return uow.trips.update(trip_id, **kwargs)
 

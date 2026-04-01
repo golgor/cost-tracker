@@ -29,6 +29,14 @@ from app.domain.models import (
 )
 
 
+class Unset:
+    """Sentinel type for omitted optional updates."""
+
+
+UNSET = Unset()
+type UpdateValue[T] = T | Unset
+
+
 class UserPort(Protocol):
     """Port for User persistence operations."""
 
@@ -239,11 +247,11 @@ class TripPort(Protocol):
         trip_id: int,
         *,
         name: str | None = None,
-        description: str | None = ...,
+        description: UpdateValue[str | None] = UNSET,
         currency: str | None = None,
         is_active: bool | None = None,
-        start_date: date | None = ...,
-        end_date: date | None = ...,
+        start_date: UpdateValue[date | None] = UNSET,
+        end_date: UpdateValue[date | None] = UNSET,
     ) -> TripPublic: ...
     def delete(self, trip_id: int) -> None: ...
 

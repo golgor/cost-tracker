@@ -19,6 +19,7 @@ from app.domain.models import (
     TripExpenseSplitPublic,
     TripPublic,
 )
+from app.domain.ports import UNSET, UpdateValue, Unset
 
 
 class SqlAlchemyGuestAdapter:
@@ -82,34 +83,32 @@ class SqlAlchemyTripAdapter:
         rows = self._session.exec(statement).all()
         return [self._to_public(r) for r in rows]
 
-    _SENTINEL = object()
-
     def update(
         self,
         trip_id: int,
         *,
         name: str | None = None,
-        description: str | None | object = _SENTINEL,
+        description: UpdateValue[str | None] = UNSET,
         currency: str | None = None,
         is_active: bool | None = None,
-        start_date: date | None | object = _SENTINEL,
-        end_date: date | None | object = _SENTINEL,
+        start_date: UpdateValue[date | None] = UNSET,
+        end_date: UpdateValue[date | None] = UNSET,
     ) -> TripPublic:
         row = self._session.get(TripRow, trip_id)
         if not row:
             raise ValueError(f"Trip {trip_id} not found")
         if name is not None:
             row.name = name
-        if description is not self._SENTINEL:
-            row.description = description  # type: ignore[assignment]
+        if not isinstance(description, Unset):
+            row.description = description
         if currency is not None:
             row.currency = currency
         if is_active is not None:
             row.is_active = is_active
-        if start_date is not self._SENTINEL:
-            row.start_date = start_date  # type: ignore[assignment]
-        if end_date is not self._SENTINEL:
-            row.end_date = end_date  # type: ignore[assignment]
+        if not isinstance(start_date, Unset):
+            row.start_date = start_date
+        if not isinstance(end_date, Unset):
+            row.end_date = end_date
         self._session.add(row)
         self._session.flush()
         return self._to_public(row)
