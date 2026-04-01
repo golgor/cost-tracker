@@ -1,50 +1,105 @@
 <!-- Desktop expense capture form - Flowbite Card -->
-<aside id="expense-sidebar"
-       class="hidden md:block md:w-96 md:flex-shrink-0 bg-white border border-stone-200 rounded-lg shadow-sm p-6 overflow-y-auto sticky top-20 self-start max-h-[calc(100dvh-6rem)]">
+<aside
+    id="expense-sidebar"
+    class="hidden md:block md:w-96 md:shrink-0 bg-white border border-stone-200 rounded-lg shadow-sm p-6 overflow-y-auto sticky top-20 self-start max-h-[calc(100dvh-6rem)]"
+>
     <h2 class="text-lg font-semibold text-stone-900 mb-6">Add Expense</h2>
 
-    <form id="desktop-expense-form"
-          hx-post="/expenses/create"
-          hx-target="#expense-feed"
-          hx-swap="afterbegin"
-          hx-disabled-elt="button[type=submit]"
-          hx-on::after-request="handleDesktopFormSubmit(event)"
-          class="space-y-4">
-
+    <form
+        id="desktop-expense-form"
+        hx-post="/expenses/create"
+        hx-target="#expense-feed"
+        hx-swap="afterbegin"
+        hx-disabled-elt="button[type=submit]"
+        hx-on::after-request="handleDesktopFormSubmit(event)"
+        class="space-y-4"
+    >
         <!-- Amount -->
         <div>
-            <label for="desktop-amount" class="block mb-2 text-sm font-medium text-stone-700">
+            <label
+                for="desktop-amount"
+                class="block mb-2 text-sm font-medium text-stone-700"
+            >
                 Amount <span class="text-red-500">*</span>
             </label>
             <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{currency_symbol|e}}</span>
-                <input type="text" id="desktop-amount" name="amount" inputmode="decimal" required placeholder="0.00" tabindex="1"
-                       class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-8 p-2.5">
+                <span
+                    class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
+                    >{{currency_symbol|e}}</span
+                >
+                <input
+                    type="text"
+                    id="desktop-amount"
+                    name="amount"
+                    inputmode="decimal"
+                    required
+                    placeholder="0.00"
+                    tabindex="1"
+                    class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-8 p-2.5"
+                />
             </div>
-            <p class="mt-2 text-sm text-red-600 hidden" data-error-for="amount"></p>
+            <p
+                class="mt-2 text-sm text-red-600 hidden"
+                data-error-for="amount"
+            ></p>
         </div>
 
         <!-- Where/What -->
         <div>
-            <label for="desktop-description" class="block mb-2 text-sm font-medium text-stone-700">Where / What</label>
-            <input type="text" id="desktop-description" name="description" placeholder="e.g., Spar, Netflix, birthday supplies" tabindex="2"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
-            <p class="mt-2 text-sm text-red-600 hidden" data-error-for="description"></p>
+            <label
+                for="desktop-description"
+                class="block mb-2 text-sm font-medium text-stone-700"
+                >Where / What</label
+            >
+            <input
+                type="text"
+                id="desktop-description"
+                name="description"
+                placeholder="e.g., Spar, Netflix, birthday supplies"
+                tabindex="2"
+                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
+            />
+            <p
+                class="mt-2 text-sm text-red-600 hidden"
+                data-error-for="description"
+            ></p>
         </div>
 
         <!-- Date -->
         <div>
-            <label for="desktop-date" class="block mb-2 text-sm font-medium text-stone-700">Date</label>
-            <input type="date" id="desktop-date" name="date" value="{{ today }}" max="{{ today }}" tabindex="3"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
-            <p class="mt-2 text-sm text-red-600 hidden" data-error-for="date"></p>
+            <label
+                for="desktop-date"
+                class="block mb-2 text-sm font-medium text-stone-700"
+                >Date</label
+            >
+            <input
+                type="date"
+                id="desktop-date"
+                name="date"
+                value="{{ today }}"
+                max="{{ today }}"
+                tabindex="3"
+                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
+            />
+            <p
+                class="mt-2 text-sm text-red-600 hidden"
+                data-error-for="date"
+            ></p>
         </div>
 
         <!-- Split Mode - Flowbite Select -->
         <div>
-            <label for="desktop-split" class="block mb-2 text-sm font-medium text-stone-700">Split Mode</label>
-            <select id="desktop-split" name="split_type" tabindex="4"
-                    class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
+            <label
+                for="desktop-split"
+                class="block mb-2 text-sm font-medium text-stone-700"
+                >Split Mode</label
+            >
+            <select
+                id="desktop-split"
+                name="split_type"
+                tabindex="4"
+                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
+            >
                 <option value="even" selected>Even (50/50)</option>
                 <option value="shares">By Shares</option>
                 <option value="percentage">By Percentage</option>
@@ -56,179 +111,241 @@
         <div id="desktop-split-fields" class="space-y-2 hidden"></div>
 
         <!-- Split preview -->
-        <div id="desktop-split-preview" class="hidden p-3 bg-stone-50 rounded-lg border border-stone-200">
-            <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
+        <div
+            id="desktop-split-preview"
+            class="hidden p-3 bg-stone-50 rounded-lg border border-stone-200"
+        >
+            <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">
+                Split Preview
+            </h4>
             <div id="desktop-preview-content" class="space-y-1 text-sm"></div>
         </div>
 
-        <input type="hidden" id="desktop-split-config" name="split_config" value="">
+        <input
+            type="hidden"
+            id="desktop-split-config"
+            name="split_config"
+            value=""
+        />
 
         <!-- Paid by - Flowbite Select -->
         <div>
-            <label for="desktop-payer" class="block mb-2 text-sm font-medium text-stone-700">
+            <label
+                for="desktop-payer"
+                class="block mb-2 text-sm font-medium text-stone-700"
+            >
                 Paid by <span class="text-red-500">*</span>
             </label>
-            <select id="desktop-payer" name="payer_id" required tabindex="5"
-                    class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
+            <select
+                id="desktop-payer"
+                name="payer_id"
+                required
+                tabindex="5"
+                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
+            >
                 <option value="">Select who paid</option>
                 {% for member in users_list %}
-                <option value="{{ member.id }}" {% if member.id == current_user_id %}selected{% endif %}>
+                <option
+                    value="{{ member.id }}"
+                    {%
+                    if
+                    member.id=""
+                    ="current_user_id"
+                    %}selected{%
+                    endif
+                    %}
+                >
                     {{ member.display_name }}
                 </option>
                 {% endfor %}
             </select>
-            <p class="mt-2 text-sm text-red-600 hidden" data-error-for="payer_id"></p>
+            <p
+                class="mt-2 text-sm text-red-600 hidden"
+                data-error-for="payer_id"
+            ></p>
         </div>
 
         <!-- Currency -->
         <div>
-            <label for="desktop-currency" class="block mb-2 text-sm font-medium text-stone-700">Currency</label>
-            <input type="text" id="desktop-currency" name="currency" value="{{ default_currency }}" readonly
-                   class="bg-stone-50 border border-stone-300 text-stone-600 text-sm rounded-lg block w-full p-2.5">
+            <label
+                for="desktop-currency"
+                class="block mb-2 text-sm font-medium text-stone-700"
+                >Currency</label
+            >
+            <input
+                type="text"
+                id="desktop-currency"
+                name="currency"
+                value="{{ default_currency }}"
+                readonly
+                class="bg-stone-50 border border-stone-300 text-stone-600 text-sm rounded-lg block w-full p-2.5"
+            />
         </div>
 
         <!-- Submit - Flowbite Button -->
-        <button type="submit" id="desktop-submit-btn" tabindex="6"
-                class="ct-btn-primary w-full relative disabled:opacity-50 disabled:cursor-not-allowed">
+        <button
+            type="submit"
+            id="desktop-submit-btn"
+            tabindex="6"
+            class="ct-btn-primary w-full relative disabled:opacity-50 disabled:cursor-not-allowed"
+        >
             <span class="htmx-indicator absolute left-4">
-                <svg class="inline w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                    class="inline w-4 h-4 mr-2 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                >
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    ></circle>
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                 </svg>
             </span>
             Add Expense
         </button>
     </form>
 
-    <p class="mt-4 text-xs text-stone-500 italic">Tip: After saving, the form clears and "Paid by" persists for quick batch entry</p>
+    <p class="mt-4 text-xs text-stone-500 italic">
+        Tip: After saving, the form clears and "Paid by" persists for quick
+        batch entry
+    </p>
 </aside>
 
 <script>
-(function() {
-const groupMembers = [
-    {% for member in users_list %}
-    { id: {{ member.id }}, name: '{{ member.display_name }}' },
-    {% endfor %}
-];
+    (function() {
+    const groupMembers = [
+        {% for member in users_list %}
+        { id: {{ member.id }}, name: '{{ member.display_name }}' },
+        {% endfor %}
+    ];
 
-const desktopForm = document.getElementById('desktop-expense-form');
-const desktopAmountInput = document.getElementById('desktop-amount');
-const desktopSplitSelect = document.getElementById('desktop-split');
-const desktopSplitFields = document.getElementById('desktop-split-fields');
-const desktopSplitPreview = document.getElementById('desktop-split-preview');
-const desktopPreviewContent = document.getElementById('desktop-preview-content');
-const desktopSplitConfig = document.getElementById('desktop-split-config');
+    const desktopForm = document.getElementById('desktop-expense-form');
+    const desktopAmountInput = document.getElementById('desktop-amount');
+    const desktopSplitSelect = document.getElementById('desktop-split');
+    const desktopSplitFields = document.getElementById('desktop-split-fields');
+    const desktopSplitPreview = document.getElementById('desktop-split-preview');
+    const desktopPreviewContent = document.getElementById('desktop-preview-content');
+    const desktopSplitConfig = document.getElementById('desktop-split-config');
 
-function debounce(fn, delay) {
-    let timeoutId;
-    return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn(...args), delay); };
-}
-
-async function fetchSplitPreview() {
-    updateDesktopSplitConfig();
-    desktopPreviewContent.innerHTML = '<div class="text-stone-400 text-xs">Calculating...</div>';
-    const formData = new FormData(desktopForm);
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        const response = await fetch('/expenses/split-preview', {
-            method: 'POST', body: formData, credentials: 'same-origin',
-            headers: { 'X-CSRF-Token': csrfToken }
-        });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        desktopPreviewContent.innerHTML = await response.text();
-    } catch (error) {
-        desktopPreviewContent.innerHTML = '<div class="text-red-600 text-xs">Unable to calculate preview</div>';
+    function debounce(fn, delay) {
+        let timeoutId;
+        return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => fn(...args), delay); };
     }
-}
 
-const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
-
-const inputClass = 'bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2';
-
-function renderDesktopSplitFields(mode) {
-    const total = parseFloat(desktopAmountInput.value.replace(',', '.')) || 0;
-    if (mode === 'even') {
-        desktopSplitFields.classList.add('hidden');
-        desktopSplitFields.innerHTML = '';
-        desktopSplitPreview.classList.remove('hidden');
-        desktopSplitConfig.value = '';
-        debouncedFetchPreview();
-        return;
-    }
-    desktopSplitFields.classList.remove('hidden');
-    desktopSplitPreview.classList.remove('hidden');
-
-    if (mode === 'shares') {
-        desktopSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
-            groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><input type="number" min="0" step="1" value="1" data-member="${m.id}" class="desktop-share-input flex-1 ${inputClass}" placeholder="Shares"></div>`).join('');
-    } else if (mode === 'percentage') {
-        const defaultPct = Math.floor(100 / groupMembers.length);
-        desktopSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter percentage for each person. Must sum to 100%.</p>' +
-            groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><input type="number" min="0" max="100" step="1" value="${defaultPct}" data-member="${m.id}" class="desktop-percent-input flex-1 ${inputClass}" placeholder="%"><span class="text-sm text-stone-500">%</span></div>`).join('');
-    } else if (mode === 'exact') {
-        const halfAmount = (total / 2).toFixed(2);
-        desktopSplitFields.innerHTML = `<p class="text-xs text-stone-500 mb-2">Enter exact amount for each person. Must sum to ${total.toFixed(2)}.</p>` +
-            groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><span class="text-stone-500">{{currency_symbol|e}}</span><input type="number" min="0" step="0.01" value="${halfAmount}" data-member="${m.id}" class="desktop-exact-input flex-1 ${inputClass}" placeholder="0.00"></div>`).join('');
-    }
-    updateDesktopSplitConfig();
-    debouncedFetchPreview();
-}
-
-function updateDesktopSplitConfig() {
-    const mode = desktopSplitSelect.value;
-    const config = {};
-    if (mode === 'even') { desktopSplitConfig.value = ''; return; }
-    if (mode === 'shares') {
-        document.querySelectorAll('.desktop-share-input').forEach(input => { const v = parseInt(input.value) || 0; if (v > 0) config[input.dataset.member] = v; });
-    } else if (mode === 'percentage') {
-        document.querySelectorAll('.desktop-percent-input').forEach(input => { config[input.dataset.member] = parseFloat(input.value) || 0; });
-    } else if (mode === 'exact') {
-        document.querySelectorAll('.desktop-exact-input').forEach(input => { config[input.dataset.member] = parseFloat(input.value) || 0; });
-    }
-    desktopSplitConfig.value = JSON.stringify(config);
-}
-
-desktopSplitSelect.addEventListener('change', () => renderDesktopSplitFields(desktopSplitSelect.value));
-desktopSplitFields.addEventListener('input', () => { updateDesktopSplitConfig(); debouncedFetchPreview(); });
-desktopAmountInput.addEventListener('input', () => {
-    if (desktopSplitSelect.value === 'exact') {
-        const total = parseFloat(desktopAmountInput.value.replace(',', '.')) || 0;
-        const h = document.querySelector('#desktop-split-fields > p.text-xs');
-        if (h) h.textContent = `Enter exact amount for each person. Must sum to ${total.toFixed(2)}.`;
-    }
-    debouncedFetchPreview();
-});
-
-window.handleDesktopFormSubmit = function(event) {
-    const xhr = event.detail.xhr;
-    if (xhr.status >= 200 && xhr.status < 300) {
-        const form = document.getElementById('desktop-expense-form');
-        const payerId = document.getElementById('desktop-payer').value;
-        form.reset();
-        document.getElementById('desktop-payer').value = payerId;
-        document.getElementById('desktop-split').value = 'even';
-        renderDesktopSplitFields('even');
-        try { localStorage.setItem('last-payer-id', payerId); } catch (e) {}
-        document.getElementById('desktop-date').value = '{{ today }}';
-        document.getElementById('desktop-amount').focus();
-        document.querySelectorAll('[data-error-for]').forEach(el => { el.classList.add('hidden'); el.textContent = ''; });
-    }
-};
-
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const lastPayerId = localStorage.getItem('last-payer-id');
-        if (lastPayerId) {
-            const ps = document.getElementById('desktop-payer');
-            const eid = CSS.escape(lastPayerId);
-            if (ps && ps.querySelector(`option[value="${eid}"]`)) ps.value = lastPayerId;
+    async function fetchSplitPreview() {
+        updateDesktopSplitConfig();
+        desktopPreviewContent.innerHTML = '<div class="text-stone-400 text-xs">Calculating...</div>';
+        const formData = new FormData(desktopForm);
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const response = await fetch('/expenses/split-preview', {
+                method: 'POST', body: formData, credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            desktopPreviewContent.innerHTML = await response.text();
+        } catch (error) {
+            desktopPreviewContent.innerHTML = '<div class="text-red-600 text-xs">Unable to calculate preview</div>';
         }
-    } catch (e) {}
-    renderDesktopSplitFields('even');
-});
+    }
 
-document.addEventListener('keydown', function(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.getElementById('desktop-amount')?.focus(); }
-});
-})();
+    const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
+
+    const inputClass = 'bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2';
+
+    function renderDesktopSplitFields(mode) {
+        const total = parseFloat(desktopAmountInput.value.replace(',', '.')) || 0;
+        if (mode === 'even') {
+            desktopSplitFields.classList.add('hidden');
+            desktopSplitFields.innerHTML = '';
+            desktopSplitPreview.classList.remove('hidden');
+            desktopSplitConfig.value = '';
+            debouncedFetchPreview();
+            return;
+        }
+        desktopSplitFields.classList.remove('hidden');
+        desktopSplitPreview.classList.remove('hidden');
+
+        if (mode === 'shares') {
+            desktopSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
+                groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><input type="number" min="0" step="1" value="1" data-member="${m.id}" class="desktop-share-input flex-1 ${inputClass}" placeholder="Shares"></div>`).join('');
+        } else if (mode === 'percentage') {
+            const defaultPct = Math.floor(100 / groupMembers.length);
+            desktopSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter percentage for each person. Must sum to 100%.</p>' +
+                groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><input type="number" min="0" max="100" step="1" value="${defaultPct}" data-member="${m.id}" class="desktop-percent-input flex-1 ${inputClass}" placeholder="%"><span class="text-sm text-stone-500">%</span></div>`).join('');
+        } else if (mode === 'exact') {
+            const halfAmount = (total / 2).toFixed(2);
+            desktopSplitFields.innerHTML = `<p class="text-xs text-stone-500 mb-2">Enter exact amount for each person. Must sum to ${total.toFixed(2)}.</p>` +
+                groupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-xs font-medium text-stone-700">${m.name}</label><span class="text-stone-500">{{currency_symbol|e}}</span><input type="number" min="0" step="0.01" value="${halfAmount}" data-member="${m.id}" class="desktop-exact-input flex-1 ${inputClass}" placeholder="0.00"></div>`).join('');
+        }
+        updateDesktopSplitConfig();
+        debouncedFetchPreview();
+    }
+
+    function updateDesktopSplitConfig() {
+        const mode = desktopSplitSelect.value;
+        const config = {};
+        if (mode === 'even') { desktopSplitConfig.value = ''; return; }
+        if (mode === 'shares') {
+            document.querySelectorAll('.desktop-share-input').forEach(input => { const v = parseInt(input.value) || 0; if (v > 0) config[input.dataset.member] = v; });
+        } else if (mode === 'percentage') {
+            document.querySelectorAll('.desktop-percent-input').forEach(input => { config[input.dataset.member] = parseFloat(input.value) || 0; });
+        } else if (mode === 'exact') {
+            document.querySelectorAll('.desktop-exact-input').forEach(input => { config[input.dataset.member] = parseFloat(input.value) || 0; });
+        }
+        desktopSplitConfig.value = JSON.stringify(config);
+    }
+
+    desktopSplitSelect.addEventListener('change', () => renderDesktopSplitFields(desktopSplitSelect.value));
+    desktopSplitFields.addEventListener('input', () => { updateDesktopSplitConfig(); debouncedFetchPreview(); });
+    desktopAmountInput.addEventListener('input', () => {
+        if (desktopSplitSelect.value === 'exact') {
+            const total = parseFloat(desktopAmountInput.value.replace(',', '.')) || 0;
+            const h = document.querySelector('#desktop-split-fields > p.text-xs');
+            if (h) h.textContent = `Enter exact amount for each person. Must sum to ${total.toFixed(2)}.`;
+        }
+        debouncedFetchPreview();
+    });
+
+    window.handleDesktopFormSubmit = function(event) {
+        const xhr = event.detail.xhr;
+        if (xhr.status >= 200 && xhr.status < 300) {
+            const form = document.getElementById('desktop-expense-form');
+            const payerId = document.getElementById('desktop-payer').value;
+            form.reset();
+            document.getElementById('desktop-payer').value = payerId;
+            document.getElementById('desktop-split').value = 'even';
+            renderDesktopSplitFields('even');
+            try { localStorage.setItem('last-payer-id', payerId); } catch (e) {}
+            document.getElementById('desktop-date').value = '{{ today }}';
+            document.getElementById('desktop-amount').focus();
+            document.querySelectorAll('[data-error-for]').forEach(el => { el.classList.add('hidden'); el.textContent = ''; });
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const lastPayerId = localStorage.getItem('last-payer-id');
+            if (lastPayerId) {
+                const ps = document.getElementById('desktop-payer');
+                const eid = CSS.escape(lastPayerId);
+                if (ps && ps.querySelector(`option[value="${eid}"]`)) ps.value = lastPayerId;
+            }
+        } catch (e) {}
+        renderDesktopSplitFields('even');
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.getElementById('desktop-amount')?.focus(); }
+    });
+    })();
 </script>
