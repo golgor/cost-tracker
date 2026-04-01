@@ -159,43 +159,36 @@
     <div>
       <label class="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Or copy Magic Link</label>
       <div class="flex">
-        <input type="text" readonly value="{{ share_url }}" class="flex-1 w-full border border-stone-300 rounded-l-lg px-3 py-2 text-sm bg-stone-50 text-stone-600 focus:outline-none">
-        <button onclick="copyToClipboard('{{ share_url }}')" class="px-4 py-2 border border-l-0 border-stone-300 rounded-r-lg bg-white hover:bg-stone-50 text-primary-600 font-medium text-sm transition focus:ring-2 focus:ring-primary-500 focus:outline-none">Copy</button>
+        <input type="text" id="shareLinkInput" readonly value="{{ share_url }}" class="flex-1 w-full border border-stone-300 rounded-l-lg px-3 py-2 text-sm bg-stone-50 text-stone-600 focus:outline-none">
+        <button onclick="copyShareLink()" class="px-4 py-2 border border-l-0 border-stone-300 rounded-r-lg bg-white hover:bg-stone-50 text-primary-600 font-medium text-sm transition focus:ring-2 focus:ring-primary-500 focus:outline-none">Copy</button>
       </div>
     </div>
   </div>
 </dialog>
 
 <script>
-function copyToClipboard(text) {
-  console.log('copyToClipboard called with:', text);
+function copyShareLink() {
+  var input = document.getElementById('shareLinkInput');
+  var text = input.value;
+
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(function() {
-      console.log('Clipboard API: success');
-    }).catch(function(err) {
-      console.warn('Clipboard API failed:', err, '— trying fallback');
-      legacyCopy(text);
+      console.log('Copied via Clipboard API');
+    }).catch(function() {
+      console.log('Clipboard API failed, using input selection fallback');
+      selectAndCopy(input);
     });
   } else {
-    console.log('Clipboard API unavailable (requires HTTPS), falling back to legacy copy');
-    legacyCopy(text);
+    console.log('Clipboard API unavailable, using input selection fallback');
+    selectAndCopy(input);
   }
 }
 
-function legacyCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.left = '-9999px';
-  ta.style.top = '0';
-  ta.setAttribute('readonly', '');
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  var ok = document.execCommand('copy');
-  console.log('execCommand("copy") returned:', ok);
-  console.log('Selection was:', window.getSelection().toString().substring(0, 50) + '...');
-  document.body.removeChild(ta);
+function selectAndCopy(input) {
+  input.focus();
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  document.execCommand('copy');
 }
 </script>
 
