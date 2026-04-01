@@ -82,3 +82,44 @@ def test_entity(uow: UnitOfWork):
 
 - `api_v1` is a separate FastAPI sub-app mounted at `/api/v1`. It does NOT inherit exception handlers from the main `app`. Add a JSON-only domain error handler directly to `api_v1` in `router.py`.
 - When adding new domain errors that need 404/40x treatment in both web and API routes, add them to `DOMAIN_ERROR_MAP` in `main.py` AND to the equivalent handler in `api_v1`.
+
+## UI Consistency
+
+- Keep Flowbite as the behavior layer, but enforce one visual system via shared classes in `app/static/src/input.css`.
+- Use shared page wrappers consistently:
+  - `ct-page-tight` for form-focused pages
+  - `ct-page` for standard pages
+  - `ct-page-wide` for dashboard/list-heavy pages
+- Use shared action classes for consistency across templates:
+  - `ct-btn-primary` for primary actions
+  - `ct-btn-secondary` for secondary actions
+- Use `ct-input` as default input/select style unless there is an explicit exception.
+- Keep navbar-to-content spacing consistent by relying on `base.html` main padding, not per-page ad hoc top spacing.
+- Preserve stable button text alignment when using loading indicators (spinner must not shift label text).
+- For recurring filters (tabs/chips), always render explicit selected-state styling so active filter is visible.
+
+## UI Change Safety
+
+- For cross-page visual consistency work, change one layer at a time: shared tokens/classes first, then one route at a time (`/expenses`, `/trips`, `/recurring`, `/settlements`). Avoid broad multi-page rewrites in one pass.
+- After each UI pass, verify all primary routes before continuing to prevent regressions from accumulating.
+- Keep layout-shell changes (page wrappers/spacing) separate from component-style changes (buttons/inputs/cards) to limit blast radius.
+
+## Tailwind Build Discipline
+
+- After adding new component classes or theme tokens in `app/static/src/input.css`, rebuild `app/static/css/output.css` before evaluating UI changes.
+- If Tailwind compilation fails with unknown utilities (for example `hover:bg-primary-700`), add missing theme tokens first, then rebuild.
+
+## Template Merge Hygiene
+
+- After conflict resolution in templates, always scan for broken Jinja expressions and malformed comparisons (for example `member.id == current_user_id`).
+- Immediately run at least one route render test for touched templates to catch syntax errors early.
+
+## Interaction Predictability
+
+- Prefer deterministic custom components over Flowbite defaults when strict interaction contracts are required (date range picker commit behavior is a known example).
+- For HTMX-swapped filter UIs, active state must be encoded in server-rendered markup so users can always see current selection.
+
+## UI Text and Tests
+
+- When changing CTA copy for UX reasons, preserve existing test hooks unless tests are intentionally updated (for example keep legacy text in `sr-only` labels).
+- Run `mise run test:unit` after substantial template/UI changes, not only lint checks.
