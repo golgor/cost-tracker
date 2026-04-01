@@ -331,7 +331,9 @@ function showToast(message) {
     </div>
   </div>
 </div>
+{% endif %}
 
+{% if trip.is_active %}
 <!-- Guest Management Drawer (Flowbite) -->
 <div id="guestDrawer" class="fixed top-0 right-0 z-40 h-screen overflow-y-auto transition-transform translate-x-full bg-white w-80 shadow-xl border-l border-stone-200" tabindex="-1">
   <div class="p-5">
