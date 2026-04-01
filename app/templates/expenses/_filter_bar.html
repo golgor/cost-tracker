@@ -131,20 +131,28 @@
   });
 
   // ── Date range picker change → apply filters ──────────────────────────
+  // Only apply when both dates are filled in (range complete) or both are
+  // cleared.  The Flowbite datepicker fires "changeDate" on every click
+  // including the first date of a range — firing applyFilters at that point
+  // triggers an HTMX swap → initFlowbite() → destroys the open picker.
   var dateFromInput = document.getElementById('filter-date-from');
   var dateToInput = document.getElementById('filter-date-to');
 
+  function onDateChange() {
+    clearTimeout(_s._debounceTimer);
+    var from = dateFromInput.value;
+    var to = dateToInput.value;
+    // Apply only when: both dates set (range complete), or both cleared
+    if ((from && to) || (!from && !to)) {
+      _s._debounceTimer = setTimeout(function() { applyFilters(); }, 300);
+    }
+  }
+
   if (dateFromInput) {
-    dateFromInput.addEventListener('changeDate', function() {
-      clearTimeout(_s._debounceTimer);
-      _s._debounceTimer = setTimeout(function() { applyFilters(); }, 200);
-    });
+    dateFromInput.addEventListener('changeDate', onDateChange);
   }
   if (dateToInput) {
-    dateToInput.addEventListener('changeDate', function() {
-      clearTimeout(_s._debounceTimer);
-      _s._debounceTimer = setTimeout(function() { applyFilters(); }, 200);
-    });
+    dateToInput.addEventListener('changeDate', onDateChange);
   }
 
   // ── Paid-by change ───────────────────────────────────────────────────
