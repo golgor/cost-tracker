@@ -169,6 +169,7 @@ async def guest_summary(
             "active_guest": active_guest,
             "active_guest_id": active_guest.id,
             "participants": participants,
+            "part_dict": {p.id: p for p in participants},
             "expenses": expenses,
             "today": date.today().isoformat(),
             "currency_symbol": get_currency_symbol(trip.currency),
