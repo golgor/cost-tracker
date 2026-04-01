@@ -24,16 +24,14 @@
         </button>
       </div>
 
-      <!-- Flowbite Date Range Picker + Apply button -->
-      <div class="flex items-center gap-2">
-        <div id="filter-date-range" date-rangepicker datepicker-format="yyyy-mm-dd" class="flex items-center gap-2">
+      <!-- Flowbite Date Range Picker -->
+      <div id="filter-date-range" class="flex items-center gap-2">
           <div class="relative">
             <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
               <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
             </div>
             <input id="filter-date-from" name="date_from" type="text" value="{{ filter_date_from or '' }}" placeholder="From"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
-                   style="min-width: 140px;">
+                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5 min-w-36">
           </div>
           <span class="text-stone-400 text-sm">to</span>
           <div class="relative">
@@ -41,14 +39,8 @@
               <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
             </div>
             <input id="filter-date-to" name="date_to" type="text" value="{{ filter_date_to or '' }}" placeholder="To"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
-                   style="min-width: 140px;">
+                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5 min-w-36">
           </div>
-        </div>
-        <button type="button" onclick="applyFilters()"
-                class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-3 py-2.5 focus:outline-none whitespace-nowrap">
-          Apply
-        </button>
       </div>
 
     </div>
@@ -249,6 +241,98 @@
       _s.payerId = '';
       _initPayerSelect.value = '';
     }
+  }
+
+  // ── Flowbite date range picker (manual init with clear/today buttons) ────
+  function initExpensesDateRangePicker() {
+    var dateRangeRoot = document.getElementById('filter-date-range');
+    if (!dateRangeRoot || dateRangeRoot.dataset.datepickerInit === '1') return;
+    if (typeof window.Datepicker !== 'function') return;
+
+    var fromInput = document.getElementById('filter-date-from');
+    var toInput = document.getElementById('filter-date-to');
+    if (!fromInput || !toInput) return;
+
+    var previousFrom = fromInput.value.trim();
+    var previousTo = toInput.value.trim();
+
+    function closeRangePicker() {
+      var rangePicker = dateRangeRoot.rangepicker;
+      if (!rangePicker) return;
+
+      if (typeof rangePicker.hide === 'function') {
+        rangePicker.hide();
+        return;
+      }
+
+      if (Array.isArray(rangePicker.datepickers)) {
+        rangePicker.datepickers.forEach(function (dp) {
+          if (dp && typeof dp.hide === 'function') dp.hide();
+        });
+      }
+    }
+
+    function applyDateRangeIfReady(opts) {
+      var shouldClose = !!(opts && opts.shouldClose);
+      var source = opts && opts.source ? opts.source : null;
+      var from = fromInput.value.trim();
+      var to = toInput.value.trim();
+      var isCommittedRange = !!from && !!to;
+      var isFullClear = !from && !to;
+      var hadCommittedRangeBefore = !!previousFrom && !!previousTo;
+
+      // Persist latest values early so follow-up events are evaluated correctly.
+      previousFrom = from;
+      previousTo = to;
+
+      if (!isCommittedRange && !isFullClear) return;
+
+      // Flowbite can mirror start -> end on first click. Ignore that initial
+      // start click when there wasn't a previously committed range.
+      if (source === "from" && isCommittedRange && !hadCommittedRangeBefore) return;
+
+      var rangeKey = from + '|' + to;
+      if (dateRangeRoot.dataset.lastAppliedRangeKey === rangeKey) return;
+      dateRangeRoot.dataset.lastAppliedRangeKey = rangeKey;
+
+      if (shouldClose && isCommittedRange) {
+        closeRangePicker();
+      }
+
+      applyFilters();
+    }
+
+    new window.Datepicker(
+      dateRangeRoot,
+      {
+        rangePicker: true,
+        format: 'yyyy-mm-dd',
+        buttons: true,
+        autohide: false,
+        onHide: function () {
+          applyDateRangeIfReady({ shouldClose: false, source: 'hide' });
+        },
+      },
+      {
+        id: 'expenses-filter-range-picker',
+        override: true,
+      }
+    );
+
+    fromInput.addEventListener('changeDate', function () {
+      applyDateRangeIfReady({ shouldClose: true, source: 'from' });
+    });
+    toInput.addEventListener('changeDate', function () {
+      applyDateRangeIfReady({ shouldClose: true, source: 'to' });
+    });
+
+    dateRangeRoot.dataset.datepickerInit = '1';
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initExpensesDateRangePicker);
+  } else {
+    initExpensesDateRangePicker();
   }
 })();
 </script>

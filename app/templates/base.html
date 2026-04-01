@@ -17,12 +17,33 @@
           event.detail.headers['X-CSRF-Token'] = csrfToken;
         }
       });
-      // Re-initialize Flowbite components after HTMX swaps new content
-      document.body.addEventListener('htmx:afterSettle', function() {
-        if (typeof initFlowbite === 'function') {
+      // Re-initialize Flowbite components only when swapped content needs it.
+      document.body.addEventListener('htmx:afterSettle', function(event) {
+        if (typeof initFlowbite !== 'function') return;
+
+        var root = event.detail && event.detail.elt ? event.detail.elt : event.target;
+        if (!(root instanceof Element)) return;
+
+        var flowbiteSelector = [
+          '[datepicker]',
+          '[inline-datepicker]',
+          '[date-rangepicker]',
+          '[data-modal-toggle]',
+          '[data-modal-show]',
+          '[data-modal-hide]',
+          '[data-drawer-target]',
+          '[data-drawer-show]',
+          '[data-drawer-hide]',
+          '[data-popover-target]',
+          '[data-tooltip-target]',
+          '[data-dropdown-toggle]'
+        ].join(',');
+
+        if (root.matches(flowbiteSelector) || root.querySelector(flowbiteSelector)) {
           initFlowbite();
         }
       });
+
     });
   </script>
 </head>
