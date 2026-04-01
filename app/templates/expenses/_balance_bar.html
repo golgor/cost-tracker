@@ -1,10 +1,12 @@
-<div id="balance-bar" class="p-6 mb-6 bg-white border border-stone-200 rounded-lg shadow-sm">
+<div id="balance-bar" class="bg-surface-card rounded-lg shadow-sm mb-6 p-6 ct-fade-in">
   <h2 class="text-sm font-semibold text-stone-600 uppercase tracking-wide mb-4">Current Balance</h2>
 
   {% if balance.is_zero %}
-    <div class="text-center py-4">
-      <p class="text-2xl font-semibold text-emerald-600">All square!</p>
-      <p class="text-sm text-stone-600 mt-2">No one owes anyone. Nice work!</p>
+    <div class="space-y-3">
+      <div class="h-32 flex items-center justify-center">
+        <p class="text-2xl font-semibold text-emerald-600">✓ All square!</p>
+      </div>
+      <p class="text-center text-stone-600 text-sm">No one owes anyone. Nice work!</p>
     </div>
   {% else %}
     <div class="space-y-3">

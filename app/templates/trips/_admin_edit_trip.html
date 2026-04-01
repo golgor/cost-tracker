@@ -13,24 +13,18 @@
   </div>
 
   <div>
-    <label class="block mb-2 text-sm font-medium text-stone-700">Date Range</label>
-    <div date-rangepicker datepicker-format="yyyy-mm-dd" class="flex items-center gap-2">
-      <div class="relative flex-1">
-        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-          <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
-        </div>
-        <input name="start_date" type="text" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" placeholder="Start date"
-               class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5">
-      </div>
-      <span class="text-stone-400 text-sm">to</span>
-      <div class="relative flex-1">
-        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-          <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
-        </div>
-        <input name="end_date" type="text" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" placeholder="End date"
-               class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5">
-      </div>
-    </div>
+    <label class="block text-sm font-medium text-stone-700 mb-1">Date Range</label>
+    {% set drp_root_id = 'trip-edit-date-range' %}
+    {% set drp_mode = 'instant' %}
+    {% set drp_on_commit = '' %}
+    {% set drp_from_id = 'trip-edit-start-date' %}
+    {% set drp_from_name = 'start_date' %}
+    {% set drp_from_value = trip.start_date.isoformat() if trip.start_date else '' %}
+    {% set drp_to_id = 'trip-edit-end-date' %}
+    {% set drp_to_name = 'end_date' %}
+    {% set drp_to_value = trip.end_date.isoformat() if trip.end_date else '' %}
+    {% set drp_button_class = 'w-full flex items-center gap-2 px-3 py-2 border border-stone-300 rounded-lg text-sm transition-colors bg-white' %}
+    {% include "components/date_range_picker.html" %}
   </div>
 
   <div>

@@ -1,83 +1,70 @@
-<!-- Unified Filter Bar — Flowbite components -->
-<div class="p-4 mb-6 bg-white border border-stone-200 rounded-lg shadow-sm">
-  <div class="space-y-3">
-
-    <!-- Row 1: Search field + Date range picker + Apply -->
-    <div class="flex flex-col sm:flex-row items-stretch gap-2">
-
-      <!-- Search - Flowbite Input with icon -->
-      <div class="relative flex-1">
-        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-          <svg class="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input type="text" id="search-input" name="search_query" value="{{ search_query }}"
-               placeholder="Search expenses..." autocomplete="off"
-               class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5">
-        <button type="button" id="search-clear-btn"
-                class="absolute inset-y-0 end-0 flex items-center pe-3 text-stone-400 hover:text-stone-600 {% if not search_query %}hidden{% endif %}"
-                aria-label="Clear search">
+<!-- Unified Filter Bar -->
+<div class="bg-white rounded-lg shadow-sm mb-6">
+  <div class="px-4 pt-3 pb-3 space-y-2">
+    <div class="flex items-stretch gap-2">
+      <div class="flex items-center gap-2 border border-stone-300 rounded-lg bg-white px-3 flex-1 focus-within:ring-2 focus-within:ring-primary-600 focus-within:border-primary-600 transition-shadow">
+        <svg class="w-4 h-4 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          name="search_query"
+          value="{{ search_query }}"
+          placeholder="Search expenses..."
+          autocomplete="off"
+          class="flex-1 py-3 bg-transparent outline-none text-stone-900 placeholder-stone-400 text-sm"
+        >
+        <button
+          type="button"
+          id="search-clear-btn"
+          class="text-stone-400 hover:text-stone-600 {% if not search_query %}hidden{% endif %}"
+          aria-label="Clear search"
+        >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      <!-- Flowbite Date Range Picker -->
-      <div id="filter-date-range" class="flex items-center gap-2">
-          <div class="relative">
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
-            </div>
-            <input id="filter-date-from" name="date_from" type="text" value="{{ filter_date_from or '' }}" placeholder="From"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5 min-w-36">
-          </div>
-          <span class="text-stone-400 text-sm">to</span>
-          <div class="relative">
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
-            </div>
-            <input id="filter-date-to" name="date_to" type="text" value="{{ filter_date_to or '' }}" placeholder="To"
-                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5 min-w-36">
-          </div>
-      </div>
-
+      {% set drp_root_id = 'expenses-date-range' %}
+      {% set drp_mode = 'instant' %}
+      {% set drp_on_commit = 'applyFilters' %}
+      {% set drp_from_id = 'filter-date-from' %}
+      {% set drp_from_name = 'date_from' %}
+      {% set drp_from_value = filter_date_from or '' %}
+      {% set drp_to_id = 'filter-date-to' %}
+      {% set drp_to_name = 'date_to' %}
+      {% set drp_to_value = filter_date_to or '' %}
+      {% set drp_compact = true %}
+      {% set drp_button_class = 'h-full min-w-36 flex items-center justify-between gap-2 px-3 py-3 border rounded-lg text-sm transition-colors whitespace-nowrap bg-white border-stone-300 text-stone-700 hover:bg-stone-50 hover:border-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500' %}
+      {% include "components/date_range_picker.html" %}
     </div>
 
-    <!-- Row 2: Paid by + Clear all -->
-    <div class="flex items-center justify-center gap-3 flex-wrap">
+    <div class="flex items-center justify-center gap-2 flex-wrap">
       <div class="flex items-center gap-2">
         <label for="payer-select" class="text-sm font-medium text-stone-700 whitespace-nowrap">Paid by</label>
-        <select id="payer-select" onchange="applyPaidBy()"
-                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2">
+        <select id="payer-select" onchange="applyPaidBy()" class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2">
           <option value="">All</option>
           {% for member in users_list %}
             {% set member_user = users.get(member.id) %}
             {% if member_user %}
-              <option value="{{ member.id }}"
-                {% if filter_payer_id|string == member.id|string %}selected{% endif %}>
-                {{ member_user.display_name }}
-              </option>
+              <option value="{{ member.id }}" {% if filter_payer_id|string == member.id|string %}selected{% endif %}>{{ member_user.display_name }}</option>
             {% endif %}
           {% endfor %}
         </select>
       </div>
-      <a href="#" onclick="clearAll(event)"
-         class="text-sm text-stone-500 hover:text-stone-700 hover:underline whitespace-nowrap">
-        Clear all
-      </a>
+      <a href="#" onclick="clearAll(event)" class="text-sm text-stone-500 hover:text-stone-700 hover:underline whitespace-nowrap">Clear all</a>
       <span id="paidby-toast" class="hidden text-xs text-primary-600 font-medium">Filter applied</span>
     </div>
-
   </div>
 </div>
 
 <script>
 (function () {
   const _s = {
-    searchQuery: {{ search_query | tojson }} || '',
-    payerId: {{ filter_payer_id | tojson }} || '',
+    searchQuery: {{ search_query | tojson }} || "",
+    payerId: {{ filter_payer_id | tojson }} || "",
     _reqId: 0,
     _debounceTimer: null,
     _toastTimer: null,
@@ -85,98 +72,105 @@
 
   let _lastFiredId = 0;
 
-  // ── applyFilters — single exit point for all filter state → HTMX ─────────
+  function getDateValues() {
+    var fromEl = document.getElementById("filter-date-from");
+    var toEl = document.getElementById("filter-date-to");
+    return {
+      from: fromEl ? fromEl.value.trim() : "",
+      to: toEl ? toEl.value.trim() : "",
+    };
+  }
+
   window.applyFilters = function () {
     const myId = ++_s._reqId;
     _lastFiredId = myId;
 
     const params = new URLSearchParams();
-    const dateFrom = document.getElementById('filter-date-from').value;
-    const dateTo = document.getElementById('filter-date-to').value;
-    if (dateFrom) params.set('date_from', dateFrom);
-    if (dateTo) params.set('date_to', dateTo);
-    if (_s.payerId) params.set('payer_id', _s.payerId);
-    if (_s.searchQuery) params.set('search_query', _s.searchQuery);
+    const dates = getDateValues();
+    if (dates.from) params.set("date_from", dates.from);
+    if (dates.to) params.set("date_to", dates.to);
+    if (_s.payerId) params.set("payer_id", _s.payerId);
+    if (_s.searchQuery) params.set("search_query", _s.searchQuery);
 
     const qs = params.toString();
-    window.history.pushState({}, '', '/expenses' + (qs ? '?' + qs : ''));
+    window.history.pushState({}, "", "/expenses" + (qs ? "?" + qs : ""));
 
-    htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
-      target: '#expense-feed',
-      swap: 'outerHTML',
+    htmx.ajax("GET", "/expenses/filtered" + (qs ? "?" + qs : ""), {
+      target: "#expense-feed",
+      swap: "outerHTML",
     });
-    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
-      target: '#balance-bar',
-      swap: 'outerHTML',
+    htmx.ajax("GET", "/expenses/balance" + (qs ? "?" + qs : ""), {
+      target: "#balance-bar",
+      swap: "outerHTML",
     });
   };
 
-  // ── HTMX beforeSwap: stale response guard + error suppression ────────────
-  document.body.addEventListener('htmx:beforeSwap', function (evt) {
+  document.body.addEventListener("htmx:beforeSwap", function (evt) {
     if (!evt.detail.target) return;
     var tid = evt.detail.target.id;
-    if (tid !== 'expense-feed' && tid !== 'balance-bar') return;
+    if (tid !== "expense-feed" && tid !== "balance-bar") return;
     if (evt.detail.xhr.status >= 400 || evt.detail.xhr.status === 0) {
       evt.detail.shouldSwap = false;
       return;
     }
-    if (tid === 'expense-feed' && _lastFiredId < _s._reqId) {
+    if (tid === "expense-feed" && _lastFiredId < _s._reqId) {
       evt.detail.shouldSwap = false;
     }
   });
 
-  // ── Paid-by change ───────────────────────────────────────────────────
   window.applyPaidBy = function () {
-    _s.payerId = document.getElementById('payer-select').value;
+    _s.payerId = document.getElementById("payer-select").value;
     clearTimeout(_s._toastTimer);
     applyFilters();
-    var toast = document.getElementById('paidby-toast');
-    toast.classList.remove('hidden');
-    _s._toastTimer = setTimeout(function () { toast.classList.add('hidden'); }, 1500);
+    var toast = document.getElementById("paidby-toast");
+    toast.classList.remove("hidden");
+    _s._toastTimer = setTimeout(function () { toast.classList.add("hidden"); }, 1500);
   };
 
-  // ── Clear All ────────────────────────────────────────────────────────
   window.clearAll = function (e) {
     e.preventDefault();
-    _s.searchQuery = '';
-    _s.payerId = '';
+    _s.searchQuery = "";
+    _s.payerId = "";
 
-    var searchEl = document.getElementById('search-input');
-    var clearEl = document.getElementById('search-clear-btn');
-    if (searchEl) searchEl.value = '';
-    if (clearEl) clearEl.classList.add('hidden');
+    var searchEl = document.getElementById("search-input");
+    var clearEl = document.getElementById("search-clear-btn");
+    if (searchEl) searchEl.value = "";
+    if (clearEl) clearEl.classList.add("hidden");
 
-    var payerEl = document.getElementById('payer-select');
-    if (payerEl) payerEl.value = '';
+    var payerEl = document.getElementById("payer-select");
+    if (payerEl) payerEl.value = "";
 
-    // Clear date inputs
-    var dateFromInput = document.getElementById('filter-date-from');
-    var dateToInput = document.getElementById('filter-date-to');
-    if (dateFromInput) dateFromInput.value = '';
-    if (dateToInput) dateToInput.value = '';
+    var pickerRoot = document.getElementById("expenses-date-range");
+    if (pickerRoot && pickerRoot._ctDateRangePicker) {
+      pickerRoot._ctDateRangePicker.clear();
+    } else {
+      var fromEl = document.getElementById("filter-date-from");
+      var toEl = document.getElementById("filter-date-to");
+      if (fromEl) fromEl.value = "";
+      if (toEl) toEl.value = "";
+    }
 
     clearTimeout(_s._toastTimer);
-    var toast = document.getElementById('paidby-toast');
-    if (toast) toast.classList.add('hidden');
+    var toast = document.getElementById("paidby-toast");
+    if (toast) toast.classList.add("hidden");
 
     clearTimeout(_s._debounceTimer);
     applyFilters();
   };
 
-  // ── Search input — debounce 300ms, Enter immediate ────────────────────────
-  var searchInput = document.getElementById('search-input');
-  var searchClearBtn = document.getElementById('search-clear-btn');
+  var searchInput = document.getElementById("search-input");
+  var searchClearBtn = document.getElementById("search-clear-btn");
 
   if (searchInput) {
-    searchInput.addEventListener('input', function () {
+    searchInput.addEventListener("input", function () {
       _s.searchQuery = searchInput.value;
-      if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
+      if (searchClearBtn) searchClearBtn.classList.toggle("hidden", !_s.searchQuery);
       clearTimeout(_s._debounceTimer);
       _s._debounceTimer = setTimeout(function () { applyFilters(); }, 300);
     });
 
-    searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
         e.preventDefault();
         clearTimeout(_s._debounceTimer);
         applyFilters();
@@ -185,154 +179,68 @@
   }
 
   if (searchClearBtn) {
-    searchClearBtn.addEventListener('click', function () {
-      _s.searchQuery = '';
-      if (searchInput) searchInput.value = '';
-      searchClearBtn.classList.add('hidden');
+    searchClearBtn.addEventListener("click", function () {
+      _s.searchQuery = "";
+      if (searchInput) searchInput.value = "";
+      searchClearBtn.classList.add("hidden");
       clearTimeout(_s._debounceTimer);
       applyFilters();
     });
   }
 
-  // ── Popstate — browser back/forward ───────────────────────────────
-  window.addEventListener('popstate', function () {
+  window.addEventListener("popstate", function () {
     var params = new URLSearchParams(window.location.search);
 
-    _s.searchQuery = params.get('search_query') || '';
+    _s.searchQuery = params.get("search_query") || "";
     if (searchInput) searchInput.value = _s.searchQuery;
-    if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
+    if (searchClearBtn) searchClearBtn.classList.toggle("hidden", !_s.searchQuery);
 
-    var rawPayer = params.get('payer_id');
-    _s.payerId = (rawPayer && /^\d+$/.test(rawPayer)) ? rawPayer : '';
-    var payerSelect = document.getElementById('payer-select');
+    var rawPayer = params.get("payer_id");
+    _s.payerId = rawPayer && /^\d+$/.test(rawPayer) ? rawPayer : "";
+    var payerSelect = document.getElementById("payer-select");
     if (payerSelect) {
       payerSelect.value = _s.payerId;
       if (payerSelect.value !== _s.payerId) {
-        _s.payerId = '';
-        payerSelect.value = '';
+        _s.payerId = "";
+        payerSelect.value = "";
       }
     }
 
-    var dateFromInput = document.getElementById('filter-date-from');
-    var dateToInput = document.getElementById('filter-date-to');
-    if (dateFromInput) dateFromInput.value = params.get('date_from') || '';
-    if (dateToInput) dateToInput.value = params.get('date_to') || '';
+    var popFrom = params.get("date_from") || "";
+    var popTo = params.get("date_to") || "";
+    var pickerRoot = document.getElementById("expenses-date-range");
+    if (pickerRoot && pickerRoot._ctDateRangePicker) {
+      pickerRoot._ctDateRangePicker.setRange(popFrom, popTo);
+    } else {
+      var fromEl = document.getElementById("filter-date-from");
+      var toEl = document.getElementById("filter-date-to");
+      if (fromEl) fromEl.value = popFrom;
+      if (toEl) toEl.value = popTo;
+    }
 
-    var myId = ++_s._reqId;
+    const myId = ++_s._reqId;
     _lastFiredId = myId;
+
     var qs = params.toString();
-    htmx.ajax('GET', '/expenses/filtered' + (qs ? '?' + qs : ''), {
-      target: '#expense-feed',
-      swap: 'outerHTML',
+    htmx.ajax("GET", "/expenses/filtered" + (qs ? "?" + qs : ""), {
+      target: "#expense-feed",
+      swap: "outerHTML",
     });
-    htmx.ajax('GET', '/expenses/balance' + (qs ? '?' + qs : ''), {
-      target: '#balance-bar',
-      swap: 'outerHTML',
+    htmx.ajax("GET", "/expenses/balance" + (qs ? "?" + qs : ""), {
+      target: "#balance-bar",
+      swap: "outerHTML",
     });
   });
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   if (searchInput) searchInput.value = _s.searchQuery;
-  if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !_s.searchQuery);
-  var _initPayerSelect = document.getElementById('payer-select');
+  if (searchClearBtn) searchClearBtn.classList.toggle("hidden", !_s.searchQuery);
+  var _initPayerSelect = document.getElementById("payer-select");
   if (_initPayerSelect) {
     _initPayerSelect.value = _s.payerId;
     if (_initPayerSelect.value !== _s.payerId) {
-      _s.payerId = '';
-      _initPayerSelect.value = '';
+      _s.payerId = "";
+      _initPayerSelect.value = "";
     }
-  }
-
-  // ── Flowbite date range picker (manual init with clear/today buttons) ────
-  function initExpensesDateRangePicker() {
-    var dateRangeRoot = document.getElementById('filter-date-range');
-    if (!dateRangeRoot || dateRangeRoot.dataset.datepickerInit === '1') return;
-    if (typeof window.Datepicker !== 'function') return;
-
-    var fromInput = document.getElementById('filter-date-from');
-    var toInput = document.getElementById('filter-date-to');
-    if (!fromInput || !toInput) return;
-
-    var previousFrom = fromInput.value.trim();
-    var previousTo = toInput.value.trim();
-
-    function closeRangePicker() {
-      var rangePicker = dateRangeRoot.rangepicker;
-      if (!rangePicker) return;
-
-      if (typeof rangePicker.hide === 'function') {
-        rangePicker.hide();
-        return;
-      }
-
-      if (Array.isArray(rangePicker.datepickers)) {
-        rangePicker.datepickers.forEach(function (dp) {
-          if (dp && typeof dp.hide === 'function') dp.hide();
-        });
-      }
-    }
-
-    function applyDateRangeIfReady(opts) {
-      var shouldClose = !!(opts && opts.shouldClose);
-      var source = opts && opts.source ? opts.source : null;
-      var from = fromInput.value.trim();
-      var to = toInput.value.trim();
-      var isCommittedRange = !!from && !!to;
-      var isFullClear = !from && !to;
-      var hadCommittedRangeBefore = !!previousFrom && !!previousTo;
-
-      // Persist latest values early so follow-up events are evaluated correctly.
-      previousFrom = from;
-      previousTo = to;
-
-      if (!isCommittedRange && !isFullClear) return;
-
-      // Flowbite can mirror start -> end on first click. Ignore that initial
-      // start click when there wasn't a previously committed range.
-      if (source === "from" && isCommittedRange && !hadCommittedRangeBefore) return;
-
-      var rangeKey = from + '|' + to;
-      if (dateRangeRoot.dataset.lastAppliedRangeKey === rangeKey) return;
-      dateRangeRoot.dataset.lastAppliedRangeKey = rangeKey;
-
-      if (shouldClose && isCommittedRange) {
-        closeRangePicker();
-      }
-
-      applyFilters();
-    }
-
-    new window.Datepicker(
-      dateRangeRoot,
-      {
-        rangePicker: true,
-        format: 'yyyy-mm-dd',
-        buttons: true,
-        autohide: false,
-        onHide: function () {
-          applyDateRangeIfReady({ shouldClose: false, source: 'hide' });
-        },
-      },
-      {
-        id: 'expenses-filter-range-picker',
-        override: true,
-      }
-    );
-
-    fromInput.addEventListener('changeDate', function () {
-      applyDateRangeIfReady({ shouldClose: true, source: 'from' });
-    });
-    toInput.addEventListener('changeDate', function () {
-      applyDateRangeIfReady({ shouldClose: true, source: 'to' });
-    });
-
-    dateRangeRoot.dataset.datepickerInit = '1';
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initExpensesDateRangePicker);
-  } else {
-    initExpensesDateRangePicker();
   }
 })();
 </script>
