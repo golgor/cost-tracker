@@ -1,0 +1,109 @@
+<div
+  id="{{ drp_root_id }}"
+  data-ct-date-range
+  data-mode="{{ drp_mode | default('instant') }}"
+  data-on-commit="{{ drp_on_commit | default('') }}"
+  data-compact="{{ '1' if drp_compact else '0' }}"
+  class="{{ drp_wrapper_class | default('') }}"
+>
+  <input
+    type="hidden"
+    data-role="from-input"
+    id="{{ drp_from_id }}"
+    name="{{ drp_from_name }}"
+    value="{{ drp_from_value | default('') }}"
+  >
+  <input
+    type="hidden"
+    data-role="to-input"
+    id="{{ drp_to_id }}"
+    name="{{ drp_to_name }}"
+    value="{{ drp_to_value | default('') }}"
+  >
+
+  <button
+    type="button"
+    data-role="trigger"
+    class="{{ drp_button_class | default('flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-colors whitespace-nowrap bg-white border-stone-300 text-stone-700 hover:bg-stone-50 hover:border-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-500') }}"
+  >
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+    <div class="{% if drp_compact %}flex items-center min-w-0{% else %}flex flex-col text-left leading-snug min-h-8 justify-center min-w-0{% endif %}">
+      <span data-role="start-label" class="{% if drp_compact %}text-sm{% else %}text-xs min-h-4{% endif %} font-medium truncate whitespace-nowrap">All</span>
+      <span data-role="end-label" class="text-xs font-medium text-primary-500 {% if not drp_compact %}min-h-4{% else %}hidden{% endif %} truncate"> </span>
+    </div>
+    <svg class="w-3 h-3 text-primary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <div data-role="backdrop" class="hidden fixed inset-0 z-40 bg-black/35"></div>
+
+  <div
+    data-role="modal"
+    class="hidden fixed z-50 bg-white rounded-2xl shadow-2xl overflow-hidden w-80 left-1/2 -translate-x-1/2 top-[12%]"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100">
+      <button type="button" data-role="prev" class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+
+      <div class="flex items-center gap-2">
+        <select data-role="month" class="ct-drp-month-select">
+          <option value="0">January</option>
+          <option value="1">February</option>
+          <option value="2">March</option>
+          <option value="3">April</option>
+          <option value="4">May</option>
+          <option value="5">June</option>
+          <option value="6">July</option>
+          <option value="7">August</option>
+          <option value="8">September</option>
+          <option value="9">October</option>
+          <option value="10">November</option>
+          <option value="11">December</option>
+        </select>
+        <input
+          type="number"
+          data-role="year"
+          min="2000"
+          max="2099"
+          class="text-base font-semibold text-stone-800 bg-transparent outline-none border-none text-center w-20"
+        >
+      </div>
+
+      <button type="button" data-role="next" class="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="text-center px-3 pt-2 pb-1 grid grid-cols-7">
+      <span class="text-xs font-medium text-stone-400">Mo</span>
+      <span class="text-xs font-medium text-stone-400">Tu</span>
+      <span class="text-xs font-medium text-stone-400">We</span>
+      <span class="text-xs font-medium text-stone-400">Th</span>
+      <span class="text-xs font-medium text-stone-400">Fr</span>
+      <span class="text-xs font-medium text-stone-500">Sa</span>
+      <span class="text-xs font-medium text-stone-500">Su</span>
+    </div>
+
+    <div data-role="grid" class="ct-drp-grid px-3 pb-1"></div>
+    <p data-role="hint" class="text-xs text-stone-400 text-center px-4 min-h-5"></p>
+
+    <div class="flex items-center justify-between px-4 py-3 border-t border-stone-100">
+      <button type="button" data-role="clear" class="text-sm text-stone-500 hover:text-stone-700 transition-colors">Clear dates</button>
+      <div data-role="apply-actions" class="flex gap-2 hidden">
+        <button type="button" data-role="cancel" class="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">Cancel</button>
+        <button type="button" data-role="apply" class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -9,12 +9,26 @@
   <link rel="stylesheet" href="/static/css/output.css">
   <script src="/static/js/htmx.min.js" defer></script>
   <script src="/static/js/flowbite.min.js" defer></script>
+  <script src="/static/js/components/date-range-picker.js" defer></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       document.body.addEventListener('htmx:configRequest', function(event) {
         var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         if (csrfToken) {
           event.detail.headers['X-CSRF-Token'] = csrfToken;
+        }
+      });
+
+      document.body.addEventListener('htmx:afterSettle', function(event) {
+        var root = event.detail && event.detail.elt ? event.detail.elt : event.target;
+        if (!(root instanceof Element)) return;
+
+        if (typeof initFlowbite === 'function') {
+          initFlowbite();
+        }
+
+        if (typeof window.initCostTrackerDateRangePickers === 'function') {
+          window.initCostTrackerDateRangePickers(root);
         }
       });
     });
