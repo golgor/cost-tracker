@@ -72,26 +72,38 @@
       </form>
     </div>
 
-    <form method="POST" action="/trips/guest/{{ trip.id }}/expenses" class="p-6 space-y-5 overflow-y-auto">
+    <form method="POST" action="/trips/guest/{{ trip.id }}/expenses" class="p-6 space-y-4 overflow-y-auto">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-      
+
       <div>
-        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Amount</label>
+        <label for="guest-amount" class="block text-sm font-medium text-stone-700 mb-1">
+          Amount <span class="text-red-600">*</span>
+        </label>
         <div class="relative">
-          <span class="absolute inset-y-0 left-0 pl-4 flex items-center font-bold text-stone-400 sm:text-lg">
-            {{ trip.currency }}
-          </span>
-          <input type="number" step="0.01" name="amount" required placeholder="0.00" class="block w-full pl-14 pr-4 py-4 sm:py-3 text-lg sm:text-xl font-bold border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-stone-900 outline-none transition" inputmode="decimal">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{ currency_symbol }}</span>
+          <input type="text" id="guest-amount" name="amount" inputmode="decimal" autofocus required placeholder="0.00"
+                 class="w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
         </div>
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Description</label>
-        <input type="text" name="description" required placeholder="Dinner, fuel, groceries..." class="block w-full px-4 py-4 sm:py-3 text-base border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-stone-900 outline-none transition block">
+        <label for="guest-description" class="block text-sm font-medium text-stone-700 mb-1">
+          Where / What
+        </label>
+        <input type="text" id="guest-description" name="description" required placeholder="e.g., Spar, Netflix, birthday supplies"
+               class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Split With</label>
+        <label for="guest-date" class="block text-sm font-medium text-stone-700 mb-1">
+          Date
+        </label>
+        <input type="date" id="guest-date" name="date" value="{{ today }}"
+               class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Split With</label>
         <div class="max-h-32 overflow-y-auto space-y-1 bg-stone-50 rounded-xl p-3">
           {% for p in participants %}
           <label class="flex items-center gap-2 cursor-pointer py-1">
@@ -102,9 +114,8 @@
         </div>
       </div>
 
-      <!-- Submit buttons sticky to bottom of modal -->
-      <div class="pt-6 pb-2">
-        <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold flex items-center justify-center py-4 sm:py-3 rounded-xl shadow-md transition">
+      <div class="pt-4 pb-2">
+        <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium flex items-center justify-center py-2.5 rounded-lg shadow-sm transition">
           Save Expense
         </button>
       </div>

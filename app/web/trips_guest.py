@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.domain.models import GuestPublic, TripPublic
 from app.domain.use_cases import trips as trip_uc
 from app.web.expenses._shared import UowDep, templates
+from app.web.filters import get_currency_symbol
 
 router = APIRouter(tags=["guest_trips"])
 
@@ -169,6 +170,8 @@ async def guest_summary(
             "active_guest_id": active_guest.id,
             "participants": participants,
             "expenses": expenses,
+            "today": date.today().isoformat(),
+            "currency_symbol": get_currency_symbol(trip.currency),
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -181,10 +184,12 @@ async def add_guest_expense(
     uow: UowDep,
     description: str = Form(...),
     amount: str = Form(...),
+    date_str: Annotated[str, Form(alias="date")] = "",
     split_with_ids: Annotated[list[int] | None, Form()] = None,
     costtracker_guest_session: str | None = Cookie(None),
 ):
     """Add a new expense. Handled via standard HTMX POST."""
+    expense_date = date.fromisoformat(date_str) if date_str else date.today()
     with uow:
         trip, active_guest, _participants = _validate_guest_access(
             uow, trip_id, costtracker_guest_session
@@ -198,7 +203,7 @@ async def add_guest_expense(
             trip_id=trip_id,
             description=description,
             amount=Decimal(amount),
-            expense_date=date.today(),
+            expense_date=expense_date,
             paid_by_id=active_guest.id,
             created_by_guest_id=active_guest.id,
             split_with_ids=split_with_ids,
