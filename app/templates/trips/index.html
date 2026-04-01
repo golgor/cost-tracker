@@ -6,7 +6,8 @@
 <div class="max-w-4xl mx-auto px-4 py-8">
   <div class="flex items-center justify-between mb-8">
     <h1 class="text-2xl font-semibold text-stone-900">Trips</h1>
-    <button onclick="document.getElementById('createTripModal').showModal()" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
+    <button data-drawer-target="createTripDrawer" data-drawer-show="createTripDrawer" data-drawer-placement="right"
+            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
       New Trip
     </button>
@@ -15,24 +16,27 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for trip in trips %}
       <a href="/trips/{{ trip.id }}" class="block bg-white border border-stone-200 rounded-xl p-6 shadow-sm hover:shadow-md transition group">
-        <div class="flex justify-between items-start mb-4">
+        <div class="flex justify-between items-start mb-3">
           <h2 class="text-lg font-medium text-stone-900 group-hover:text-primary-600 transition">{{ trip.name }}</h2>
           {% if trip.is_active %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              Active
-            </span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
           {% else %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-800">
-              Closed
-            </span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-800">Closed</span>
           {% endif %}
         </div>
-        <p class="text-stone-500 text-sm mb-4">
-          Created {{ trip.created_at.strftime('%b %d, %Y') }}
-        </p>
-        <div class="text-sm font-medium text-stone-900">
-          Currency: {{ trip.currency }}
-        </div>
+        {% if trip.start_date and trip.end_date %}
+          <p class="text-stone-500 text-sm mb-2">
+            {{ trip.start_date.strftime('%b %d') }} - {{ trip.end_date.strftime('%b %d, %Y') }}
+          </p>
+        {% elif trip.start_date %}
+          <p class="text-stone-500 text-sm mb-2">From {{ trip.start_date.strftime('%b %d, %Y') }}</p>
+        {% else %}
+          <p class="text-stone-500 text-sm mb-2">Created {{ trip.created_at.strftime('%b %d, %Y') }}</p>
+        {% endif %}
+        {% if trip.description %}
+          <p class="text-stone-400 text-xs mb-3 line-clamp-2">{{ trip.description }}</p>
+        {% endif %}
+        <div class="text-sm font-medium text-stone-900">Currency: {{ trip.currency }}</div>
       </a>
     {% else %}
       <div class="col-span-full text-center py-12 border-2 border-dashed border-stone-200 rounded-xl">
@@ -46,39 +50,57 @@
   </div>
 </div>
 
-<!-- Create Trip Modal -->
-<dialog id="createTripModal" class="m-auto p-0 rounded-2xl shadow-2xl backdrop:bg-stone-900/50 open:animate-in open:zoom-in-95 backdrop:open:animate-in backdrop:open:fade-in">
-  <div class="w-full max-w-md bg-white p-6">
+<!-- Create Trip Drawer (Flowbite) -->
+<div id="createTripDrawer" class="fixed top-0 right-0 z-40 h-screen overflow-y-auto transition-transform translate-x-full bg-white w-96 shadow-xl border-l border-stone-200" tabindex="-1">
+  <div class="p-6">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-semibold text-stone-900">Create New Trip</h2>
-      <form method="dialog">
-        <button class="text-stone-400 hover:text-stone-600">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </form>
+      <button type="button" data-drawer-hide="createTripDrawer" class="text-stone-400 bg-transparent hover:bg-stone-200 hover:text-stone-900 rounded-lg text-sm w-8 h-8 inline-flex items-center justify-center">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
+      </button>
     </div>
 
-    <!-- The actual trip creation form -->
-    <form action="/trips" method="POST" class="space-y-4 text-left">
+    <form action="/trips" method="POST" class="space-y-5">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
       <div>
         <label class="block text-sm font-medium text-stone-700 mb-1">Trip Name</label>
         <input type="text" name="name" required class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="E.g., Summer in Italy">
       </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Description</label>
+        <textarea name="description" rows="3" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="Where are we going? What's the occasion?"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Start Date</label>
+          <div class="relative">
+            <input datepicker datepicker-format="yyyy-mm-dd" type="text" name="start_date" placeholder="Start date" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">End Date</label>
+          <div class="relative">
+            <input datepicker datepicker-format="yyyy-mm-dd" type="text" name="end_date" placeholder="End date" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+          </div>
+        </div>
+      </div>
+
       <div>
         <label class="block text-sm font-medium text-stone-700 mb-1">Currency</label>
         <input type="text" name="currency" required value="{{ default_currency }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
       </div>
-      
+
       <div class="pt-4 border-t border-stone-200">
-        <label class="block text-sm font-medium text-stone-700 mb-3">Include Global Guests</label>
-        
-        <!-- HTMX endpoint to add new global guests on the fly -->
+        <label class="block text-sm font-medium text-stone-700 mb-3">Include Guests</label>
+
         <div class="flex gap-2 mb-4">
           <input type="text" id="newGuestName" name="guest_name" placeholder="New guest name..." class="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm">
-          <button type="button" 
-                  hx-post="/trips/guests" 
-                  hx-target="#guestListContainer" 
+          <button type="button"
+                  hx-post="/trips/guests"
+                  hx-target="#guestListContainer"
                   hx-include="#newGuestName, [name='participant_ids']"
                   onclick="setTimeout(() => document.getElementById('newGuestName').value='', 100)"
                   class="px-3 py-2 bg-stone-100 text-stone-700 text-sm font-medium rounded-lg hover:bg-stone-200 transition">
@@ -91,13 +113,11 @@
         </div>
       </div>
 
-      <div class="pt-4 flex justify-end gap-3 mt-8">
-        <button type="button" onclick="document.getElementById('createTripModal').close()" class="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg transition font-medium">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium shadow-sm">
-          Create Trip
-        </button>
+      <div class="pt-4 flex justify-end gap-3">
+        <button type="button" data-drawer-hide="createTripDrawer" class="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg transition font-medium">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium shadow-sm">Create Trip</button>
       </div>
     </form>
   </div>
-</dialog>
+</div>
 {% endblock %}

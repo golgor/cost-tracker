@@ -8,8 +8,16 @@
       <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     </div>
     
-    <h2 class="text-2xl font-bold text-stone-900 mb-2">Welcome to {{ trip.name }}</h2>
-    <p class="text-stone-500 text-sm mb-8">Please select your name so we can record your expenses and balances correctly.</p>
+    <h2 class="text-2xl font-bold text-stone-900 mb-1">Welcome to {{ trip.name }}</h2>
+    {% if trip.start_date and trip.end_date %}
+      <p class="text-stone-400 text-xs mb-1">{{ trip.start_date.strftime('%b %d') }} - {{ trip.end_date.strftime('%b %d, %Y') }}</p>
+    {% endif %}
+    {% if trip.description %}
+      <p class="text-stone-400 text-xs mb-4">{{ trip.description }}</p>
+    {% else %}
+      <div class="mb-4"></div>
+    {% endif %}
+    <p class="text-stone-500 text-sm mb-6">Please select your name so we can record your expenses and balances correctly.</p>
     
     <form action="/trips/guest/{{ trip.id }}/identify" method="POST" class="space-y-3">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

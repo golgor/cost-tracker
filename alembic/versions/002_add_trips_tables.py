@@ -40,8 +40,11 @@ def upgrade() -> None:
             sa.String(length=64),
             nullable=False,
         ),
+        sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("created_by_id", sa.Integer(), nullable=False),
+        sa.Column("start_date", sa.Date(), nullable=True),
+        sa.Column("end_date", sa.Date(), nullable=True),
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column(
             "created_at",

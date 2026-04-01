@@ -45,11 +45,25 @@ async def create_trip(
     uow: UowDep,
     name: Annotated[str, Form()],
     currency: Annotated[str, Form()],
+    description: Annotated[str, Form()] = "",
+    start_date_str: Annotated[str, Form(alias="start_date")] = "",
+    end_date_str: Annotated[str, Form(alias="end_date")] = "",
     participant_ids: Annotated[list[int] | None, Form()] = None,
 ):
     """Create a new trip and return to dashboard."""
+    start_date = date.fromisoformat(start_date_str) if start_date_str else None
+    end_date = date.fromisoformat(end_date_str) if end_date_str else None
     with uow:
-        trip_uc.create_trip(uow, name, currency, user_id, participant_ids or [])
+        trip_uc.create_trip(
+            uow,
+            name,
+            currency,
+            user_id,
+            participant_ids or [],
+            description=description or None,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
     if "hx-request" in request.headers:
         response = HTMLResponse()
@@ -251,13 +265,27 @@ async def edit_trip(
     uow: UowDep,
     name: Annotated[str, Form()],
     currency: Annotated[str, Form()],
+    description: Annotated[str, Form()] = "",
+    start_date_str: Annotated[str, Form(alias="start_date")] = "",
+    end_date_str: Annotated[str, Form(alias="end_date")] = "",
     participant_ids: Annotated[list[int] | None, Form()] = None,
 ):
-    """Update trip details (name, currency, participants)."""
+    """Update trip details (name, currency, description, dates, participants)."""
     new_participant_ids = participant_ids or []
+    start_date = date.fromisoformat(start_date_str) if start_date_str else None
+    end_date = date.fromisoformat(end_date_str) if end_date_str else None
 
     with uow:
-        trip_uc.update_trip(uow, trip_id, user_id, name=name, currency=currency)
+        trip_uc.update_trip(
+            uow,
+            trip_id,
+            user_id,
+            name=name,
+            description=description or None,
+            currency=currency,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Sync participants: add new, remove old
         current_participants = uow.trips.get_participants(trip_id)

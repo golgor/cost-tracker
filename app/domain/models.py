@@ -207,10 +207,13 @@ class TripBase(SQLModel):
     """Domain base for Trip — validation + business data. No table."""
 
     name: str = Field(max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
     currency: str = Field(max_length=3)
     sharing_token: str = Field(max_length=64, index=True, unique=True)
     is_active: bool = Field(default=True)
     created_by_id: int
+    start_date: date | None = Field(default=None)
+    end_date: date | None = Field(default=None)
 
 
 class TripPublic(TripBase):

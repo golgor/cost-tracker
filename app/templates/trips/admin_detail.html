@@ -20,7 +20,19 @@
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">Settled</span>
         {% endif %}
       </div>
-      <p class="text-stone-500 text-sm mt-1">Created {{ trip.created_at.strftime('%Y-%m-%d') }} &bull; Currency: {{ trip.currency }}</p>
+      <p class="text-stone-500 text-sm mt-1">
+        {% if trip.start_date and trip.end_date %}
+          {{ trip.start_date.strftime('%b %d') }} - {{ trip.end_date.strftime('%b %d, %Y') }}
+        {% elif trip.start_date %}
+          From {{ trip.start_date.strftime('%b %d, %Y') }}
+        {% else %}
+          Created {{ trip.created_at.strftime('%Y-%m-%d') }}
+        {% endif %}
+        &bull; Currency: {{ trip.currency }}
+      </p>
+      {% if trip.description %}
+        <p class="text-stone-400 text-sm mt-1 max-w-lg">{{ trip.description }}</p>
+      {% endif %}
     </div>
 
     <div class="flex items-center gap-2">

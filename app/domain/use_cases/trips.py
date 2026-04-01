@@ -67,15 +67,21 @@ def create_trip(
     currency: str,
     created_by_id: int,
     participant_ids: list[int],
+    description: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> TripPublic:
     """Create a new trip and add its initial participants."""
     token = secrets.token_urlsafe(32)
     trip = TripBase(
         name=name,
+        description=description or None,
         currency=currency,
         sharing_token=token,
         is_active=True,
         created_by_id=created_by_id,
+        start_date=start_date,
+        end_date=end_date,
     )
     saved_trip = uow.trips.save(trip)
 
@@ -189,12 +195,22 @@ def update_trip(
     user_id: int,
     *,
     name: str | None = None,
+    description: str | None = ...,
     currency: str | None = None,
+    start_date: date | None = ...,
+    end_date: date | None = ...,
 ) -> TripPublic:
     """Update trip details (admin only)."""
     trip = _get_trip_or_raise(uow, trip_id)
     _assert_trip_owner(trip, user_id)
-    return uow.trips.update(trip_id, name=name, currency=currency)
+    kwargs: dict = {"name": name, "currency": currency}
+    if description is not ...:
+        kwargs["description"] = description
+    if start_date is not ...:
+        kwargs["start_date"] = start_date
+    if end_date is not ...:
+        kwargs["end_date"] = end_date
+    return uow.trips.update(trip_id, **kwargs)
 
 
 def settle_trip(uow: UnitOfWorkPort, trip_id: int, user_id: int) -> TripPublic:

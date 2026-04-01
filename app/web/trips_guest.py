@@ -240,3 +240,29 @@ async def guest_balances(
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
+
+
+@router.get("/trips/guest/{trip_id}/info", response_class=HTMLResponse)
+async def guest_trip_info(
+    request: Request,
+    trip_id: int,
+    uow: UowDep,
+    costtracker_guest_session: str | None = Cookie(None),
+):
+    """Trip info page showing metadata, dates, participants."""
+    with uow:
+        trip, active_guest, participants = _validate_guest_access(
+            uow, trip_id, costtracker_guest_session
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "trips/guest_info.html",
+        {
+            "trip": trip,
+            "active_guest": active_guest,
+            "active_guest_id": active_guest.id,
+            "participants": participants,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )

@@ -321,6 +321,7 @@ class TripRow(TripBase, table=True):
     __tablename__ = "trips"
 
     id: int | None = Field(default=None, primary_key=True)
+    description: str | None = Field(default=None, sa_type=sa.Text)  # type: ignore[arg-type]
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
         sa_type=_TZ_DATETIME,  # type: ignore[arg-type]

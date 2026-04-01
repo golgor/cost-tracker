@@ -239,8 +239,11 @@ class TripPort(Protocol):
         trip_id: int,
         *,
         name: str | None = None,
+        description: str | None = ...,
         currency: str | None = None,
         is_active: bool | None = None,
+        start_date: date | None = ...,
+        end_date: date | None = ...,
     ) -> TripPublic: ...
     def delete(self, trip_id: int) -> None: ...
 
