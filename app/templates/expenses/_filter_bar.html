@@ -2,7 +2,7 @@
 <div class="p-4 mb-6 bg-white border border-stone-200 rounded-lg shadow-sm">
   <div class="space-y-3">
 
-    <!-- Row 1: Search field + Date range picker -->
+    <!-- Row 1: Search field + Date range picker + Apply -->
     <div class="flex flex-col sm:flex-row items-stretch gap-2">
 
       <!-- Search - Flowbite Input with icon -->
@@ -24,25 +24,31 @@
         </button>
       </div>
 
-      <!-- Flowbite Date Range Picker -->
-      <div id="filter-date-range" date-rangepicker datepicker-autohide datepicker-format="yyyy-mm-dd" class="flex items-center gap-2">
-        <div class="relative">
-          <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-            <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+      <!-- Flowbite Date Range Picker + Apply button -->
+      <div class="flex items-center gap-2">
+        <div id="filter-date-range" date-rangepicker datepicker-format="yyyy-mm-dd" class="flex items-center gap-2">
+          <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+              <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+            </div>
+            <input id="filter-date-from" name="date_from" type="text" value="{{ filter_date_from or '' }}" placeholder="From"
+                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
+                   style="min-width: 140px;">
           </div>
-          <input id="filter-date-from" name="date_from" type="text" value="{{ filter_date_from or '' }}" placeholder="From"
-                 class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
-                 style="min-width: 140px;">
-        </div>
-        <span class="text-stone-400 text-sm">to</span>
-        <div class="relative">
-          <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-            <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+          <span class="text-stone-400 text-sm">to</span>
+          <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+              <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+            </div>
+            <input id="filter-date-to" name="date_to" type="text" value="{{ filter_date_to or '' }}" placeholder="To"
+                   class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
+                   style="min-width: 140px;">
           </div>
-          <input id="filter-date-to" name="date_to" type="text" value="{{ filter_date_to or '' }}" placeholder="To"
-                 class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full ps-10 p-2.5"
-                 style="min-width: 140px;">
         </div>
+        <button type="button" onclick="applyFilters()"
+                class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-3 py-2.5 focus:outline-none whitespace-nowrap">
+          Apply
+        </button>
       </div>
 
     </div>
@@ -77,7 +83,6 @@
 
 <script>
 (function () {
-  // ── State ─────────────────────────────────────────────────────────────
   const _s = {
     searchQuery: {{ search_query | tojson }} || '',
     payerId: {{ filter_payer_id | tojson }} || '',
@@ -87,8 +92,6 @@
   };
 
   let _lastFiredId = 0;
-
-  function _pad(n) { return String(n).padStart(2, '0'); }
 
   // ── applyFilters — single exit point for all filter state → HTMX ─────────
   window.applyFilters = function () {
@@ -130,46 +133,6 @@
     }
   });
 
-  // ── Date range picker — apply on hide via updateOnHide ──────────────────
-  // Flowbite's Datepicker instances expose updateOnHide(callback) which fires
-  // when the user closes a picker (click outside, Escape, date selection).
-  // This avoids the problem of changeDate firing mid-interaction and
-  // initFlowbite() from HTMX afterSettle destroying an open picker.
-  var dateFromInput = document.getElementById('filter-date-from');
-  var dateToInput = document.getElementById('filter-date-to');
-
-  // Track last-applied date values so we only fire when something changed
-  var _lastAppliedFrom = dateFromInput ? dateFromInput.value : '';
-  var _lastAppliedTo = dateToInput ? dateToInput.value : '';
-
-  function onDatepickerHide() {
-    var curFrom = dateFromInput ? dateFromInput.value : '';
-    var curTo = dateToInput ? dateToInput.value : '';
-    if (curFrom !== _lastAppliedFrom || curTo !== _lastAppliedTo) {
-      _lastAppliedFrom = curFrom;
-      _lastAppliedTo = curTo;
-      applyFilters();
-    }
-  }
-
-  function hookDatepickerOnHide() {
-    // Flowbite stores instances via FlowbiteInstances.getInstance("Datepicker", id)
-    if (typeof FlowbiteInstances === 'undefined') return;
-    ['filter-date-from', 'filter-date-to'].forEach(function(id) {
-      var inst = FlowbiteInstances.getInstance('Datepicker', id);
-      if (inst && typeof inst.updateOnHide === 'function') {
-        inst.updateOnHide(onDatepickerHide);
-      }
-    });
-  }
-
-  // Hook after Flowbite has initialized the datepickers (may need a tick)
-  setTimeout(hookDatepickerOnHide, 0);
-  // Re-hook after HTMX swaps in case initFlowbite() recreates instances
-  document.body.addEventListener('htmx:afterSettle', function() {
-    setTimeout(hookDatepickerOnHide, 0);
-  });
-
   // ── Paid-by change ───────────────────────────────────────────────────
   window.applyPaidBy = function () {
     _s.payerId = document.getElementById('payer-select').value;
@@ -195,6 +158,8 @@
     if (payerEl) payerEl.value = '';
 
     // Clear date inputs
+    var dateFromInput = document.getElementById('filter-date-from');
+    var dateToInput = document.getElementById('filter-date-to');
     if (dateFromInput) dateFromInput.value = '';
     if (dateToInput) dateToInput.value = '';
 
@@ -256,6 +221,8 @@
       }
     }
 
+    var dateFromInput = document.getElementById('filter-date-from');
+    var dateToInput = document.getElementById('filter-date-to');
     if (dateFromInput) dateFromInput.value = params.get('date_from') || '';
     if (dateToInput) dateToInput.value = params.get('date_to') || '';
 
