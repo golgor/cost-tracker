@@ -1,6 +1,6 @@
 <!-- Desktop expense capture form - Flowbite Card -->
 <aside id="expense-sidebar"
-       class="hidden md:block md:w-96 md:flex-shrink-0 bg-white border border-stone-200 rounded-lg shadow-sm p-6 overflow-y-auto sticky top-20 self-start max-h-[calc(100dvh-6rem)] mt-6 mr-4 mb-6">
+       class="hidden md:block md:w-96 md:flex-shrink-0 bg-white border border-stone-200 rounded-lg shadow-sm p-6 overflow-y-auto sticky top-20 self-start max-h-[calc(100dvh-6rem)]">
     <h2 class="text-lg font-semibold text-stone-900 mb-6">Add Expense</h2>
 
     <form id="desktop-expense-form"
@@ -89,8 +89,8 @@
 
         <!-- Submit - Flowbite Button -->
         <button type="submit" id="desktop-submit-btn" tabindex="6"
-                class="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-            <span class="htmx-indicator inline-block">
+                class="ct-btn-primary w-full relative disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="htmx-indicator absolute left-4">
                 <svg class="inline w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

@@ -3,17 +3,17 @@
 {% block title %}Trips - Cost Tracker{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-  <div class="flex items-center justify-between mb-8">
+<div class="ct-page-wide">
+  <div class="ct-page-header">
     <h1 class="text-2xl font-semibold text-stone-900">Trips</h1>
     <button data-drawer-target="createTripDrawer" data-drawer-show="createTripDrawer" data-drawer-placement="right"
-            class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center gap-2">
+            class="ct-btn-primary">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
       New Trip
     </button>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div class="space-y-4">
     {% for trip in trips %}
       <a href="/trips/{{ trip.id }}" class="block p-6 bg-white border border-stone-200 rounded-lg shadow-sm hover:shadow-md transition group">
         <div class="flex justify-between items-start mb-3">
@@ -37,7 +37,7 @@
         <div class="text-sm font-medium text-stone-900">Currency: {{ trip.currency }}</div>
       </a>
     {% else %}
-      <div class="col-span-full text-center py-12 border-2 border-dashed border-stone-200 rounded-xl">
+      <div class="text-center py-12 border-2 border-dashed border-stone-200 rounded-xl">
         <svg class="mx-auto h-12 w-12 text-stone-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -115,12 +115,10 @@
       </div>
 
       <div class="pt-4 flex justify-end gap-3">
-        <button type="button" data-drawer-hide="createTripDrawer"
-                class="text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+        <button type="button" data-drawer-hide="createTripDrawer" class="ct-btn-secondary">
           Cancel
         </button>
-        <button type="submit"
-                class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+        <button type="submit" class="ct-btn-primary">
           Create Trip
         </button>
       </div>

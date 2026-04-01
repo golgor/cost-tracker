@@ -2,14 +2,10 @@
 
 {% block title %}All Expenses - Cost Tracker{% endblock %}
 
-{% block main_class %}pb-24 md:pb-0 md:px-4 md:py-4{% endblock %}
-
 {% block content %}
-<!-- Desktop layout with sidebar -->
-<div class="max-w-7xl mx-auto md:flex h-full">
-  <!-- Main content area -->
-  <div class="flex-1 min-w-0 overflow-auto">
-    <div class="px-4 py-6 sm:px-6 lg:px-8">
+<div class="ct-page-wide md:flex h-full gap-6">
+  <div class="flex-1 min-w-0">
+    <div class="space-y-6">
 
       <!-- Balance Bar Widget -->
       {% include "expenses/_balance_bar.html" %}
@@ -21,11 +17,9 @@
       {% with currency_symbol=currency_symbol, csrf_token=csrf_token %}
         {% include "expenses/_expense_feed.html" %}
       {% endwith %}
-
     </div>
   </div>
 
-  <!-- Desktop Sidebar Form -->
   {% include "expenses/_capture_form_desktop.html" %}
 </div>
 {% endblock %}

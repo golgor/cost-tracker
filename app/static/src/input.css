@@ -18,6 +18,7 @@
   --color-primary-400: #D4896A;
   --color-primary-500: #C27B5A;
   --color-primary-600: #A8654A;
+  --color-primary-700: #8B5239;
 
   /* Terracotta — Alias for Primary */
   --color-terracotta-50: #FDF5F0;
@@ -65,6 +66,34 @@
 @layer components {
   .card {
     @apply bg-surface-card p-4 rounded-lg shadow-sm;
+  }
+
+  .ct-page {
+    @apply max-w-4xl mx-auto;
+  }
+
+  .ct-page-tight {
+    @apply max-w-2xl mx-auto;
+  }
+
+  .ct-page-wide {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .ct-page-header {
+    @apply mb-6 flex items-center justify-between gap-4;
+  }
+
+  .ct-btn-primary {
+    @apply text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center justify-center gap-2;
+  }
+
+  .ct-btn-secondary {
+    @apply text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center justify-center gap-2;
+  }
+
+  .ct-input {
+    @apply bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5;
   }
 
   .ct-drp-month-select {
