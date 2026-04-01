@@ -375,10 +375,12 @@ class TripExpenseSplitRow(TripExpenseSplitBase, table=True):
     guest_id: int = Field(foreign_key="guests.id", index=True)
     amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))  # type: ignore[arg-type]
     share_value: Decimal | None = Field(
-        default=None, sa_type=sa.Numeric(precision=19, scale=4)  # type: ignore[arg-type]
+        default=None,
+        sa_type=sa.Numeric(precision=19, scale=4),  # type: ignore[arg-type]
     )
     created_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now()}, sa_type=_TZ_DATETIME  # type: ignore[arg-type]
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
 
     __table_args__ = (
@@ -398,7 +400,8 @@ class TripExpenseNoteRow(TripExpenseNoteBase, table=True):
     author_id: int = Field(foreign_key="guests.id", index=True)
     content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
     created_at: datetime = Field(
-        sa_column_kwargs={"server_default": func.now()}, sa_type=_TZ_DATETIME  # type: ignore[arg-type]
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
     )
     updated_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},

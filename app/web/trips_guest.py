@@ -38,7 +38,10 @@ def _set_guest_session(response: Response, session_data: dict[str, int]) -> None
 
 @router.get("/t/{sharing_token}", response_class=HTMLResponse)
 async def guest_landing(
-    request: Request, sharing_token: str, uow: UowDep, costtracker_guest_session: str | None = Cookie(None)
+    request: Request,
+    sharing_token: str,
+    uow: UowDep,
+    costtracker_guest_session: str | None = Cookie(None),
 ):
     """Entry point for magic links. Checks cookie or redirects to identify."""
     with uow:
