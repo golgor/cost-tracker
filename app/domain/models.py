@@ -196,3 +196,100 @@ class RecurringDefinitionPublic(RecurringDefinitionBase):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+
+
+# ---------------------------------------------------------------------------
+# Epic 3: Trips
+# ---------------------------------------------------------------------------
+
+
+class TripBase(SQLModel):
+    """Domain base for Trip — validation + business data. No table."""
+
+    name: str = Field(max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    currency: str = Field(max_length=3)
+    sharing_token: str = Field(max_length=64, index=True, unique=True)
+    is_active: bool = Field(default=True)
+    created_by_id: int
+    start_date: date | None = Field(default=None)
+    end_date: date | None = Field(default=None)
+
+
+class TripPublic(TripBase):
+    """Output schema for Trip — includes DB-generated fields."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class GuestBase(SQLModel):
+    """Domain base for Guest (Global Address Book). No table."""
+
+    name: str = Field(max_length=255)
+    user_id: int | None = Field(default=None)
+
+
+class GuestPublic(GuestBase):
+    """Output schema for Guest."""
+
+    id: int
+
+
+class TripParticipantBase(SQLModel):
+    """Domain base for TripParticipant mapping."""
+
+    trip_id: int
+    guest_id: int
+
+
+class TripExpenseBase(SQLModel):
+    """Domain base for TripExpense. No table."""
+
+    trip_id: int
+    description: str = Field(max_length=255)
+    amount: Decimal = Field(decimal_places=2, ge=0.01)
+    date: date
+    paid_by_id: int
+    created_by_guest_id: int
+
+
+class TripExpensePublic(TripExpenseBase):
+    """Output schema for TripExpense."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class TripExpenseSplitBase(SQLModel):
+    """Domain base for TripExpenseSplit. No table."""
+
+    trip_expense_id: int
+    guest_id: int
+    amount: Decimal = Field(decimal_places=2, ge=0)
+    share_value: Decimal | None = Field(default=None, decimal_places=4)
+
+
+class TripExpenseSplitPublic(TripExpenseSplitBase):
+    """Output schema for TripExpenseSplit."""
+
+    id: int
+    created_at: datetime
+
+
+class TripExpenseNoteBase(SQLModel):
+    """Domain base for TripExpenseNote. No table."""
+
+    trip_expense_id: int
+    author_id: int
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class TripExpenseNotePublic(TripExpenseNoteBase):
+    """Output schema for TripExpenseNote."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime

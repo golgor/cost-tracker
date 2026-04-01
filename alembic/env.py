@@ -11,7 +11,7 @@ from alembic import context
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Import SQLModel metadata for Alembic auto-generation
-from sqlmodel import (  # noqa: E402 - must be after load_dotenv to ensure env vars are available
+from app.adapters.sqlalchemy.orm_models import (  # noqa: E402
     SQLModel,
 )
 
@@ -41,7 +41,7 @@ def process_revision_directives(context, revision, directives):
         try:
             num = int(rev.revision)
             max_num = max(max_num, num)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             # Skip non-numeric revisions
             continue
 

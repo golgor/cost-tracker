@@ -1,0 +1,54 @@
+{% if not transactions %}
+<div class="p-8 text-center text-stone-500 flex flex-col items-center">
+  <div class="bg-stone-100 rounded-full p-3 mb-3">
+    <svg class="w-6 h-6 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+  </div>
+  <p class="font-medium text-stone-900 mb-1">Everyone is settled up!</p>
+  <p class="text-sm">There are no outstanding balances for this trip.</p>
+</div>
+{% else %}
+<div class="space-y-6 w-full">
+  <!-- Transactions List -->
+  <ul class="space-y-3">
+    {% for tx in transactions %}
+      <li class="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl hover:border-stone-300 transition-colors">
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold shadow-sm">
+            {{ participants[tx.from_user_id][:2]|upper if participants.get(tx.from_user_id) else '?' }}
+          </div>
+          <div class="flex flex-col items-center px-2">
+            <span class="text-xs font-medium text-stone-500 uppercase tracking-wider mb-1">Pays</span>
+            <svg class="w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold shadow-sm">
+            {{ participants[tx.to_user_id][:2]|upper if participants.get(tx.to_user_id) else '?' }}
+          </div>
+        </div>
+        <div class="text-right pl-4 border-l border-stone-200">
+          <div class="text-xs text-stone-500 mb-0.5 whitespace-nowrap">Amount</div>
+          <div class="font-bold text-stone-900 text-lg whitespace-nowrap">{{ tx.amount.amount|round(2) }}</div>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <!-- Balances Breakdown -->
+  <div class="mt-8 border-t border-stone-200 pt-6">
+    <h3 class="text-sm font-semibold text-stone-900 uppercase tracking-wider mb-4">Total Net Balances</h3>
+    <ul class="space-y-2">
+      {% for member_id, balance in balances.items() %}
+      <li class="flex justify-between items-center text-sm py-1">
+        <span class="text-stone-600 font-medium">{{ participants[member_id] if participants.get(member_id) else 'Guest ' ~ member_id }}</span>
+        {% if balance.net_balance.amount > 0 %}
+          <span class="font-semibold text-green-600">+{{ balance.net_balance.amount|round(2) }}</span>
+        {% elif balance.net_balance.amount < 0 %}
+          <span class="font-semibold text-red-600">{{ balance.net_balance.amount|round(2) }}</span>
+        {% else %}
+          <span class="font-semibold text-stone-400">0.00</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}

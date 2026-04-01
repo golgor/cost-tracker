@@ -12,11 +12,17 @@ from app.domain.models import (
     ExpenseNoteBase,
     ExpenseSplitBase,
     ExpenseStatus,
+    GuestBase,
     RecurringDefinitionBase,
     RecurringFrequency,
     SettlementBase,
     SettlementTransactionBase,
     SplitType,
+    TripBase,
+    TripExpenseBase,
+    TripExpenseNoteBase,
+    TripExpenseSplitBase,
+    TripParticipantBase,
     UserBase,
 )
 
@@ -84,7 +90,26 @@ class ExpenseRow(ExpenseBase, table=True):
             ondelete="SET NULL",
             name="fk_expenses_recurring_definition_id",
         ),
+        sa.CheckConstraint(
+            "split_type IN ('EVEN', 'SHARES', 'PERCENTAGE', 'EXACT')",
+            name="ck_expenses_split_type",
+        ),
+        sa.CheckConstraint(
+            "status IN ('PENDING', 'GIFT', 'SETTLED')",
+            name="ck_expenses_status",
+        ),
         sa.Index("ix_expenses_date", "date"),
+        sa.Index("ix_expenses_creator_id", "creator_id"),
+        sa.Index("ix_expenses_payer_id", "payer_id"),
+        sa.Index("ix_expenses_recurring_definition_id", "recurring_definition_id"),
+        sa.Index("ix_expenses_status", "status"),
+        sa.Index(
+            "uq_expenses_definition_billing_period",
+            "recurring_definition_id",
+            "billing_period",
+            unique=True,
+            postgresql_where=sa.text("recurring_definition_id IS NOT NULL"),
+        ),
     )
 
 
@@ -94,8 +119,8 @@ class ExpenseSplitRow(ExpenseSplitBase, table=True):
     __tablename__ = "expense_splits"
 
     id: int | None = Field(default=None, primary_key=True)
-    expense_id: int = Field(foreign_key="expenses.id", index=True)
-    user_id: int = Field(foreign_key="users.id", index=True)
+    expense_id: int = Field(index=True)
+    user_id: int = Field(index=True)
     amount: Decimal = Field(
         sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
     )
@@ -125,8 +150,8 @@ class ExpenseNoteRow(ExpenseNoteBase, table=True):
     __tablename__ = "expense_notes"
 
     id: int | None = Field(default=None, primary_key=True)
-    expense_id: int = Field(foreign_key="expenses.id", index=True)
-    author_id: int = Field(foreign_key="users.id", index=True)
+    expense_id: int = Field(index=True)
+    author_id: int = Field(index=True)
     content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -172,7 +197,7 @@ class SettlementTransactionRow(SettlementTransactionBase, table=True):
     __tablename__ = "settlement_transactions"
 
     id: int | None = Field(default=None, primary_key=True)
-    settlement_id: int = Field(foreign_key="settlements.id", index=True)
+    settlement_id: int = Field(index=True)
     amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -255,6 +280,14 @@ class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
 
     __table_args__ = (
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.CheckConstraint(
+            "frequency IN ('MONTHLY', 'QUARTERLY', 'SEMI_ANNUALLY', 'YEARLY', 'EVERY_N_MONTHS')",
+            name="ck_recurring_definitions_frequency",
+        ),
+        sa.CheckConstraint(
+            "split_type IN ('EVEN', 'SHARES', 'PERCENTAGE', 'EXACT')",
+            name="ck_recurring_definitions_split_type",
+        ),
         sa.Index("ix_recurring_definitions_next_due_date", "next_due_date"),
     )
 
@@ -269,4 +302,131 @@ __all__ = [
     "SettlementTransactionRow",
     "SettlementExpenseRow",
     "RecurringDefinitionRow",
+    "TripRow",
+    "GuestRow",
+    "TripParticipantRow",
+    "TripExpenseRow",
+    "TripExpenseSplitRow",
+    "TripExpenseNoteRow",
 ]
+
+# ---------------------------------------------------------------------------
+# Epic 3: Trips ORM Models
+# ---------------------------------------------------------------------------
+
+
+class TripRow(TripBase, table=True):
+    """ORM model for Trip — inherits from domain base, adds DB fields."""
+
+    __tablename__ = "trips"
+
+    id: int | None = Field(default=None, primary_key=True)
+    description: str | None = Field(default=None, sa_type=sa.Text)  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (sa.ForeignKeyConstraint(["created_by_id"], ["users.id"]),)
+
+
+class GuestRow(GuestBase, table=True):
+    """ORM model for Global Address Book Guests."""
+
+    __tablename__ = "guests"
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    __table_args__ = (sa.ForeignKeyConstraint(["user_id"], ["users.id"]),)
+
+
+class TripParticipantRow(TripParticipantBase, table=True):
+    """Join table linking guests to trips."""
+
+    __tablename__ = "trip_participants"
+
+    trip_id: int = Field(primary_key=True)
+    guest_id: int = Field(primary_key=True)
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["trip_id"], ["trips.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["guest_id"], ["guests.id"], ondelete="CASCADE"),
+    )
+
+
+class TripExpenseRow(TripExpenseBase, table=True):
+    """ORM model for trip-specific expenses."""
+
+    __tablename__ = "trip_expenses"
+
+    id: int | None = Field(default=None, primary_key=True)
+    amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["trip_id"], ["trips.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["paid_by_id"], ["guests.id"]),
+        sa.ForeignKeyConstraint(["created_by_guest_id"], ["guests.id"]),
+        sa.Index("ix_trip_expenses_date", "date"),
+    )
+
+
+class TripExpenseSplitRow(TripExpenseSplitBase, table=True):
+    """ORM model for trip expense splits."""
+
+    __tablename__ = "trip_expense_splits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    trip_expense_id: int = Field(index=True)
+    guest_id: int = Field(index=True)
+    amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))  # type: ignore[arg-type]
+    share_value: Decimal | None = Field(
+        default=None,
+        sa_type=sa.Numeric(precision=19, scale=4),  # type: ignore[arg-type]
+    )
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("trip_expense_id", "guest_id", name="uq_trip_expense_guest"),
+        sa.ForeignKeyConstraint(["trip_expense_id"], ["trip_expenses.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["guest_id"], ["guests.id"], ondelete="CASCADE"),
+    )
+
+
+class TripExpenseNoteRow(TripExpenseNoteBase, table=True):
+    """ORM model for trip expense notes."""
+
+    __tablename__ = "trip_expense_notes"
+
+    id: int | None = Field(default=None, primary_key=True)
+    trip_expense_id: int = Field(index=True)
+    author_id: int = Field(index=True)
+    content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
+    created_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+    updated_at: datetime = Field(
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        sa_type=_TZ_DATETIME,  # type: ignore[arg-type]
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(["trip_expense_id"], ["trip_expenses.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["author_id"], ["guests.id"], ondelete="CASCADE"),
+        sa.Index("ix_trip_expense_notes_expense_id_created_at", "trip_expense_id", "created_at"),
+    )

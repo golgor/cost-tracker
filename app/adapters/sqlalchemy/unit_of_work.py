@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.adapters.sqlalchemy.expense_adapter import SqlAlchemyExpenseAdapter
 from app.adapters.sqlalchemy.recurring_adapter import SqlAlchemyRecurringDefinitionAdapter
 from app.adapters.sqlalchemy.settlement_adapter import SqlAlchemySettlementAdapter
+from app.adapters.sqlalchemy.trip_adapter import SqlAlchemyGuestAdapter, SqlAlchemyTripAdapter
 from app.adapters.sqlalchemy.user_adapter import SqlAlchemyUserAdapter
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ class UnitOfWork:
         self.expenses = SqlAlchemyExpenseAdapter(session)
         self.settlements = SqlAlchemySettlementAdapter(session)
         self.recurring = SqlAlchemyRecurringDefinitionAdapter(session)
+        self.trips = SqlAlchemyTripAdapter(session)
+        self.guests = SqlAlchemyGuestAdapter(session)
 
     def __enter__(self) -> UnitOfWork:
         """Enter context manager - return self for use in with block."""

@@ -111,6 +111,37 @@ class ExpenseNotFoundError(DomainError):
         self.expense_id = expense_id
 
 
+class TripNotFoundError(DomainError):
+    """Raised when a trip cannot be found."""
+
+    def __init__(self, trip_id: int):
+        super().__init__(f"Trip {trip_id} not found")
+        self.trip_id = trip_id
+
+
+class TripNotActiveError(DomainError):
+    """Raised when attempting to modify a settled/closed trip."""
+
+    def __init__(self, trip_id: int):
+        super().__init__(f"Trip {trip_id} is settled and cannot be modified")
+        self.trip_id = trip_id
+
+
+class TripExpenseNotFoundError(DomainError):
+    """Raised when a trip expense cannot be found."""
+
+    def __init__(self, expense_id: int):
+        super().__init__(f"Trip expense {expense_id} not found")
+        self.expense_id = expense_id
+
+
+class TripAuthorizationError(DomainError):
+    """Raised when user is not authorized to manage a trip."""
+
+    def __init__(self) -> None:
+        super().__init__("Not authorized to manage this trip")
+
+
 # Centralised mapping from domain errors to HTTP status codes.
 # Used by both the web app (main.py) and the API sub-app (router.py).
 HTTP_STATUS_MAP: dict[type[DomainError], int] = {
@@ -123,4 +154,8 @@ HTTP_STATUS_MAP: dict[type[DomainError], int] = {
     DuplicateBillingPeriodError: 409,
     RecurringExpenseDescriptionError: 400,
     ExpenseNotFoundError: 404,
+    TripNotFoundError: 404,
+    TripNotActiveError: 403,
+    TripExpenseNotFoundError: 404,
+    TripAuthorizationError: 403,
 }

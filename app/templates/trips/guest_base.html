@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <meta name="csrf-token" content="{{ csrf_token | default('') }}">
+  <title>{% block title %}Trip{% endblock %}</title>
+
+  <link rel="stylesheet" href="/static/css/output.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/flowbite.min.js" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.addEventListener('htmx:configRequest', function(event) {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        if (csrfToken) {
+          event.detail.headers['X-CSRF-Token'] = csrfToken;
+        }
+      });
+    });
+  </script>
+
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .safe-area-inset-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans h-screen flex flex-col overflow-hidden">
+
+  <!-- Fixed Header -->
+  <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </div>
+      <h1 class="text-lg font-bold text-gray-800">{{ trip.name if trip else 'Cost Tracker' }}</h1>
+    </div>
+
+    {% if active_guest_id and trip %}
+    <a href="/trips/guest/{{ trip.id }}/logout" class="text-xs font-medium text-gray-500 hover:text-red-600 transition px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg">
+      Logout
+    </a>
+    {% endif %}
+  </header>
+
+  <!-- Scrollable Main Content -->
+  <main class="flex-1 overflow-y-auto hide-scrollbar bg-gray-50 relative pb-20 md:pb-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Flowbite Bottom Navigation -->
+  {% if active_guest_id and trip %}
+  <div class="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-200 safe-area-inset-bottom">
+    <div class="grid h-full max-w-lg grid-cols-3 mx-auto">
+      <a href="/trips/guest/{{ trip.id }}/summary" class="inline-flex flex-col items-center justify-center px-5 hover:bg-gray-50 group">
+        <svg class="w-5 h-5 mb-1 {% if 'summary' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="text-xs {% if 'summary' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}">Expenses</span>
+      </a>
+      <a href="/trips/guest/{{ trip.id }}/balances" class="inline-flex flex-col items-center justify-center px-5 hover:bg-gray-50 group">
+        <svg class="w-5 h-5 mb-1 {% if 'balances' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        <span class="text-xs {% if 'balances' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}">Balances</span>
+      </a>
+      <a href="/trips/guest/{{ trip.id }}/info" class="inline-flex flex-col items-center justify-center px-5 hover:bg-gray-50 group">
+        <svg class="w-5 h-5 mb-1 {% if 'info' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="text-xs {% if 'info' in request.url.path %}text-primary-600{% else %}text-gray-500 group-hover:text-primary-600{% endif %}">Info</span>
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</body>
+</html>

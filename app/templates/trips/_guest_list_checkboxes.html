@@ -1,0 +1,8 @@
+{% for guest in guests %}
+<label class="flex items-center gap-3 p-2 hover:bg-stone-50 rounded-lg cursor-pointer">
+  <input type="checkbox" name="participant_ids" value="{{ guest.id }}" {% if guest.id in selected_ids %}checked{% endif %} class="w-4 h-4 text-primary-600 border-stone-300 rounded focus:ring-primary-500">
+  <span class="text-sm font-medium text-stone-700">{{ guest.name }}</span>
+</label>
+{% else %}
+<p class="text-sm text-stone-500 italic p-2">No global guests created yet.</p>
+{% endfor %}

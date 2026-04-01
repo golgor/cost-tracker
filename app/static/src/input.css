@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Disable dark mode — app is light-only. This makes all dark: variants no-ops,
+   which fixes Flowbite components that ship with dark: classes. */
+@custom-variant dark (&:is(.force-dark *));
+
 /* Custom theme tokens go here using @theme {} blocks.
    Tailwind v4 uses CSS-first config — no tailwind.config.js needed.
    Content detection is automatic.
@@ -81,6 +85,26 @@
   .htmx-settling {
     transition: none;
   }
+}
+
+/* Flowbite datepicker — z-index for modals + primary color accents */
+.datepicker-picker {
+  z-index: 99 !important;
+}
+
+.datepicker-cell.selected,
+.datepicker-cell.range-start,
+.datepicker-cell.range-end {
+  background-color: var(--color-primary-600) !important;
+  color: white !important;
+}
+
+.datepicker-cell.focused:not(.selected) {
+  background-color: var(--color-primary-100) !important;
+}
+
+.datepicker-cell.range {
+  background-color: var(--color-primary-50) !important;
 }
 
 /* Focus ring utilities for accessibility */

@@ -1,0 +1,27 @@
+<div class="space-y-2">
+  {% for guest in all_guests %}
+  <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 transition">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-xs">
+        {{ guest.name[:2]|upper }}
+      </div>
+      <span class="text-sm font-medium text-stone-700">{{ guest.name }}</span>
+    </div>
+    {% if guest.id in participant_ids %}
+    <button hx-post="/trips/{{ trip.id }}/participants/{{ guest.id }}/remove"
+            hx-target="#drawerGuestList"
+            class="text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-md transition">
+      Remove
+    </button>
+    {% else %}
+    <button hx-post="/trips/{{ trip.id }}/participants/{{ guest.id }}/add"
+            hx-target="#drawerGuestList"
+            class="text-xs font-medium text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-2.5 py-1 rounded-md transition">
+      Add
+    </button>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="text-sm text-stone-500 italic py-2">No guests created yet. Add one above.</p>
+  {% endfor %}
+</div>

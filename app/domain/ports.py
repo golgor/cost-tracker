@@ -10,6 +10,8 @@ from app.domain.models import (
     ExpenseNotePublic,
     ExpensePublic,
     ExpenseSplitPublic,
+    GuestBase,
+    GuestPublic,
     RecurringDefinitionBase,
     RecurringDefinitionPublic,
     RecurringFrequency,
@@ -18,8 +20,21 @@ from app.domain.models import (
     SettlementTransactionBase,
     SettlementTransactionPublic,
     SplitType,
+    TripBase,
+    TripExpenseBase,
+    TripExpensePublic,
+    TripExpenseSplitPublic,
+    TripPublic,
     UserPublic,
 )
+
+
+class Unset:
+    """Sentinel type for omitted optional updates."""
+
+
+UNSET = Unset()
+type UpdateValue[T] = T | Unset
 
 
 class UserPort(Protocol):
@@ -211,6 +226,60 @@ class RecurringDefinitionPort(Protocol):
         ...
 
 
+class GuestPort(Protocol):
+    """Port for Global Address Book Guest persistence."""
+
+    def save(self, guest: GuestBase) -> GuestPublic: ...
+    def get_by_id(self, guest_id: int) -> GuestPublic | None: ...
+    def get_by_user_id(self, user_id: int) -> GuestPublic | None: ...
+    def list_all(self) -> list[GuestPublic]: ...
+
+
+class TripPort(Protocol):
+    """Port for Trips persistence."""
+
+    def save(self, trip: TripBase) -> TripPublic: ...
+    def get_by_id(self, trip_id: int) -> TripPublic | None: ...
+    def get_by_sharing_token(self, token: str) -> TripPublic | None: ...
+    def list_all(self) -> list[TripPublic]: ...
+    def update(
+        self,
+        trip_id: int,
+        *,
+        name: str | None = None,
+        description: UpdateValue[str | None] = UNSET,
+        currency: str | None = None,
+        is_active: bool | None = None,
+        start_date: UpdateValue[date | None] = UNSET,
+        end_date: UpdateValue[date | None] = UNSET,
+    ) -> TripPublic: ...
+    def delete(self, trip_id: int) -> None: ...
+
+    # Participants
+    def add_participants(self, trip_id: int, guest_ids: list[int]) -> None: ...
+    def get_participants(self, trip_id: int) -> list[GuestPublic]: ...
+    def remove_participant(self, trip_id: int, guest_id: int) -> None: ...
+
+    # Expenses
+    def save_expense(self, expense: TripExpenseBase) -> TripExpensePublic: ...
+    def get_expense_by_id(self, expense_id: int) -> TripExpensePublic | None: ...
+    def list_expenses(self, trip_id: int) -> list[TripExpensePublic]: ...
+    def update_expense(
+        self,
+        expense_id: int,
+        *,
+        description: str | None = None,
+        amount: Decimal | None = None,
+        expense_date: date | None = None,
+        paid_by_id: int | None = None,
+    ) -> TripExpensePublic: ...
+    def delete_expense(self, expense_id: int) -> None: ...
+
+    # Expense Splits
+    def save_expense_split(self, expense_id: int, guest_id: int, amount: Decimal) -> None: ...
+    def list_expense_splits(self, expense_id: int) -> list[TripExpenseSplitPublic]: ...
+
+
 class UnitOfWorkPort(Protocol):
     """Port for unit of work pattern with context manager support.
 
@@ -226,6 +295,8 @@ class UnitOfWorkPort(Protocol):
     expenses: ExpensePort
     settlements: SettlementPort
     recurring: RecurringDefinitionPort
+    trips: TripPort
+    guests: GuestPort
 
     def __enter__(self) -> UnitOfWorkPort:
         """Enter context manager - prepares transaction."""
