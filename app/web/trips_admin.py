@@ -31,6 +31,7 @@ async def trips_dashboard(request: Request, user_id: CurrentUserId, uow: UowDep)
             "user": user,
             "trips": my_trips,
             "guests": all_guests,
+            "selected_ids": set(),
             "default_currency": settings.DEFAULT_CURRENCY,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
@@ -94,17 +95,20 @@ async def inline_create_guest(
     user_id: CurrentUserId,
     uow: UowDep,
     guest_name: Annotated[str, Form()],
+    participant_ids: Annotated[list[int] | None, Form()] = None,
 ):
     """Inline creation of a global guest, returns the updated guest list partial."""
+    selected_ids = set(participant_ids or [])
     with uow:
         with contextlib.suppress(Exception):
-            trip_uc.create_guest(uow, name=guest_name)
+            new_guest = trip_uc.create_guest(uow, name=guest_name)
+            selected_ids.add(new_guest.id)
         all_guests = uow.guests.list_all()
 
     return templates.TemplateResponse(
         request,
         "trips/_guest_list_checkboxes.html",
-        {"guests": all_guests},
+        {"guests": all_guests, "selected_ids": selected_ids},
     )
 
 

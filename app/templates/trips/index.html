@@ -47,7 +47,7 @@
 </div>
 
 <!-- Create Trip Modal -->
-<dialog id="createTripModal" class="p-0 rounded-2xl shadow-2xl backdrop:bg-stone-900/50 open:animate-in open:zoom-in-95 backdrop:open:animate-in backdrop:open:fade-in">
+<dialog id="createTripModal" class="m-auto p-0 rounded-2xl shadow-2xl backdrop:bg-stone-900/50 open:animate-in open:zoom-in-95 backdrop:open:animate-in backdrop:open:fade-in">
   <div class="w-full max-w-md bg-white p-6">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-semibold text-stone-900">Create New Trip</h2>
@@ -79,7 +79,7 @@
           <button type="button" 
                   hx-post="/trips/guests" 
                   hx-target="#guestListContainer" 
-                  hx-include="#newGuestName" 
+                  hx-include="#newGuestName, [name='participant_ids']"
                   onclick="setTimeout(() => document.getElementById('newGuestName').value='', 100)"
                   class="px-3 py-2 bg-stone-100 text-stone-700 text-sm font-medium rounded-lg hover:bg-stone-200 transition">
             Add
