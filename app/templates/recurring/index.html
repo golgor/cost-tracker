@@ -3,45 +3,73 @@
 {% block title %}Recurring Costs - Cost Tracker{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-  <!-- Page header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-xl font-semibold text-stone-800">Recurring Costs</h1>
-    <a
-      href="/recurring/new"
-      class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring touch-target inline-flex items-center gap-2 font-medium transition-colors text-sm"
-    >
-      + Add Recurring
+<div class="ct-page-wide">
+  <div class="ct-page-header">
+    <h1 class="text-2xl font-semibold text-stone-900">Recurring Costs</h1>
+    <a href="/recurring/new" class="ct-btn-primary">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      New Recurring
+      <span class="sr-only">Add Recurring</span>
     </a>
   </div>
 
-  <!-- Tabs -->
-  <div class="flex gap-1 mb-4 border-b border-stone-200">
-    <button
-      class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {% if active_tab == 'active' %}bg-white border border-b-white border-stone-200 text-stone-900 -mb-px{% else %}text-stone-600 hover:text-stone-800{% endif %}"
-      hx-get="/recurring/tab/active"
-      hx-target="#definition-list"
-      hx-swap="innerHTML"
-      hx-push-url="false"
-    >
-      Active
-    </button>
-    <button
-      class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {% if active_tab == 'paused' %}bg-white border border-b-white border-stone-200 text-stone-900 -mb-px{% else %}text-stone-600 hover:text-stone-800{% endif %}"
-      hx-get="/recurring/tab/paused"
-      hx-target="#definition-list"
-      hx-swap="innerHTML"
-      hx-push-url="false"
-    >
-      Paused
-    </button>
+  <!-- Flowbite Tabs -->
+  <div class="mb-4 border-b border-stone-200">
+    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+      <li class="me-2">
+        <button
+          id="recurring-tab-active"
+          data-recurring-tab="active"
+          class="inline-block p-4 border-b-2 rounded-t-lg {% if active_tab == 'active' %}text-primary-600 border-primary-600{% else %}border-transparent text-stone-500 hover:text-stone-600 hover:border-stone-300{% endif %}"
+          hx-get="/recurring/tab/active"
+          hx-target="#definition-list"
+          hx-swap="innerHTML"
+          hx-push-url="false"
+          onclick="setRecurringTabState('active')"
+        >Active</button>
+      </li>
+      <li class="me-2">
+        <button
+          id="recurring-tab-paused"
+          data-recurring-tab="paused"
+          class="inline-block p-4 border-b-2 rounded-t-lg {% if active_tab == 'paused' %}text-primary-600 border-primary-600{% else %}border-transparent text-stone-500 hover:text-stone-600 hover:border-stone-300{% endif %}"
+          hx-get="/recurring/tab/paused"
+          hx-target="#definition-list"
+          hx-swap="innerHTML"
+          hx-push-url="false"
+          onclick="setRecurringTabState('paused')"
+        >Paused</button>
+      </li>
+    </ul>
   </div>
 
-  <!-- Definition list (swappable via HTMX tab switching and filters) -->
+  <!-- Definition list (swappable via HTMX) -->
   <div id="definition-list">
     {% include "recurring/_definition_list.html" %}
   </div>
 </div>
 
 {% include "recurring/_delete_modal.html" %}
+
+<script>
+  function setRecurringTabState(activeTab) {
+    var activeBtn = document.getElementById("recurring-tab-active");
+    var pausedBtn = document.getElementById("recurring-tab-paused");
+    if (!activeBtn || !pausedBtn) return;
+
+    if (activeTab === "active") {
+      activeBtn.classList.add("text-primary-600", "border-primary-600");
+      activeBtn.classList.remove("border-transparent", "text-stone-500");
+      pausedBtn.classList.add("border-transparent", "text-stone-500");
+      pausedBtn.classList.remove("text-primary-600", "border-primary-600");
+    } else {
+      pausedBtn.classList.add("text-primary-600", "border-primary-600");
+      pausedBtn.classList.remove("border-transparent", "text-stone-500");
+      activeBtn.classList.add("border-transparent", "text-stone-500");
+      activeBtn.classList.remove("text-primary-600", "border-primary-600");
+    }
+  }
+</script>
 {% endblock %}

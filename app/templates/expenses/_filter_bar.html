@@ -1,7 +1,6 @@
 <!-- Unified Filter Bar -->
 <div class="bg-white rounded-lg shadow-sm mb-6">
   <div class="px-4 pt-3 pb-3 space-y-2">
-
     <div class="flex items-stretch gap-2">
       <div class="flex items-center gap-2 border border-stone-300 rounded-lg bg-white px-3 flex-1 focus-within:ring-2 focus-within:ring-primary-600 focus-within:border-primary-600 transition-shadow">
         <svg class="w-4 h-4 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,28 +44,19 @@
     <div class="flex items-center justify-center gap-2 flex-wrap">
       <div class="flex items-center gap-2">
         <label for="payer-select" class="text-sm font-medium text-stone-700 whitespace-nowrap">Paid by</label>
-        <select
-          id="payer-select"
-          onchange="applyPaidBy()"
-          class="px-3 py-1.5 border border-stone-300 rounded-lg text-sm text-stone-700 focus:ring-2 focus:ring-primary-600 focus:border-primary-600 outline-none cursor-pointer"
-        >
+        <select id="payer-select" onchange="applyPaidBy()" class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2">
           <option value="">All</option>
           {% for member in users_list %}
             {% set member_user = users.get(member.id) %}
             {% if member_user %}
-              <option value="{{ member.id }}" {% if filter_payer_id|string == member.id|string %}selected{% endif %}>
-                {{ member_user.display_name }}
-              </option>
+              <option value="{{ member.id }}" {% if filter_payer_id|string == member.id|string %}selected{% endif %}>{{ member_user.display_name }}</option>
             {% endif %}
           {% endfor %}
         </select>
       </div>
-      <a href="#" onclick="clearAll(event)" class="text-sm text-stone-500 hover:text-stone-700 hover:underline whitespace-nowrap">
-        Clear all
-      </a>
+      <a href="#" onclick="clearAll(event)" class="text-sm text-stone-500 hover:text-stone-700 hover:underline whitespace-nowrap">Clear all</a>
       <span id="paidby-toast" class="hidden text-xs text-primary-600 font-medium">Filter applied</span>
     </div>
-
   </div>
 </div>
 

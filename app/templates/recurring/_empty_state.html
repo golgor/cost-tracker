@@ -1,23 +1,18 @@
-<!-- Empty state for recurring registry when no definitions exist -->
-<div class="flex flex-col items-center justify-center py-12 px-4 text-center">
-  <div class="text-stone-400 mb-4">
-    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+<div class="text-center py-16">
+  <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-stone-100 flex items-center justify-center">
+    <svg class="w-10 h-10 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
     </svg>
   </div>
 
-  <h3 class="text-lg font-medium text-stone-700 mb-2">
-    No recurring costs yet.
-  </h3>
+  <h2 class="text-2xl font-semibold text-stone-800 mb-2">No recurring costs yet</h2>
+  <p class="text-sm text-stone-600 mb-8 max-w-md mx-auto">Add your first one to track subscriptions, insurance, and regular shared expenses.</p>
 
-  <p class="text-stone-500 max-w-sm mb-6">
-    Add your first one to track subscriptions, insurance, and regular shared expenses.
-  </p>
-
-  <a
-    href="/recurring/new"
-    class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring touch-target inline-flex items-center justify-center gap-2 font-medium transition-colors"
-  >
-    + Add Recurring Cost
+  <a href="/recurring/new" class="ct-btn-primary">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+    </svg>
+    New Recurring
+    <span class="sr-only">Add Recurring Cost</span>
   </a>
 </div>

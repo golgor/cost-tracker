@@ -1,33 +1,29 @@
-<!-- Delete confirmation modal for recurring definitions -->
-<div id="delete-modal"
-     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40"
-     role="dialog"
-     aria-modal="true"
-     aria-labelledby="delete-modal-title">
-  <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
-    <h2 id="delete-modal-title" class="text-lg font-semibold text-stone-800 mb-2">
-      Delete recurring definition?
-    </h2>
-    <p class="text-sm text-stone-600 mb-4">
-      "<span id="delete-modal-name" class="font-medium"></span>" will be permanently removed.
-      Existing expenses linked to it are kept.
-    </p>
-
-    <div class="flex justify-end gap-3">
-      <button
-        type="button"
-        onclick="closeDeleteModal()"
-        class="px-4 py-2 text-sm rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50 transition-colors"
-      >
-        Cancel
+<!-- Delete confirmation modal — Flowbite Modal -->
+<div id="delete-modal" tabindex="-1" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="relative p-4 w-full max-w-md">
+    <div class="relative bg-white rounded-lg shadow-lg">
+      <button type="button" onclick="closeDeleteModal()" class="absolute top-3 end-2.5 text-stone-400 bg-transparent hover:bg-stone-200 hover:text-stone-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
       </button>
-      <button
-        id="delete-modal-confirm"
-        type="button"
-        class="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-      >
-        Delete
-      </button>
+      <div class="p-4 md:p-5 text-center">
+        <svg class="mx-auto mb-4 text-stone-400 w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+        </svg>
+        <h3 id="delete-modal-title" class="mb-2 text-lg font-semibold text-stone-800">Delete recurring definition?</h3>
+        <p class="mb-5 text-sm text-stone-500">
+          "<span id="delete-modal-name" class="font-medium text-stone-700"></span>" will be permanently removed. Existing expenses linked to it are kept.
+        </p>
+        <div class="flex justify-center gap-3">
+          <button type="button" onclick="closeDeleteModal()"
+                  class="text-stone-900 bg-white border border-stone-300 focus:outline-none hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5">
+            Cancel
+          </button>
+          <button id="delete-modal-confirm" type="button"
+                  class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -54,7 +50,6 @@
     modal.classList.remove('flex');
   }
 
-  // Close on backdrop click
   document.getElementById('delete-modal').addEventListener('click', function (e) {
     if (e.target === this) closeDeleteModal();
   });

@@ -1,33 +1,14 @@
-<!-- Desktop top navigation - visible at md breakpoint (768px+) -->
-<nav class="hidden md:flex items-center justify-between px-8 py-4 bg-surface-card shadow-sm border-b border-stone-200" aria-label="Main navigation">
-  <!-- Logo placeholder -->
-  <div class="flex items-center gap-8">
-    <a href="/" class="text-xl font-semibold text-primary-500 focus-ring rounded-lg px-2 py-1">
-      Cost Tracker
+<!-- Desktop top navigation - Flowbite Navbar, visible at md breakpoint (768px+) -->
+<nav class="hidden md:block bg-surface-card border-b border-stone-200 shadow-sm">
+  <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-8 py-3">
+    <!-- Logo -->
+    <a href="/" class="flex items-center space-x-2">
+      <span class="self-center text-xl font-semibold whitespace-nowrap text-primary-500">Cost Tracker</span>
     </a>
 
-    <!-- Navigation items -->
-    <div class="flex items-center gap-1">
-      <a href="/expenses" class="px-3 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if request.url.path.startswith('/expenses') %} bg-stone-100 text-stone-900 font-medium{% endif %}">
-        Expenses
-      </a>
-      <a href="/trips" class="px-3 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if request.url.path.startswith('/trips') %} bg-stone-100 text-stone-900 font-medium{% endif %}">
-        Trips
-      </a>
-      <a href="/recurring" class="px-3 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if request.url.path.startswith('/recurring') %} bg-stone-100 text-stone-900 font-medium{% endif %}">
-        Recurring
-      </a>
-      <a href="/settlements" class="px-4 py-2 rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus-ring touch-target flex items-center justify-center transition-colors{% if '/settlements' in request.url.path %} bg-stone-100 text-stone-900 font-medium{% endif %}">
-        Settlements
-      </a>
-    </div>
-  </div>
-
-  <!-- Right side: User area -->
-  <div class="flex items-center gap-4">
-    <!-- User badge with logout dropdown -->
-    <div class="relative group">
-      <button type="button" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 focus-ring transition-colors">
+    <!-- Right side: User dropdown -->
+    <div class="flex items-center md:order-2 space-x-3">
+      <button type="button" class="flex items-center gap-2 text-sm rounded-lg px-3 py-2 bg-stone-100 hover:bg-stone-200 focus:ring-4 focus:ring-primary-100 transition-colors" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="bottom-end">
         <div class="w-8 h-8 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 text-sm font-medium">
           {{ user.display_name[0]|upper if user and user.display_name else 'U' }}
         </div>
@@ -36,15 +17,39 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
       </button>
+
       <!-- Dropdown menu -->
-      <div class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-stone-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-        <a href="/admin/users" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 transition-colors border-b border-stone-200">
-          Users
-        </a>
-        <a href="/auth/logout" class="block px-4 py-3 text-stone-700 hover:bg-stone-50 rounded-lg transition-colors">
-          Logout
-        </a>
+      <div class="z-50 hidden my-4 text-base list-none bg-white divide-y divide-stone-100 rounded-lg shadow-lg border border-stone-200" id="user-dropdown">
+        <div class="px-4 py-3">
+          <span class="block text-sm text-stone-900">{{ user.display_name if user and user.display_name else 'User' }}</span>
+        </div>
+        <ul class="py-2">
+          <li>
+            <a href="/admin/users" class="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-100">Users</a>
+          </li>
+          <li>
+            <a href="/auth/logout" class="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-100">Logout</a>
+          </li>
+        </ul>
       </div>
+    </div>
+
+    <!-- Navigation links -->
+    <div class="items-center justify-between flex w-auto order-1">
+      <ul class="flex flex-row font-medium space-x-1 mt-0 border-0">
+        <li>
+          <a href="/expenses" class="block py-2 px-3 rounded-lg transition-colors{% if request.url.path.startswith('/expenses') %} text-primary-600 bg-primary-50 font-medium{% else %} text-stone-600 hover:bg-stone-100 hover:text-stone-900{% endif %}">Expenses</a>
+        </li>
+        <li>
+          <a href="/trips" class="block py-2 px-3 rounded-lg transition-colors{% if request.url.path.startswith('/trips') %} text-primary-600 bg-primary-50 font-medium{% else %} text-stone-600 hover:bg-stone-100 hover:text-stone-900{% endif %}">Trips</a>
+        </li>
+        <li>
+          <a href="/recurring" class="block py-2 px-3 rounded-lg transition-colors{% if request.url.path.startswith('/recurring') %} text-primary-600 bg-primary-50 font-medium{% else %} text-stone-600 hover:bg-stone-100 hover:text-stone-900{% endif %}">Recurring</a>
+        </li>
+        <li>
+          <a href="/settlements" class="block py-2 px-3 rounded-lg transition-colors{% if '/settlements' in request.url.path %} text-primary-600 bg-primary-50 font-medium{% else %} text-stone-600 hover:bg-stone-100 hover:text-stone-900{% endif %}">Settlements</a>
+        </li>
+      </ul>
     </div>
   </div>
 </nav>

@@ -1,4 +1,4 @@
-<!-- Expense card with expand/collapse behavior (UX-DR25) -->
+<!-- Expense card with expand/collapse behavior -->
 <div
     class="px-6 py-4 hover:bg-stone-50 transition-colors duration-150 cursor-pointer {% if is_new %}animate-highlight{% endif %} {% if expense.is_settled %}opacity-60{% endif %}"
     id="expense-{{ expense.id }}"
@@ -18,7 +18,7 @@
             <div class="flex items-center gap-1.5 flex-wrap">
                 <p class="font-medium {% if expense.is_settled %}text-stone-500{% else %}text-stone-900{% endif %} truncate">{{ expense.description }}</p>
                 {% if expense.is_auto_generated %}
-                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0">Auto</span>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">Auto</span>
                 {% endif %}
             </div>
             <p class="text-xs text-stone-500">
@@ -36,7 +36,6 @@
         <div class="flex items-center gap-2 flex-shrink-0">
             <p class="text-lg font-semibold {% if expense.is_settled %}text-stone-500{% else %}text-stone-900{% endif %}">{{ expense.currency_symbol }}{{ expense.amount|format_decimal }}</p>
             {% if expense.is_settled %}
-                <!-- Green checkmark for settled expenses -->
                 <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
@@ -46,17 +45,9 @@
 </div>
 
 <style>
-/* Highlight animation for newly added expenses (UX-DR25) */
 @keyframes highlight {
-    from {
-        background-color: rgb(253 230 138 / 0.3); /* primary-50 equivalent with opacity */
-    }
-    to {
-        background-color: white;
-    }
+    from { background-color: rgb(253 230 138 / 0.3); }
+    to { background-color: white; }
 }
-
-.animate-highlight {
-    animation: highlight 1.5s ease-out forwards;
-}
+.animate-highlight { animation: highlight 1.5s ease-out forwards; }
 </style>

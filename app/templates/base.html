@@ -11,23 +11,23 @@
   <script src="/static/js/flowbite.min.js" defer></script>
   <script src="/static/js/components/date-range-picker.js" defer></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      document.body.addEventListener('htmx:configRequest', function(event) {
-        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    document.addEventListener("DOMContentLoaded", function () {
+      document.body.addEventListener("htmx:configRequest", function (event) {
+        var csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
         if (csrfToken) {
-          event.detail.headers['X-CSRF-Token'] = csrfToken;
+          event.detail.headers["X-CSRF-Token"] = csrfToken;
         }
       });
 
-      document.body.addEventListener('htmx:afterSettle', function(event) {
+      document.body.addEventListener("htmx:afterSettle", function (event) {
         var root = event.detail && event.detail.elt ? event.detail.elt : event.target;
         if (!(root instanceof Element)) return;
 
-        if (typeof initFlowbite === 'function') {
+        if (typeof initFlowbite === "function") {
           initFlowbite();
         }
 
-        if (typeof window.initCostTrackerDateRangePickers === 'function') {
+        if (typeof window.initCostTrackerDateRangePickers === "function") {
           window.initCostTrackerDateRangePickers(root);
         }
       });
@@ -35,20 +35,16 @@
   </script>
 </head>
 <body class="min-h-screen flex flex-col">
-  <!-- Skip to content link for keyboard users -->
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 bg-primary-500 text-white px-4 py-2 rounded-lg focus-ring">
     Skip to content
   </a>
 
-  <!-- Desktop navigation (768px+) -->
   {% include "_nav_desktop.html" %}
 
-  <!-- Main content area -->
-  <main id="main-content" class="flex-1 {% block main_class %}px-4 py-6 md:px-8 md:py-8 pb-24 md:pb-8{% endblock %}">
+  <main id="main-content" class="flex-1 {% block main_class %}px-4 py-6 md:px-6 md:py-6 pb-24 md:pb-8{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Mobile navigation (below 768px) -->
   {% include "_nav_mobile.html" %}
 </body>
 </html>

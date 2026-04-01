@@ -1,101 +1,65 @@
-<!-- Mobile expense capture form (UX-DR4) -->
+<!-- Mobile expense capture form - Flowbite Drawer (bottom) style -->
 <div class="bg-white rounded-t-2xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
-    <!-- Handle for visual affordance -->
     <div class="w-12 h-1 bg-stone-300 rounded-full mx-auto mb-4"></div>
-    
+
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-lg font-semibold text-stone-900">Add Expense</h2>
-        <button
-            type="button"
-            onclick="closeBottomSheet()"
-            class="text-stone-500 hover:text-stone-700 transition-colors"
-            aria-label="Close"
-        >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+        <button type="button" onclick="closeBottomSheet()"
+                class="text-stone-400 bg-transparent hover:bg-stone-200 hover:text-stone-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
         </button>
     </div>
 
-    <form
-        id="mobile-expense-form"
-        hx-post="/expenses/create"
-        hx-target="#expense-feed"
-        hx-swap="afterbegin"
-        hx-disabled-elt="button[type=submit]"
-        class="space-y-4"
-    >
-        <!-- Amount field (auto-focused) -->
+    <form id="mobile-expense-form"
+          hx-post="/expenses/create"
+          hx-target="#expense-feed"
+          hx-swap="afterbegin"
+          hx-disabled-elt="button[type=submit]"
+          class="space-y-4">
+
+        <!-- Amount -->
         <div>
-            <label for="amount" class="block text-sm font-medium text-stone-700 mb-1">
-                Amount <span class="text-red-600">*</span>
+            <label for="amount" class="block mb-2 text-sm font-medium text-stone-700">
+                Amount <span class="text-red-500">*</span>
             </label>
             <div class="relative">
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{currency_symbol|e}}</span>
-                <input
-                    type="text" 
-                    id="amount"
-                    name="amount"
-                    inputmode="decimal"
-                    autofocus
-                    required
-                    value="{{ form_data.amount if form_data else '' }}"
-                    class="w-full pl-8 pr-3 py-2 border {% if errors and 'amount' in errors %}border-red-500{% else %}border-stone-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-                    placeholder="0.00"
-                >
+                <input type="text" id="amount" name="amount" inputmode="decimal" autofocus required
+                       value="{{ form_data.amount if form_data else '' }}" placeholder="0.00"
+                       class="{% if errors and 'amount' in errors %}bg-red-50 border-red-500{% else %}bg-white border-stone-300{% endif %} border text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-8 p-2.5">
             </div>
-            <!-- Error placeholder -->
             {% if errors and 'amount' in errors %}
-            <p class="mt-1 text-sm text-red-600">{{ errors.amount }}</p>
+            <p class="mt-2 text-sm text-red-600">{{ errors.amount }}</p>
             {% endif %}
         </div>
 
-        <!-- Where/What field (UX-DR31) -->
+        <!-- Where/What -->
         <div>
-            <label for="description" class="block text-sm font-medium text-stone-700 mb-1">
-                Where / What
-            </label>
-            <input
-                type="text"
-                id="description"
-                name="description"
-                value="{{ form_data.description if form_data else '' }}"
-                class="w-full px-3 py-2 border {% if errors and 'description' in errors %}border-red-500{% else %}border-stone-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-                placeholder="e.g., Spar, Netflix, birthday supplies"
-            >
+            <label for="description" class="block mb-2 text-sm font-medium text-stone-700">Where / What</label>
+            <input type="text" id="description" name="description"
+                   value="{{ form_data.description if form_data else '' }}" placeholder="e.g., Spar, Netflix, birthday supplies"
+                   class="{% if errors and 'description' in errors %}bg-red-50 border-red-500{% else %}bg-white border-stone-300{% endif %} border text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
             {% if errors and 'description' in errors %}
-            <p class="mt-1 text-sm text-red-600">{{ errors.description }}</p>
+            <p class="mt-2 text-sm text-red-600">{{ errors.description }}</p>
             {% endif %}
         </div>
 
-        <!-- Date field (defaults to today) -->
+        <!-- Date -->
         <div>
-            <label for="date" class="block text-sm font-medium text-stone-700 mb-1">
-                Date
-            </label>
-            <input
-                type="date"
-                id="date"
-                name="date"
-                value="{{ form_data.date if form_data else today }}"
-                max="{{ today }}"
-                class="w-full px-3 py-2 border {% if errors and 'date' in errors %}border-red-500{% else %}border-stone-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-            >
+            <label for="date" class="block mb-2 text-sm font-medium text-stone-700">Date</label>
+            <input type="date" id="date" name="date"
+                   value="{{ form_data.date if form_data else today }}" max="{{ today }}"
+                   class="{% if errors and 'date' in errors %}bg-red-50 border-red-500{% else %}bg-white border-stone-300{% endif %} border text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
             {% if errors and 'date' in errors %}
-            <p class="mt-1 text-sm text-red-600">{{ errors.date }}</p>
+            <p class="mt-2 text-sm text-red-600">{{ errors.date }}</p>
             {% endif %}
         </div>
 
-        <!-- Split type selector (Epic 4) -->
+        <!-- Split Mode -->
         <div>
-            <label for="split_type" class="block text-sm font-medium text-stone-700 mb-1">
-                Split Mode
-            </label>
-            <select
-                id="split_type"
-                name="split_type"
-                class="w-full px-3 py-2 border {% if errors and 'split_type' in errors %}border-red-500{% else %}border-stone-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-            >
+            <label for="split_type" class="block mb-2 text-sm font-medium text-stone-700">Split Mode</label>
+            <select id="split_type" name="split_type"
+                    class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
                 <option value="even" selected>Even (50/50)</option>
                 <option value="shares">By Shares</option>
                 <option value="percentage">By Percentage</option>
@@ -103,33 +67,22 @@
             </select>
         </div>
 
-        <!-- Dynamic split fields (populated by JavaScript) -->
-        <div id="mobile-split-fields" class="space-y-2 hidden">
-            <!-- Populated dynamically based on split mode -->
-        </div>
+        <div id="mobile-split-fields" class="space-y-2 hidden"></div>
 
-        <!-- Split preview (pure JavaScript, no HTMX) -->
         <div id="mobile-split-preview" class="hidden p-3 bg-stone-50 rounded-lg border border-stone-200">
             <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
-            <div id="mobile-preview-content" class="space-y-1 text-sm">
-                <!-- Populated by JavaScript fetch -->
-            </div>
+            <div id="mobile-preview-content" class="space-y-1 text-sm"></div>
         </div>
 
-        <!-- Hidden field for split configuration (JSON) -->
         <input type="hidden" id="mobile-split-config" name="split_config" value="">
 
-        <!-- Paid by field -->
+        <!-- Paid by -->
         <div>
-            <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
-                Paid by <span class="text-red-600">*</span>
+            <label for="payer_id" class="block mb-2 text-sm font-medium text-stone-700">
+                Paid by <span class="text-red-500">*</span>
             </label>
-            <select
-                id="payer_id"
-                name="payer_id"
-                required
-                class="w-full px-3 py-2 border {% if errors and 'payer_id' in errors %}border-red-500{% else %}border-stone-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-            >
+            <select id="payer_id" name="payer_id" required
+                    class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
                 <option value="">Select who paid</option>
                 {% for member in users_list %}
                 <option value="{{ member.id }}" {% if member.id == selected_payer_id %}selected{% endif %}>
@@ -138,40 +91,26 @@
                 {% endfor %}
             </select>
             {% if errors and 'payer_id' in errors %}
-            <p class="mt-1 text-sm text-red-600">{{ errors.payer_id }}</p>
+            <p class="mt-2 text-sm text-red-600">{{ errors.payer_id }}</p>
             {% endif %}
         </div>
 
-        <!-- Currency (display only for now) -->
+        <!-- Currency -->
         <div>
-            <label for="currency" class="block text-sm font-medium text-stone-700 mb-1">
-                Currency
-            </label>
-            <input
-                type="text"
-                id="currency"
-                name="currency"
-                value="{{ default_currency }}"
-                readonly
-                class="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
-            >
+            <label for="currency" class="block mb-2 text-sm font-medium text-stone-700">Currency</label>
+            <input type="text" id="currency" name="currency" value="{{ default_currency }}" readonly
+                   class="bg-stone-50 border border-stone-300 text-stone-600 text-sm rounded-lg block w-full p-2.5">
         </div>
 
-        <!-- Submit button with loading state -->
+        <!-- Action buttons -->
         <div class="flex gap-3 pt-4">
-            <button
-                type="button"
-                onclick="closeBottomSheet()"
-                class="flex-1 px-4 py-2 border border-stone-300 rounded-lg text-stone-700 hover:bg-stone-50 transition-colors touch-target"
-            >
+            <button type="button" onclick="closeBottomSheet()"
+                    class="flex-1 text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
                 Cancel
             </button>
-            <button
-                type="submit"
-                id="mobile-submit-btn"
-                class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-target"
-            >
-                <span class="htmx-indicator inline-block">
+            <button type="submit" id="mobile-submit-btn"
+                    class="ct-btn-primary flex-1 relative disabled:opacity-50 disabled:cursor-not-allowed">
+                <span class="htmx-indicator absolute left-4">
                     <svg class="inline w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -184,7 +123,6 @@
 
     <script>
     (function() {
-    // Mobile form elements
     const mobileForm = document.getElementById('mobile-expense-form');
     const mobileAmountInput = document.getElementById('amount');
     const mobileSplitSelect = document.getElementById('split_type');
@@ -192,209 +130,81 @@
     const mobileSplitPreview = document.getElementById('mobile-split-preview');
     const mobilePreviewContent = document.getElementById('mobile-preview-content');
     const mobileSplitConfig = document.getElementById('mobile-split-config');
-    
+
     const mobileGroupMembers = [
         {% for member in users_list %}
         { id: {{ member.id }}, name: '{{ member.display_name }}' },
         {% endfor %}
     ];
 
-    // Debounce utility
-    function debounce(fn, delay) {
-        let timeoutId;
-        return (...args) => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => fn(...args), delay);
-        };
-    }
+    function debounce(fn, delay) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); }; }
 
-    // Single function to fetch split preview from backend
     async function fetchSplitPreview() {
-        // Update hidden split_config field before sending
         updateMobileSplitConfig();
-        
-        // Show loading state
         mobilePreviewContent.innerHTML = '<div class="text-stone-400 text-xs">Calculating...</div>';
-        
         const formData = new FormData(mobileForm);
-        
         try {
-            // Get CSRF token from meta tag (set in base.html)
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            
             const response = await fetch('/expenses/split-preview', {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin',
-                headers: {
-                    'X-CSRF-Token': csrfToken
-                }
+                method: 'POST', body: formData, credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken }
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const html = await response.text();
-            mobilePreviewContent.innerHTML = html;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            mobilePreviewContent.innerHTML = await response.text();
         } catch (error) {
-            console.error('Preview error:', error);
             mobilePreviewContent.innerHTML = '<div class="text-red-600 text-xs">Unable to calculate preview</div>';
         }
     }
 
-    // Debounced version (300ms delay)
     const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
+    const inputClass = 'bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5';
 
-    // Render dynamic split fields based on mode
     function renderMobileSplitFields(mode) {
         const total = parseFloat(mobileAmountInput.value.replace(',', '.')) || 0;
-        
         if (mode === 'even') {
-            mobileSplitFields.classList.add('hidden');
-            mobileSplitFields.innerHTML = '';
-            mobileSplitPreview.classList.remove('hidden');
-            mobileSplitConfig.value = '';
-            // Trigger preview update for even split
-            debouncedFetchPreview();
-            return;
+            mobileSplitFields.classList.add('hidden'); mobileSplitFields.innerHTML = '';
+            mobileSplitPreview.classList.remove('hidden'); mobileSplitConfig.value = '';
+            debouncedFetchPreview(); return;
         }
-        
         mobileSplitFields.classList.remove('hidden');
         mobileSplitPreview.classList.remove('hidden');
-        
         if (mode === 'shares') {
-            mobileSplitFields.innerHTML = `
-                <p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>
-                ${mobileGroupMembers.map(m => `
-                    <div class="flex items-center gap-2">
-                        <label class="w-20 text-sm font-medium text-stone-700">${m.name}</label>
-                        <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value="1"
-                            data-member="${m.id}"
-                            class="mobile-share-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-                            placeholder="Shares"
-                        >
-                    </div>
-                `).join('')}
-            `;
+            mobileSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
+                mobileGroupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-sm font-medium text-stone-700">${m.name}</label><input type="number" min="0" step="1" value="1" data-member="${m.id}" class="mobile-share-input flex-1 ${inputClass}" placeholder="Shares"></div>`).join('');
         } else if (mode === 'percentage') {
-            const defaultPct = Math.floor(100 / mobileGroupMembers.length);
-            mobileSplitFields.innerHTML = `
-                <p class="text-xs text-stone-500 mb-2">Enter percentage for each person. Must sum to 100%.</p>
-                ${mobileGroupMembers.map(m => `
-                    <div class="flex items-center gap-2">
-                        <label class="w-20 text-sm font-medium text-stone-700">${m.name}</label>
-                        <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value="${defaultPct}"
-                            data-member="${m.id}"
-                            class="mobile-percent-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-                            placeholder="%"
-                        >
-                        <span class="text-sm text-stone-500">%</span>
-                    </div>
-                `).join('')}
-            `;
+            const dp = Math.floor(100 / mobileGroupMembers.length);
+            mobileSplitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Percentages must sum to 100%.</p>' +
+                mobileGroupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-sm font-medium text-stone-700">${m.name}</label><input type="number" min="0" max="100" step="1" value="${dp}" data-member="${m.id}" class="mobile-percent-input flex-1 ${inputClass}" placeholder="%"><span class="text-sm text-stone-500">%</span></div>`).join('');
         } else if (mode === 'exact') {
-            const halfAmount = (total / 2).toFixed(2);
-            mobileSplitFields.innerHTML = `
-                <p class="text-xs text-stone-500 mb-2">Enter exact amount for each person. Must sum to ${total.toFixed(2)}.</p>
-                ${mobileGroupMembers.map((m, i) => `
-                    <div class="flex items-center gap-2">
-                        <label class="w-20 text-sm font-medium text-stone-700">${m.name}</label>
-                        <span class="text-stone-500">{{currency_symbol|e}}</span>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value="${halfAmount}"
-                            data-member="${m.id}"
-                            class="mobile-exact-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600"
-                            placeholder="0.00"
-                        >
-                    </div>
-                `).join('')}
-            `;
+            const half = (total / 2).toFixed(2);
+            mobileSplitFields.innerHTML = `<p class="text-xs text-stone-500 mb-2">Exact amounts must sum to ${total.toFixed(2)}.</p>` +
+                mobileGroupMembers.map(m => `<div class="flex items-center gap-2"><label class="w-20 text-sm font-medium text-stone-700">${m.name}</label><span class="text-stone-500">{{currency_symbol|e}}</span><input type="number" min="0" step="0.01" value="${half}" data-member="${m.id}" class="mobile-exact-input flex-1 ${inputClass}" placeholder="0.00"></div>`).join('');
         }
-        
-        // Update config and trigger preview
-        updateMobileSplitConfig();
-        debouncedFetchPreview();
+        updateMobileSplitConfig(); debouncedFetchPreview();
     }
 
-    // Update hidden split_config field from input values
     function updateMobileSplitConfig() {
-        const mode = mobileSplitSelect.value;
-        const config = {};
-        
-        if (mode === 'even') {
-            mobileSplitConfig.value = '';
-            return;
-        }
-        
-        if (mode === 'shares') {
-            document.querySelectorAll('.mobile-share-input').forEach(input => {
-                const memberId = input.dataset.member;
-                const value = parseInt(input.value) || 0;
-                if (value > 0) {
-                    config[memberId] = value;
-                }
-            });
-        } else if (mode === 'percentage') {
-            document.querySelectorAll('.mobile-percent-input').forEach(input => {
-                const memberId = input.dataset.member;
-                const value = parseFloat(input.value) || 0;
-                config[memberId] = value;
-            });
-        } else if (mode === 'exact') {
-            document.querySelectorAll('.mobile-exact-input').forEach(input => {
-                const memberId = input.dataset.member;
-                const value = parseFloat(input.value) || 0;
-                config[memberId] = value;
-            });
-        }
-        
+        const mode = mobileSplitSelect.value; const config = {};
+        if (mode === 'even') { mobileSplitConfig.value = ''; return; }
+        const sel = mode === 'shares' ? '.mobile-share-input' : mode === 'percentage' ? '.mobile-percent-input' : '.mobile-exact-input';
+        document.querySelectorAll(sel).forEach(input => {
+            const v = mode === 'shares' ? (parseInt(input.value) || 0) : (parseFloat(input.value) || 0);
+            if (v > 0 || mode !== 'shares') config[input.dataset.member] = v;
+        });
         mobileSplitConfig.value = JSON.stringify(config);
     }
 
-    // Update helper text for exact mode without regenerating fields
-    function updateExactFieldPlaceholders() {
-        const total = parseFloat(mobileAmountInput.value.replace(',', '.')) || 0;
-        const helperText = document.querySelector('#mobile-split-fields > p.text-xs');
-        if (helperText) {
-            helperText.textContent = `Enter exact amount for each person. Must sum to ${total.toFixed(2)}.`;
-        }
-    }
-
-    // Event listeners (single source of truth)
-    mobileSplitSelect.addEventListener('change', () => {
-        renderMobileSplitFields(mobileSplitSelect.value);
-    });
-
-    mobileSplitFields.addEventListener('input', () => {
-        updateMobileSplitConfig();
-        debouncedFetchPreview();
-    });
-
+    mobileSplitSelect.addEventListener('change', () => renderMobileSplitFields(mobileSplitSelect.value));
+    mobileSplitFields.addEventListener('input', () => { updateMobileSplitConfig(); debouncedFetchPreview(); });
     mobileAmountInput.addEventListener('input', () => {
-        // For exact mode, update helper text but don't regenerate fields
         if (mobileSplitSelect.value === 'exact') {
-            updateExactFieldPlaceholders();
+            const t = parseFloat(mobileAmountInput.value.replace(',', '.')) || 0;
+            const h = document.querySelector('#mobile-split-fields > p.text-xs');
+            if (h) h.textContent = `Exact amounts must sum to ${t.toFixed(2)}.`;
         }
         debouncedFetchPreview();
     });
-
-    // Initial render (after page loads)
-    document.addEventListener('DOMContentLoaded', function() {
-        renderMobileSplitFields('even');
-    });
+    document.addEventListener('DOMContentLoaded', function() { renderMobileSplitFields('even'); });
     })();
     </script>
 </div>

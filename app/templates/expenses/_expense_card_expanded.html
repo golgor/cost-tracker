@@ -1,14 +1,10 @@
 <!-- Expense card with expanded detail view -->
-<div
-    class="px-6 py-4 bg-stone-50 border-l-4 border-primary"
-    id="expense-{{ expense.id }}"
->
+<div class="px-6 py-4 bg-stone-50 border-l-4 border-primary-500" id="expense-{{ expense.id }}">
     <!-- Card header (clickable to collapse) -->
     <div class="flex items-center gap-4 mb-4 cursor-pointer hover:bg-stone-100 rounded-lg p-2 -m-2 transition-colors"
          hx-get="/expenses/{{ expense.id }}/collapse"
          hx-target="#expense-{{ expense.id }}"
          hx-swap="outerHTML">
-        <!-- Paid-By Badge -->
         {% set payer_user = users.get(expense.payer_id) if users else None %}
         {% if payer_user %}
             {% set initials = (payer_user.display_name[0] + (payer_user.display_name.split()[-1][0] if ' ' in payer_user.display_name else ''))|upper %}
@@ -17,51 +13,40 @@
                 {{ initials }}
             </div>
         {% else %}
-            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">
-                ?
-            </div>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-stone-400 text-white font-semibold text-sm flex-shrink-0">?</div>
         {% endif %}
-        
-        <!-- Expense Details -->
+
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
                 <p class="font-medium text-stone-900 truncate">{{ expense.description or "Expense" }}</p>
                 {% if is_settled %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-stone-200 text-stone-700 flex-shrink-0">
-                        Settled
-                    </span>
+                    <span class="bg-stone-200 text-stone-700 text-xs font-medium px-2 py-0.5 rounded">Settled</span>
                 {% endif %}
             </div>
-            <p class="text-xs text-stone-500">
-                Paid by {{ payer_user.display_name if payer_user else 'Unknown User' }}
-            </p>
+            <p class="text-xs text-stone-500">Paid by {{ payer_user.display_name if payer_user else 'Unknown User' }}</p>
         </div>
-        
-        <!-- Amount -->
-        <p class="text-lg font-semibold text-stone-900 flex-shrink-0">€{{ expense.amount|format_decimal }}</p>
+
+        <p class="text-lg font-semibold text-stone-900 flex-shrink-0">{{ expense.amount|format_decimal }}</p>
     </div>
 
     <!-- Detail section -->
     <div class="pt-4 border-t border-stone-200 space-y-3">
-        <!-- Full description -->
         <div>
             <p class="text-sm font-medium text-stone-700">Description</p>
             <p class="text-stone-900">{{ expense.description or "No description" }}</p>
         </div>
-        
-        <!-- Amount & Currency -->
+
         <div class="flex gap-6">
             <div>
                 <p class="text-sm font-medium text-stone-700">Amount</p>
-                <p class="text-stone-900">€{{ "%.2f"|format(expense.amount) }} {{ expense.currency }}</p>
+                <p class="text-stone-900">{{ "%.2f"|format(expense.amount) }} {{ expense.currency }}</p>
             </div>
             <div>
                 <p class="text-sm font-medium text-stone-700">Date</p>
                 <p class="text-stone-900">{{ expense.date.strftime('%B %d, %Y') }}</p>
             </div>
         </div>
-        
-        <!-- Creator & Payer (FR8, FR42 display) -->
+
         <div class="flex gap-6">
             <div>
                 <p class="text-sm font-medium text-stone-700">Created by</p>
@@ -73,12 +58,13 @@
                 <p class="text-stone-900">{{ payer_user.display_name if payer_user else 'Unknown' }}</p>
             </div>
         </div>
-        
+
         <!-- Split breakdown -->
         <div>
             <p class="text-sm font-medium text-stone-700 mb-2">Split ({{ split_type_label }})</p>
             {% if has_incomplete_splits %}
-            <div class="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-sm mb-2">
+            <div class="flex items-center p-3 mb-2 text-sm text-amber-800 rounded-lg bg-amber-50 border border-amber-200" role="alert">
+                <svg class="shrink-0 inline w-4 h-4 me-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/></svg>
                 Split is incomplete — not all users are included. Edit this expense to recalculate.
             </div>
             {% endif %}
@@ -86,53 +72,42 @@
                 {% for split in splits_display %}
                 <div class="flex justify-between text-sm">
                     <span class="text-stone-600">{{ split.display_name }}</span>
-                    <span class="text-stone-900">{{ expense.currency | currency_symbol }}{{ split.amount | format_decimal }}</span>
+                    <span class="font-medium text-stone-900">{{ expense.currency | currency_symbol }}{{ split.amount | format_decimal }}</span>
                 </div>
                 {% endfor %}
             </div>
         </div>
-        
+
         <!-- Status -->
         <div>
             <p class="text-sm font-medium text-stone-700">Status</p>
-            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium 
-                {% if is_settled %}bg-stone-200 text-stone-700
-                {% else %}bg-green-100 text-green-800{% endif %}">
+            <span class="{% if is_settled %}bg-stone-200 text-stone-700{% else %}bg-green-100 text-green-800{% endif %} text-xs font-medium px-2.5 py-0.5 rounded">
                 {{ expense.status|title }}
             </span>
         </div>
-        
+
         <!-- Notes Section -->
-        <div hx-get="/expenses/{{ expense.id }}/notes" hx-trigger="load" hx-swap="outerHTML">
-            <!-- Notes will be loaded here -->
-        </div>
-        
-        <!-- Action buttons -->
+        <div hx-get="/expenses/{{ expense.id }}/notes" hx-trigger="load" hx-swap="outerHTML"></div>
+
+        <!-- Action buttons - Flowbite Buttons -->
         <div class="flex gap-3 pt-4">
             {% if not is_settled %}
-                <!-- Edit button for unsettled expenses -->
-                <button
-                    type="button"
-                    class="flex-1 px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
-                    hx-get="/expenses/{{ expense.id }}/edit"
-                    hx-target="body"
-                    hx-swap="beforeend"
-                >
+                <button type="button"
+                        class="flex-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
+                        hx-get="/expenses/{{ expense.id }}/edit"
+                        hx-target="body"
+                        hx-swap="beforeend">
                     Edit Expense
                 </button>
-                <!-- Delete button for unsettled expenses -->
-                <button
-                    type="button"
-                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
-                    hx-get="/expenses/{{ expense.id }}/delete-confirm"
-                    hx-target="body"
-                    hx-swap="beforeend"
-                >
+                <button type="button"
+                        class="flex-1 text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none"
+                        hx-get="/expenses/{{ expense.id }}/delete-confirm"
+                        hx-target="body"
+                        hx-swap="beforeend">
                     Delete
                 </button>
             {% else %}
-                <!-- Settled expense cannot be edited or deleted -->
-                <div class="flex-1 px-4 py-2 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed">
+                <div class="flex-1 px-5 py-2.5 bg-stone-100 text-stone-500 text-center rounded-lg cursor-not-allowed text-sm font-medium">
                     Settled (Immutable)
                 </div>
             {% endif %}

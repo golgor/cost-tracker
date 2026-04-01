@@ -1,20 +1,24 @@
 <form action="/trips/{{ trip.id }}/expenses/{{ expense.id }}/edit" method="POST" class="space-y-4">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <div>
-    <label class="block text-sm font-medium text-stone-700 mb-1">Description</label>
-    <input type="text" name="description" required value="{{ expense.description }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    <label for="exp-desc" class="block mb-2 text-sm font-medium text-stone-700">Description</label>
+    <input type="text" id="exp-desc" name="description" required value="{{ expense.description }}"
+           class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
   </div>
   <div>
-    <label class="block text-sm font-medium text-stone-700 mb-1">Amount</label>
-    <input type="number" step="0.01" name="amount" required value="{{ expense.amount }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    <label for="exp-amount" class="block mb-2 text-sm font-medium text-stone-700">Amount</label>
+    <input type="number" step="0.01" id="exp-amount" name="amount" required value="{{ expense.amount }}"
+           class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
   </div>
   <div>
-    <label class="block text-sm font-medium text-stone-700 mb-1">Date</label>
-    <input type="date" name="date" required value="{{ expense.date.isoformat() }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    <label for="exp-date" class="block mb-2 text-sm font-medium text-stone-700">Date</label>
+    <input type="date" id="exp-date" name="date" required value="{{ expense.date.isoformat() }}"
+           class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
   </div>
   <div>
-    <label class="block text-sm font-medium text-stone-700 mb-1">Paid By</label>
-    <select name="paid_by_id" required class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    <label for="exp-payer" class="block mb-2 text-sm font-medium text-stone-700">Paid By</label>
+    <select id="exp-payer" name="paid_by_id" required
+            class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
       {% for p in participants %}
       <option value="{{ p.id }}" {% if p.id == expense.paid_by_id %}selected{% endif %}>{{ p.name }}</option>
       {% endfor %}
@@ -22,7 +26,13 @@
   </div>
 
   <div class="pt-4 flex justify-end gap-3">
-    <button type="button" onclick="document.getElementById('editExpenseModal').close()" class="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg transition font-medium">Cancel</button>
-    <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium shadow-sm">Save Changes</button>
+    <button type="button" data-modal-hide="editExpenseModal"
+            class="text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+      Cancel
+    </button>
+    <button type="submit"
+            class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+      Save Changes
+    </button>
   </div>
 </form>

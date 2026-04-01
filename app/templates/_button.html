@@ -1,27 +1,16 @@
 {#
-  Button Component Partial
-  
+  Button Component Partial — Flowbite Button
+
   Usage:
     {% include "_button.html" %}
-  
+
   Variables (set before include):
     - button_text: Text to display (required)
     - button_type: "submit" | "button" | "reset" (default: "button")
     - button_variant: "primary" | "secondary" | "danger" (default: "primary")
     - button_disabled: true | false (default: false)
     - button_href: If set, renders as <a> instead of <button>
-    - button_htmx: HTMX attributes dict (optional)
-  
-  Variants:
-    - primary: bg-primary-500 text-white, hover:bg-primary-600
-    - secondary: bg-stone-100 text-stone-700, hover:bg-stone-200
-    - danger: bg-balance-neg text-white, hover:opacity-90
-  
-  Accessibility:
-    - Includes hx-disabled-elt="this" for double-submit prevention
-    - Meets 44x44px minimum touch target
-    - Has visible focus ring
-  
+
   Example:
     {% set button_text = "Save Expense" %}
     {% set button_variant = "primary" %}
@@ -29,11 +18,11 @@
     {% include "_button.html" %}
 #}
 
-{# Renders as <a> if button_href is set, otherwise <button> #}
-{% set button_classes = "px-4 py-2 rounded-lg font-medium focus-ring touch-target inline-flex items-center justify-center gap-2 transition-colors " ~ 
-  ("bg-stone-100 text-stone-700 hover:bg-stone-200" if button_variant == 'secondary' else 
-   "bg-balance-neg text-white hover:opacity-90" if button_variant == 'danger' else 
-   "bg-primary-500 text-white hover:bg-primary-600") %}
+{# Flowbite button classes by variant #}
+{% set button_classes = "focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center justify-center gap-2 transition-colors " ~
+  ("text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-stone-200" if button_variant == 'secondary' else
+   "text-white bg-red-600 hover:bg-red-700 focus:ring-red-300" if button_variant == 'danger' else
+   "text-white bg-primary-500 hover:bg-primary-600 focus:ring-primary-200") %}
 
 {% if button_href %}
 <a

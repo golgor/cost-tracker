@@ -1,9 +1,9 @@
 {#
-  Form Input Component Partial
-  
+  Form Input Component Partial — Flowbite Form Input
+
   Usage:
     {% include "_form_input.html" %}
-  
+
   Variables (set before include):
     - input_name: Input field name (required)
     - input_label: Label text (required)
@@ -13,18 +13,7 @@
     - input_required: true | false (default: false)
     - input_error: Error message to display (optional)
     - input_help: Help text below input (optional)
-  
-  Accessibility:
-    - Label is associated with input via for/id
-    - Error messages use aria-describedby
-    - Required fields marked with aria-required
-    - Visible focus ring
-  
-  Styling:
-    - Error state: red border and error message
-    - Focus state: primary accent ring
-    - Meets 44px minimum height for touch targets
-  
+
   Example:
     {% set input_name = "amount" %}
     {% set input_label = "Amount" %}
@@ -34,17 +23,16 @@
     {% include "_form_input.html" %}
 #}
 
-{# Placeholder - actual implementation in future story #}
-<div class="flex flex-col gap-1.5">
-  <label for="{{ input_name }}" class="text-sm font-medium text-stone-700">
+{# Build aria-describedby list #}
+{% set described_ids = [] %}
+{% if input_error %}{% set _ = described_ids.append(input_name + '-error') %}{% endif %}
+{% if input_help %}{% set _ = described_ids.append(input_name + '-help') %}{% endif %}
+
+<div>
+  <label for="{{ input_name }}" class="block mb-2 text-sm font-medium {% if input_error %}text-red-700{% else %}text-stone-700{% endif %}">
     {{ input_label }}
-    {% if input_required %}<span class="text-balance-neg" aria-hidden="true">*</span>{% endif %}
+    {% if input_required %}<span class="text-red-500" aria-hidden="true">*</span>{% endif %}
   </label>
-  
-  {# Build aria-describedby list to handle both error and help text #}
-  {% set described_ids = [] %}
-  {% if input_error %}{% set _ = described_ids.append(input_name + '-error') %}{% endif %}
-  {% if input_help %}{% set _ = described_ids.append(input_name + '-help') %}{% endif %}
 
   <input
     type="{{ input_type | default('text') }}"
@@ -55,20 +43,15 @@
     {% if input_required %}required aria-required="true"{% endif %}
     {% if input_error %}aria-invalid="true"{% endif %}
     {% if described_ids %}aria-describedby="{{ described_ids | join(' ') }}"{% endif %}
-    class="px-3 py-2 min-h-[44px] rounded-lg border transition-colors focus-ring
-      {% if input_error %}
-        border-balance-neg bg-red-50
-      {% else %}
-        border-stone-300 bg-white hover:border-stone-400
-      {% endif %}"
+    class="{% if input_error %}bg-red-50 border-red-500 text-red-900 placeholder-red-400 focus:ring-red-500 focus:border-red-500{% else %}bg-white border-stone-300 text-stone-900 focus:ring-primary-500 focus:border-primary-500{% endif %} border text-sm rounded-lg block w-full p-2.5"
   >
-  
+
   {% if input_error %}
-    <p id="{{ input_name }}-error" class="text-sm text-balance-neg" role="alert">
+    <p id="{{ input_name }}-error" class="mt-2 text-sm text-red-600" role="alert">
       {{ input_error }}
     </p>
   {% endif %}
   {% if input_help %}
-    <p id="{{ input_name }}-help" class="text-sm text-stone-500">{{ input_help }}</p>
+    <p id="{{ input_name }}-help" class="mt-2 text-sm text-stone-500">{{ input_help }}</p>
   {% endif %}
 </div>

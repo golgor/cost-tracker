@@ -17,6 +17,12 @@
           event.detail.headers['X-CSRF-Token'] = csrfToken;
         }
       });
+      // Re-initialize Flowbite components after HTMX swaps new content
+      document.body.addEventListener('htmx:afterSettle', function() {
+        if (typeof initFlowbite === 'function') {
+          initFlowbite();
+        }
+      });
     });
   </script>
 

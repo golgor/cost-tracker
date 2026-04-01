@@ -37,6 +37,14 @@ def _get_user_display_names(users: list[UserPublic]) -> dict[int, str]:
     return {u.id: u.display_name for u in users}
 
 
+def _get_current_user_or_404(uow: UnitOfWork, user_id: int):
+    """Return current user or raise when missing."""
+    user = uow.users.get_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 @router.get("/settlements/review", response_class=HTMLResponse)
 async def settlement_review_page(
     request: Request,
@@ -44,6 +52,7 @@ async def settlement_review_page(
     uow: UowDep,
 ):
     """Render settlement review page with unsettled expenses."""
+    user = _get_current_user_or_404(uow, user_id)
     users = get_all_users(uow.session)
     grouped_expenses = get_unsettled_expenses_grouped(uow.session)
     total_unsettled = sum(len(expenses) for expenses in grouped_expenses.values())
@@ -61,6 +70,7 @@ async def settlement_review_page(
             "transfer_message": "Select expenses to see total",
             "expense_count": 0,
             "csrf_token": getattr(request.state, "csrf_token", ""),
+            "user": user,
         },
     )
 
@@ -116,6 +126,7 @@ async def settlement_confirm_page(
     if not expense_ids:
         return RedirectResponse(url="/settlements/review", status_code=303)
 
+    user = _get_current_user_or_404(uow, user_id)
     users = get_all_users(uow.session)
     display_names = _get_user_display_names(users)
     member_ids = [u.id for u in users]
@@ -134,6 +145,7 @@ async def settlement_confirm_page(
                 "display_names": display_names,
                 "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
+                "user": user,
             },
         )
 
@@ -167,6 +179,7 @@ async def settlement_confirm_page(
             "display_names": display_names,
             "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "csrf_token": getattr(request.state, "csrf_token", ""),
+            "user": user,
         },
     )
 
@@ -182,6 +195,7 @@ async def create_settlement(
     if expense_ids is None:
         expense_ids = []
 
+    user = _get_current_user_or_404(uow, user_id)
     users = get_all_users(uow.session)
     display_names = _get_user_display_names(users)
     member_ids = [u.id for u in users]
@@ -212,6 +226,7 @@ async def create_settlement(
                 "display_names": display_names,
                 "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
+                "user": user,
             },
         )
 
@@ -224,6 +239,7 @@ async def settlement_success_page(
     uow: UowDep,
 ):
     """Render settlement success page."""
+    user = _get_current_user_or_404(uow, user_id)
     settlement = uow.settlements.get_by_id(settlement_id)
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
@@ -252,6 +268,7 @@ async def settlement_success_page(
             "display_names": display_names,
             "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "csrf_token": getattr(request.state, "csrf_token", ""),
+            "user": user,
         },
     )
 
@@ -263,6 +280,7 @@ async def settlement_history_page(
     uow: UowDep,
 ):
     """Render settlement history list."""
+    user = _get_current_user_or_404(uow, user_id)
     users = get_all_users(uow.session)
     settlements = uow.settlements.list_all()
     display_names = _get_user_display_names(users)
@@ -289,6 +307,7 @@ async def settlement_history_page(
             "display_names": display_names,
             "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "csrf_token": getattr(request.state, "csrf_token", ""),
+            "user": user,
         },
     )
 
@@ -301,6 +320,7 @@ async def settlement_detail_page(
     uow: UowDep,
 ):
     """Render settlement detail with included expenses."""
+    user = _get_current_user_or_404(uow, user_id)
     result = get_settlement_with_expenses(uow.session, settlement_id)
     if not result:
         raise HTTPException(status_code=404, detail="Settlement not found")
@@ -330,5 +350,6 @@ async def settlement_detail_page(
             "display_names": display_names,
             "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "csrf_token": getattr(request.state, "csrf_token", ""),
+            "user": user,
         },
     )
