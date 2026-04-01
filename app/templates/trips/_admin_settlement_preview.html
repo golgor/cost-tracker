@@ -39,10 +39,10 @@
       {% for member_id, balance in balances.items() %}
       <li class="flex justify-between items-center text-sm py-1">
         <span class="text-stone-600 font-medium">{{ participants[member_id] if participants.get(member_id) else 'Guest ' ~ member_id }}</span>
-        {% if balance.net_balance > 0 %}
-          <span class="font-semibold text-green-600">+{{ balance.net_balance|round(2) }}</span>
-        {% elif balance.net_balance < 0 %}
-          <span class="font-semibold text-red-600">{{ balance.net_balance|round(2) }}</span>
+        {% if balance.net_balance.amount > 0 %}
+          <span class="font-semibold text-green-600">+{{ balance.net_balance.amount|round(2) }}</span>
+        {% elif balance.net_balance.amount < 0 %}
+          <span class="font-semibold text-red-600">{{ balance.net_balance.amount|round(2) }}</span>
         {% else %}
           <span class="font-semibold text-stone-400">0.00</span>
         {% endif %}
