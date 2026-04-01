@@ -12,8 +12,8 @@ from pydantic import ValidationError  # noqa: F401
 from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.queries.recurring_queries import (
     get_active_definitions,
+    get_filtered_definitions,
     get_paused_definitions,
-    get_registry_summary,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
@@ -43,7 +43,7 @@ from app.domain.use_cases.recurring import (
 from app.settings import settings
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 from app.web.templates import setup_templates
-from app.web.view_models import RecurringDefinitionViewModel
+from app.web.view_models import RecurringDefinitionViewModel, compute_registry_stats
 
 router = APIRouter(tags=["recurring"])
 templates = setup_templates("app/templates")
@@ -117,14 +117,14 @@ def _build_users_dict(
 
 def _to_view_models(
     definitions: list[RecurringDefinitionPublic],
-    uow: UnitOfWork,
+    member_names: dict[int, str],
 ) -> list[RecurringDefinitionViewModel]:
     """Convert domain models to template-ready view models."""
-    payer_ids = list({d.payer_id for d in definitions})
-    payer_users = uow.users.get_by_ids(payer_ids)
-    payer_map = {u.id: u.display_name for u in payer_users}
+    member_ids = list(member_names.keys())
     return [
-        RecurringDefinitionViewModel.from_domain(d, payer_map.get(d.payer_id, "Unknown"))
+        RecurringDefinitionViewModel.from_domain(
+            d, member_names.get(d.payer_id, "Unknown"), member_ids, member_names
+        )
         for d in definitions
     ]
 
@@ -144,9 +144,13 @@ async def registry_index(
                 detail="User not found",
             )
 
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+
         domain_defs = get_active_definitions(uow.session)
-        definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session)
+        active_categories = sorted({d.category for d in domain_defs if d.category})
+        definitions = _to_view_models(domain_defs, member_names)
+        summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
         request,
@@ -156,6 +160,7 @@ async def registry_index(
             "definitions": definitions,
             "summary": summary,
             "active_tab": "active",
+            "active_categories": active_categories,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -201,6 +206,7 @@ async def new_recurring_form(
             "errors": {},
             "users": users_dict,
             "members": users,
+            "is_personal_edit": False,
             **opts,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
@@ -284,6 +290,15 @@ async def create_recurring(
 
         if errors:
             opts = _build_form_options(form_data)
+            try:
+                _config = json.loads(split_config_json) if split_config_json else {}
+            except ValueError, TypeError:
+                _config = {}
+            is_personal_edit_rerender = (
+                split_type != "EVEN"
+                and bool(_config)
+                and any(Decimal(str(v)) == 0 for v in _config.values())
+            )
             return templates.TemplateResponse(
                 request,
                 "recurring/form.html",
@@ -295,6 +310,7 @@ async def create_recurring(
                     "errors": errors,
                     "users": users_dict,
                     "members": users,
+                    "is_personal_edit": is_personal_edit_rerender,
                     **opts,
                     "csrf_token": getattr(request.state, "csrf_token", ""),
                 },
@@ -316,13 +332,17 @@ async def registry_tab(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tab")
 
     with uow:
-        if tab == "active":
-            domain_defs = get_active_definitions(uow.session)
-        else:
-            domain_defs = get_paused_definitions(uow.session)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
 
-        definitions = _to_view_models(domain_defs, uow)
-        summary = get_registry_summary(uow.session)
+        # always load active defs for filter chips regardless of current tab
+        all_active = get_active_definitions(uow.session)
+        active_categories = sorted({d.category for d in all_active if d.category})
+
+        domain_defs = all_active if tab == "active" else get_paused_definitions(uow.session)
+
+        definitions = _to_view_models(domain_defs, member_names)
+        summary = compute_registry_stats(definitions, member_names)
 
     return templates.TemplateResponse(
         request,
@@ -331,6 +351,51 @@ async def registry_tab(
             "definitions": definitions,
             "summary": summary,
             "active_tab": tab,
+            "active_categories": active_categories,
+            "csrf_token": getattr(request.state, "csrf_token", ""),
+        },
+    )
+
+
+@router.get("/recurring/filtered", response_class=HTMLResponse)
+async def registry_filtered(
+    request: Request,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    scope: str = "all",
+    payer_id: int | None = None,
+    category: str | None = None,
+    tab: str = "active",
+):
+    """HTMX partial: filtered definition list + updated summary bar."""
+    active_only = tab != "paused"
+
+    with uow:
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+
+        # always load active defs for filter chips regardless of current filter
+        all_active = get_active_definitions(uow.session)
+        active_categories = sorted({d.category for d in all_active if d.category})
+
+        domain_defs = get_filtered_definitions(
+            uow.session,
+            scope=scope,
+            payer_id=payer_id,
+            category=category,
+            active_only=active_only,
+        )
+        definitions = _to_view_models(domain_defs, member_names)
+        summary = compute_registry_stats(definitions, member_names)
+
+    return templates.TemplateResponse(
+        request,
+        "recurring/_definition_list.html",
+        {
+            "definitions": definitions,
+            "summary": summary,
+            "active_tab": tab,
+            "active_categories": active_categories,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )
@@ -371,6 +436,11 @@ async def edit_recurring_form(
         "auto_generate": definition.auto_generate,
     }
     opts = _build_form_options(form_data)
+    is_personal_edit = (
+        definition.split_type != SplitType.EVEN
+        and definition.split_config is not None
+        and any(Decimal(str(v)) == 0 for v in definition.split_config.values())
+    )
 
     return templates.TemplateResponse(
         request,
@@ -383,6 +453,7 @@ async def edit_recurring_form(
             "errors": {},
             "users": users_dict,
             "members": users,
+            "is_personal_edit": is_personal_edit,
             **opts,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
@@ -471,6 +542,15 @@ async def update_recurring(
 
         if errors:
             opts = _build_form_options(form_data)
+            try:
+                _config = json.loads(split_config_json) if split_config_json else {}
+            except ValueError, TypeError:
+                _config = {}
+            is_personal_edit_rerender = (
+                split_type != "EVEN"
+                and bool(_config)
+                and any(Decimal(str(v)) == 0 for v in _config.values())
+            )
             return templates.TemplateResponse(
                 request,
                 "recurring/form.html",
@@ -482,6 +562,7 @@ async def update_recurring(
                     "errors": errors,
                     "users": users_dict,
                     "members": users,
+                    "is_personal_edit": is_personal_edit_rerender,
                     **opts,
                     "csrf_token": getattr(request.state, "csrf_token", ""),
                 },
@@ -513,7 +594,9 @@ async def toggle_active(
         updated = uow.recurring.get_by_id(definition_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        view_models = _to_view_models([updated], uow)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+        view_models = _to_view_models([updated], member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(
@@ -561,7 +644,9 @@ async def create_expense_for_definition(
         updated = uow.recurring.get_by_id(definition_id)
         if updated is None:
             raise HTTPException(status_code=404, detail="Recurring definition not found")
-        view_models = _to_view_models([updated], uow)
+        all_users = get_all_users(uow.session)
+        member_names = {u.id: u.display_name for u in all_users}
+        view_models = _to_view_models([updated], member_names)
         defn = view_models[0]
 
     return templates.TemplateResponse(

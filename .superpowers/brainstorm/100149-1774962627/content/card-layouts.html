@@ -1,0 +1,229 @@
+<style>
+  .preview { font-family: system-ui, sans-serif; max-width: 480px; }
+  .card-wrap { background: white; border: 1px solid #e7e5e4; border-radius: 8px; padding: 16px; margin-bottom: 8px; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-auto { background: #e0e7ff; color: #4338ca; }
+  .badge-cat { background: #fef3c7; color: #92400e; }
+  .badge-personal { background: #fce7f3; color: #9d174d; }
+  .badge-shared { background: #dcfce7; color: #166534; }
+  .avatar { width: 24px; height: 24px; border-radius: 50%; background: #c7d2fe; color: #4338ca; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+  .mono-cost { font-weight: 700; color: #6366f1; font-size: 14px; }
+  .action-btn { font-size: 11px; padding: 3px 8px; border-radius: 4px; border: 1px solid #d6d3d1; color: #57534e; background: white; cursor: pointer; }
+  .action-btn.danger { border-color: #fca5a5; color: #ef4444; }
+  .split-row { display: flex; gap: 8px; margin-top: 6px; }
+  .split-pill { font-size: 11px; background: #f5f5f4; border-radius: 4px; padding: 2px 6px; color: #78716c; }
+  .left-bar { border-left: 3px solid #6366f1; padding-left: 12px; }
+  .left-bar.insurance { border-color: #f59e0b; }
+  .left-bar.gym { border-color: #ec4899; }
+  .divider { border: none; border-top: 1px solid #f5f5f4; margin: 8px 0; }
+  .due-warn { color: #dc2626; font-weight: 600; }
+</style>
+
+<h2>Card Layout Options</h2>
+<p class="subtitle">Three approaches to displaying recurring cost cards — pick the one that feels most useful and readable.</p>
+
+<div class="options">
+
+  <!-- Option A -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Compact + refined</h3>
+      <p>Same structure as today, with category badge, full due date (including year), and split amounts shown inline for non-EVEN splits.</p>
+      <div class="preview" style="margin-top:12px">
+        <div class="card-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <strong style="font-size:14px">Netflix</strong>
+                <span class="badge badge-auto">auto</span>
+                <span class="badge badge-cat">subscription</span>
+              </div>
+              <div style="font-size:12px;color:#78716c">
+                €18.99 / monthly · <span class="avatar">R</span> pays · Even
+              </div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:4px">Due: Apr 12, 2026</div>
+            </div>
+            <div style="text-align:right">
+              <div class="mono-cost">€18.99/mo</div>
+              <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end">
+                <button class="action-btn">Create</button>
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Pause</button>
+                <button class="action-btn danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <strong style="font-size:14px">Car Insurance</strong>
+                <span class="badge badge-cat">insurance</span>
+              </div>
+              <div style="font-size:12px;color:#78716c">
+                €240.00 / yearly · <span class="avatar">A</span> pays · Shares
+              </div>
+              <div class="split-row">
+                <span class="split-pill">R: €120.00</span>
+                <span class="split-pill">A: €120.00</span>
+              </div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:4px">Due: Jan 15, 2027</div>
+            </div>
+            <div style="text-align:right">
+              <div class="mono-cost">€20.00/mo</div>
+              <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end">
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Pause</button>
+                <button class="action-btn danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Two-section card</h3>
+      <p>A clear visual separator between the cost info (top) and actions (bottom). Split amounts and "personal" badge are prominent. Actions feel less crowded.</p>
+      <div class="preview" style="margin-top:12px">
+        <div class="card-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <strong style="font-size:14px">Gym Membership</strong>
+                <span class="badge badge-personal">personal</span>
+              </div>
+              <div style="font-size:12px;color:#78716c">€35.00 / monthly · <span class="avatar">R</span> pays</div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:2px">Due: May 1, 2026</div>
+            </div>
+            <div class="mono-cost">€35.00/mo</div>
+          </div>
+          <hr class="divider">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#a8a29e">subscription</span>
+            <div style="display:flex;gap:4px">
+              <button class="action-btn">Create</button>
+              <button class="action-btn">Edit</button>
+              <button class="action-btn">Pause</button>
+              <button class="action-btn danger">Del</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <strong style="font-size:14px">Netflix</strong>
+                <span class="badge badge-shared">shared</span>
+                <span class="badge badge-auto">auto</span>
+              </div>
+              <div style="font-size:12px;color:#78716c">€18.99 / monthly · <span class="avatar">R</span> pays · Even</div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:2px">Due: Apr 12, 2026</div>
+            </div>
+            <div class="mono-cost">€18.99/mo</div>
+          </div>
+          <hr class="divider">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:#a8a29e">subscription · €9.50/person</span>
+            <div style="display:flex;gap:4px">
+              <button class="action-btn">Edit</button>
+              <button class="action-btn">Pause</button>
+              <button class="action-btn danger">Del</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Color-accented with per-person cost</h3>
+      <p>A colored left border groups by category visually. Per-person monthly cost is shown prominently. Good for quick scanning across many items.</p>
+      <div class="preview" style="margin-top:12px">
+        <div class="card-wrap">
+          <div class="left-bar">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start">
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <strong style="font-size:14px">Netflix</strong>
+                  <span class="badge badge-auto">auto</span>
+                </div>
+                <div style="font-size:12px;color:#78716c">€18.99 / monthly · <span class="avatar">R</span> pays</div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:2px">subscription · Due Apr 12, 2026</div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono-cost">€18.99/mo</div>
+                <div style="font-size:11px;color:#a8a29e">€9.50/person</div>
+                <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
+                  <button class="action-btn">Edit</button>
+                  <button class="action-btn">Pause</button>
+                  <button class="action-btn danger">Del</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div class="left-bar insurance">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start">
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <strong style="font-size:14px">Car Insurance</strong>
+                </div>
+                <div style="font-size:12px;color:#78716c">€240.00 / yearly · <span class="avatar">A</span> pays · Shares</div>
+                <div class="split-row">
+                  <span class="split-pill">R: €10.00/mo</span>
+                  <span class="split-pill">A: €10.00/mo</span>
+                </div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:2px">insurance · Due Jan 15, 2027</div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono-cost">€20.00/mo</div>
+                <div style="font-size:11px;color:#a8a29e">€10.00/person</div>
+                <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
+                  <button class="action-btn">Edit</button>
+                  <button class="action-btn">Pause</button>
+                  <button class="action-btn danger">Del</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div class="left-bar gym">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start">
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <strong style="font-size:14px">Gym Membership</strong>
+                  <span class="badge badge-personal">personal</span>
+                </div>
+                <div style="font-size:12px;color:#78716c">€35.00 / monthly · <span class="avatar">R</span> pays</div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:2px">membership · Due May 1, 2026</div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono-cost">€35.00/mo</div>
+                <div style="font-size:11px;color:#a8a29e">100% R</div>
+                <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
+                  <button class="action-btn">Create</button>
+                  <button class="action-btn">Edit</button>
+                  <button class="action-btn">Pause</button>
+                  <button class="action-btn danger">Del</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

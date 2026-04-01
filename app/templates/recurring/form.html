@@ -118,57 +118,72 @@
       </div>
     </div>
 
-    <!-- Payer & Split Method -->
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
-          Who Pays <span class="text-red-500" aria-hidden="true">*</span>
-        </label>
-        <select
-          id="payer_id"
-          name="payer_id"
-          required
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-        >
-          {% for member in members %}
-          <option value="{{ member.id }}" {% if form_data.payer_id == member.id %}selected{% endif %}>
-            {{ member.display_name }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label for="split_type" class="block text-sm font-medium text-stone-700 mb-1">
-          Split Method <span class="text-red-500" aria-hidden="true">*</span>
-        </label>
-        <select
-          id="split_type"
-          name="split_type"
-          required
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-          onchange="handleSplitTypeChange(this.value)"
-        >
-          {% for opt in split_type_options %}
-          <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-        {% if errors.split_type %}<p class="mt-1 text-xs text-red-600">{{ errors.split_type }}</p>{% endif %}
-      </div>
+    <!-- Make Personal toggle -->
+    <div class="mb-2">
+      <button
+        type="button"
+        id="make-personal-btn"
+        onclick="toggleMakePersonal()"
+        class="px-4 py-2 text-sm rounded-lg border transition-colors {% if is_personal_edit %}border-pink-400 bg-pink-50 text-pink-700{% else %}border-stone-300 bg-white text-stone-700 hover:bg-stone-50{% endif %}"
+      >
+        {% if is_personal_edit %}Undo — make shared{% else %}Make Personal{% endif %}
+      </button>
+      <p class="text-xs text-stone-500 mt-1">One click to assign 100% of the cost to yourself.</p>
     </div>
 
-    <!-- Dynamic split config fields (shown for non-EVEN splits) -->
-    <div id="split-fields" class="{% if is_even_split %}hidden{% endif %}">
-      <!-- Populated by JavaScript -->
-    </div>
-    <input type="hidden" id="split-config" name="split_config" value="{{ form_data.split_config }}">
+    <div id="split-fields-section">
+      <!-- Payer & Split Method -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
+            Who Pays <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <select
+            id="payer_id"
+            name="payer_id"
+            required
+            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+          >
+            {% for member in members %}
+            <option value="{{ member.id }}" {% if form_data.payer_id == member.id %}selected{% endif %}>
+              {{ member.display_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
 
-    <!-- Split preview (reuses the same endpoint as the expense form) -->
-    <div id="split-preview-container" class="{% if is_even_split %}hidden{% endif %}">
-      <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
-        <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
-        <div id="split-preview-content" class="space-y-1 text-sm">
-          <!-- Populated by JavaScript fetch -->
+        <div>
+          <label for="split_type" class="block text-sm font-medium text-stone-700 mb-1">
+            Split Method <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <select
+            id="split_type"
+            name="split_type"
+            required
+            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            onchange="handleSplitTypeChange(this.value)"
+          >
+            {% for opt in split_type_options %}
+            <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+          {% if errors.split_type %}<p class="mt-1 text-xs text-red-600">{{ errors.split_type }}</p>{% endif %}
+        </div>
+      </div>
+
+      <!-- Dynamic split config fields (shown for non-EVEN splits) -->
+      <div id="split-fields" class="{% if is_even_split %}hidden{% endif %}">
+        <!-- Populated by JavaScript -->
+      </div>
+      <input type="hidden" id="split-config" name="split_config" value="{{ form_data.split_config }}">
+
+      <!-- Split preview (reuses the same endpoint as the expense form) -->
+      <div id="split-preview-container" class="{% if is_even_split %}hidden{% endif %}">
+        <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
+          <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
+          <div id="split-preview-content" class="space-y-1 text-sm">
+            <!-- Populated by JavaScript fetch -->
+          </div>
         </div>
       </div>
     </div>
@@ -421,5 +436,49 @@ splitFieldsDiv.addEventListener('input', () => {
   updateSplitConfig();
   debouncedFetchPreview();
 });
+
+(function () {
+  var currentUserId = {{ user.id }};
+  var memberIds = [{% for m in members %}{{ m.id }}{% if not loop.last %},{% endif %}{% endfor %}];
+  var partnerId = memberIds.find(function(id) { return id !== currentUserId; });
+  var isPersonal = {{ 'true' if is_personal_edit else 'false' }};
+
+  function setPersonalState(personal) {
+    isPersonal = personal;
+    var btn = document.getElementById('make-personal-btn');
+    var splitSection = document.getElementById('split-fields-section');
+    var splitTypeSelect = document.getElementById('split_type');
+    var splitConfigInput = document.getElementById('split-config');
+    var payerSelect = document.getElementById('payer_id');
+
+    if (personal) {
+      btn.textContent = 'Undo \u2014 make shared';
+      btn.classList.remove('border-stone-300', 'bg-white', 'text-stone-700', 'hover:bg-stone-50');
+      btn.classList.add('border-pink-400', 'bg-pink-50', 'text-pink-700');
+      if (splitSection) splitSection.style.display = 'none';
+      if (splitTypeSelect) splitTypeSelect.value = 'PERCENTAGE';
+      var config = {};
+      config[currentUserId] = '100';
+      memberIds.forEach(function(id) { if (id !== currentUserId) config[id] = '0'; });
+      if (splitConfigInput) splitConfigInput.value = JSON.stringify(config);
+      if (payerSelect) payerSelect.value = String(currentUserId);
+    } else {
+      btn.textContent = 'Make Personal';
+      btn.classList.remove('border-pink-400', 'bg-pink-50', 'text-pink-700');
+      btn.classList.add('border-stone-300', 'bg-white', 'text-stone-700', 'hover:bg-stone-50');
+      if (splitSection) splitSection.style.display = '';
+      if (splitTypeSelect) splitTypeSelect.value = 'EVEN';
+      if (splitConfigInput) splitConfigInput.value = '';
+    }
+  }
+
+  window.toggleMakePersonal = function () {
+    setPersonalState(!isPersonal);
+  };
+
+  if (isPersonal) {
+    setPersonalState(true);
+  }
+})();
 </script>
 {% endblock %}

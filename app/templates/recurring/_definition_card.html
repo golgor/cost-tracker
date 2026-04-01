@@ -1,88 +1,96 @@
 <!-- Recurring definition card — uses precomputed view model fields only, no business logic -->
-{# defn is a RecurringDefinitionViewModel with precomputed fields #}
+{# defn is a RecurringDefinitionViewModel #}
 <div id="definition-card-{{ defn.id }}"
-     class="bg-surface-card rounded-lg shadow-sm border border-stone-200 p-4 {% if not defn.is_active %}opacity-60{% endif %}">
-  <div class="flex items-start justify-between gap-3">
-    <!-- Left: name + metadata -->
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 mb-1">
-        <h3 class="font-semibold text-stone-800 truncate">{{ defn.name }}</h3>
-        {% if defn.is_auto_generate %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700">auto</span>
+     class="bg-white rounded-lg border border-stone-200 overflow-hidden mb-2 {% if not defn.is_active %}opacity-60{% endif %}"
+     style="border-left: 4px solid {{ defn.category_border_color }}">
+
+  <div class="px-4 pt-3 pb-2">
+    <div class="flex items-start justify-between gap-3">
+
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <h3 class="font-semibold text-stone-800 truncate text-sm">{{ defn.name }}</h3>
+          {% if defn.is_auto_generate %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">auto</span>
+          {% endif %}
+          {% if defn.is_personal %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-700">personal</span>
+          {% endif %}
+          {% if not defn.is_active %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-500">paused</span>
+          {% endif %}
+        </div>
+
+        <p class="text-xs text-stone-600 mb-1">
+          {{ defn.currency | currency_symbol }}{{ defn.amount | format_decimal }} / {{ defn.frequency_label }}
+          ·
+          <span class="inline-flex items-center gap-1">
+            <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium flex items-center justify-center"
+                  title="{{ defn.payer_display_name }}">{{ defn.payer_initials }}</span>
+            pays
+          </span>
+          · {{ defn.split_type }}
+        </p>
+
+        {% if defn.split_pills | length > 1 and not defn.is_even_split %}
+          <div class="flex gap-1 mt-1 mb-1">
+            {% for pill in defn.split_pills %}
+              <span class="text-xs bg-stone-100 rounded px-1.5 py-0.5 text-stone-600">
+                {{ pill.initials }}: {{ defn.currency | currency_symbol }}{{ pill.cost | format_decimal }}/mo
+              </span>
+            {% endfor %}
+          </div>
         {% endif %}
-        {% if not defn.is_active %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-500">paused</span>
+
+        <p class="text-xs text-stone-400 mt-1">Due: {{ defn.next_due_date_display }}</p>
+      </div>
+
+      <div class="text-right shrink-0">
+        <span class="text-sm font-bold text-indigo-600">
+          {{ defn.currency | currency_symbol }}{{ defn.normalized_monthly_cost | format_decimal }}/mo
+        </span>
+        {% if defn.is_even_split and defn.split_pills %}
+          <p class="text-xs text-stone-400">
+            {{ defn.currency | currency_symbol }}{{ defn.split_pills[0].cost | format_decimal }}/person
+          </p>
+        {% elif defn.is_personal and defn.split_pills %}
+          <p class="text-xs text-stone-400">{{ defn.split_pills[0].initials }} only</p>
         {% endif %}
       </div>
 
-      <p class="text-sm text-stone-600 mb-1">
-        {{ defn.currency | currency_symbol }}{{ defn.amount | format_decimal }} / {{ defn.frequency_label }}
-        ·
-        <span class="inline-flex items-center gap-1">
-          <span class="w-6 h-6 rounded-full bg-primary-200 text-primary-700 text-xs font-medium flex items-center justify-center" title="{{ defn.payer_display_name }}">
-            {{ defn.payer_initials }}
-          </span>
-          pays
-        </span>
-        · {{ defn.split_type }}
-      </p>
-
-      {% if defn.is_active %}
-        <p class="text-xs text-stone-500">Due: {{ defn.next_due_date | strftime("%b %-d") }}</p>
-      {% endif %}
     </div>
+  </div>
 
-    <!-- Right: normalized monthly cost + actions -->
-    <div class="flex flex-col items-end gap-2 shrink-0">
-      <span class="text-sm font-semibold text-primary-600">
-        {{ defn.currency | currency_symbol }}{{ defn.normalized_monthly_cost | format_decimal }}/mo
-      </span>
-
-      <div class="flex items-center gap-1">
-        {% if defn.is_manual_mode and defn.is_active %}
-          <button
-            type="button"
-            hx-post="/recurring/{{ defn.id }}/create-expense"
-            hx-target="#definition-card-{{ defn.id }}"
-            hx-swap="outerHTML"
-            hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
-            class="text-xs px-3 py-1 rounded border border-primary-300 text-primary-600 hover:bg-primary-50 transition-colors"
-            title="Create expense for this billing period"
-          >
-            Create Expense
-          </button>
-        {% endif %}
-
-        <!-- Edit button -->
-        <a href="/recurring/{{ defn.id }}/edit"
-           class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition-colors"
-           title="Edit">
-          Edit
-        </a>
-
-        <!-- Pause / Resume toggle -->
+  <div class="px-4 py-1.5 bg-stone-50 border-t border-stone-100 flex items-center justify-between">
+    <span class="text-xs text-stone-400">{{ defn.category if defn.category else "—" }}</span>
+    <div class="flex items-center gap-1">
+      {% if defn.is_manual_mode and defn.is_active %}
         <button
           type="button"
-          hx-patch="/recurring/{{ defn.id }}/toggle-active"
+          hx-post="/recurring/{{ defn.id }}/create-expense"
           hx-target="#definition-card-{{ defn.id }}"
           hx-swap="outerHTML"
           hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
-          class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition-colors"
-          title="{% if defn.is_active %}Pause{% else %}Resume{% endif %}"
-        >
-          {% if defn.is_active %}Pause{% else %}Resume{% endif %}
-        </button>
-
-        <!-- Delete button — triggers modal -->
-        <button
-          type="button"
-          onclick="openDeleteModal('{{ defn.id }}', '{{ defn.name | e }}')"
-          class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-          title="Delete"
-        >
-          Delete
-        </button>
-      </div>
+          class="text-xs px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >Create</button>
+      {% endif %}
+      <a href="/recurring/{{ defn.id }}/edit"
+         class="text-xs px-2 py-0.5 rounded border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors">
+        Edit
+      </a>
+      <button
+        type="button"
+        hx-patch="/recurring/{{ defn.id }}/toggle-active"
+        hx-target="#definition-card-{{ defn.id }}"
+        hx-swap="outerHTML"
+        hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+        class="text-xs px-2 py-0.5 rounded border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors"
+      >{% if defn.is_active %}Pause{% else %}Resume{% endif %}</button>
+      <button
+        type="button"
+        onclick="openDeleteModal('{{ defn.id }}', '{{ defn.name | e }}')"
+        class="text-xs px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+      >Delete</button>
     </div>
   </div>
 </div>
