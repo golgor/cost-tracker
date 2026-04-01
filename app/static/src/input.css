@@ -94,12 +94,20 @@
   background-color: white !important;
 }
 
-.datepicker-controls .button {
+.datepicker-controls button,
+.datepicker-controls .button,
+.datepicker-controls .view-switch,
+.datepicker-controls .prev-btn,
+.datepicker-controls .next-btn {
   background-color: white !important;
   color: #1f2937 !important;
 }
 
-.datepicker-controls .button:hover {
+.datepicker-controls button:hover,
+.datepicker-controls .button:hover,
+.datepicker-controls .view-switch:hover,
+.datepicker-controls .prev-btn:hover,
+.datepicker-controls .next-btn:hover {
   background-color: #f3f4f6 !important;
 }
 
