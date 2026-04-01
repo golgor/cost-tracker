@@ -165,6 +165,7 @@ async def guest_summary(
         {
             "trip": trip,
             "active_guest": active_guest,
+            "active_guest_id": active_guest.id,
             "participants": participants,
             "expenses": expenses,
             "csrf_token": getattr(request.state, "csrf_token", ""),
@@ -200,9 +201,11 @@ async def add_guest_expense(
             created_by_guest_id=active_guest.id,
         )
 
-    response = HTMLResponse()
-    response.headers["HX-Redirect"] = f"/trips/guest/{trip_id}/summary"
-    return response
+    if "hx-request" in request.headers:
+        response = HTMLResponse()
+        response.headers["HX-Redirect"] = f"/trips/guest/{trip_id}/summary"
+        return response
+    return RedirectResponse(url=f"/trips/guest/{trip_id}/summary", status_code=303)
 
 
 @router.get("/trips/guest/{trip_id}/balances", response_class=HTMLResponse)
