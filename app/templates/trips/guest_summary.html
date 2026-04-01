@@ -2,144 +2,116 @@
 
 {% block content %}
 <div class="px-4 py-6 max-w-lg mx-auto">
-  
-  <div class="mb-8">
-    <h2 class="text-xl font-bold text-stone-900 leading-tight">Hello, {{ active_guest.name }}!</h2>
-    <p class="text-stone-500 text-sm mt-1">Here is what the group has spent so far.</p>
+
+  <div class="mb-6">
+    <h2 class="text-xl font-bold text-gray-900">Hello, {{ active_guest.name }}!</h2>
+    <p class="text-gray-500 text-sm mt-1">Here is what the group has spent so far.</p>
   </div>
 
-  <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden mb-6">
-    <div class="bg-stone-50 px-4 py-3 border-b border-stone-200 flex justify-between items-center">
-      <h3 class="font-semibold text-stone-900 text-sm uppercase tracking-wider">Feed</h3>
-      <div class="text-xs font-medium text-stone-500 bg-white px-2 py-1 rounded-md border border-stone-200">
-        {{ expenses|length }} recorded
-      </div>
+  <!-- Expense List (Flowbite list group) -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-900">Expenses</h3>
+      <span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-full">{{ expenses|length }}</span>
     </div>
-    
-    <ul class="divide-y divide-stone-100 max-h-[50vh] overflow-y-auto override-scrollbar">
+
+    <ul class="w-full bg-white border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
       {% for expense in expenses %}
-      <li class="p-4 flex gap-4 hover:bg-stone-50 transition">
-        <div class="w-10 h-10 shrink-0 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-sm border border-primary-200">
-           {% set payer = participants | selectattr('id', 'equalto', expense.paid_by_id) | list %}
-           {{ payer[0].name[:2]|upper if payer else '??' }}
+      <li class="px-4 py-3 flex items-center gap-3">
+        {% set payer = participants | selectattr('id', 'equalto', expense.paid_by_id) | list %}
+        <div class="relative inline-flex items-center justify-center w-10 h-10 overflow-hidden bg-primary-100 rounded-full shrink-0">
+          <span class="font-medium text-primary-700 text-sm">{{ payer[0].name[:2]|upper if payer else '??' }}</span>
         </div>
-        
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-stone-900 truncate">{{ expense.description }}</p>
-          <p class="text-[11px] text-stone-500 font-medium">
-            {{ payer[0].name if payer else 'Unknown' }} &bull; {{ expense.date.strftime('%b %d') }}
-          </p>
+          <p class="text-sm font-medium text-gray-900 truncate">{{ expense.description }}</p>
+          <p class="text-xs text-gray-500">{{ payer[0].name if payer else 'Unknown' }} &middot; {{ expense.date.strftime('%b %d') }}</p>
         </div>
-        
-        <div class="shrink-0 text-right">
-          <p class="text-stone-900 font-bold whitespace-nowrap">{{ trip.currency }} {{ expense.amount }}</p>
-        </div>
+        <div class="text-sm font-semibold text-gray-900 whitespace-nowrap">{{ trip.currency }} {{ expense.amount }}</div>
       </li>
       {% else %}
-      <li class="p-8 text-center text-stone-500 text-sm">
-        <svg class="mx-auto w-8 h-8 text-stone-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        No expenses recorded yet.<br>Be the first to add one!
+      <li class="px-4 py-8 text-center">
+        <svg class="mx-auto w-8 h-8 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-sm text-gray-500">No expenses recorded yet.<br>Be the first to add one!</p>
       </li>
       {% endfor %}
     </ul>
   </div>
 
   {% if trip.is_active %}
-  <div class="mt-4">
-    <button onclick="document.getElementById('addExpenseModal').showModal()" class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold py-3.5 px-6 rounded-xl shadow-sm transition">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      Add Expense
-    </button>
-  </div>
+  <button data-modal-target="addExpenseModal" data-modal-toggle="addExpenseModal" type="button"
+          class="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 flex items-center justify-center gap-2">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Add Expense
+  </button>
   {% else %}
-  <div class="mt-4 text-center py-3 px-4 bg-stone-100 text-stone-500 rounded-xl text-sm font-medium">
+  <div class="p-4 text-sm text-gray-800 rounded-lg bg-gray-100 text-center" role="alert">
     This trip has been settled. No more expenses can be added.
   </div>
   {% endif %}
 
 </div>
 
-<!-- Add Expense Modal (Mobile optimized) -->
-<dialog id="addExpenseModal" class="p-0 m-auto rounded-t-3xl sm:rounded-2xl w-full max-w-lg mb-0 sm:mb-auto mt-auto sm:mt-auto bg-white shadow-[0_-8px_30px_rgb(0,0,0,0.12)] sm:shadow-2xl transition-all open:animate-in open:slide-in-from-bottom sm:open:zoom-in-95 backdrop:bg-stone-900/40 backdrop:open:animate-in backdrop:open:fade-in">
-  
-  <div class="flex flex-col h-full max-h-[90vh]">
-    <div class="px-6 py-4 border-b border-stone-200 flex justify-between items-center bg-white sticky top-0 z-10 rounded-t-3xl sm:rounded-t-2xl">
-      <h3 class="text-lg font-bold text-stone-900">New Expense</h3>
-      <form method="dialog">
-        <button class="w-8 h-8 flex items-center justify-center bg-stone-100 hover:bg-stone-200 text-stone-500 rounded-full transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+<!-- Add Expense Modal (Flowbite) -->
+<div id="addExpenseModal" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+  <div class="relative p-4 w-full max-w-md max-h-full">
+    <div class="relative bg-white rounded-lg shadow">
+      <!-- Modal header -->
+      <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">New Expense</h3>
+        <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center" data-modal-hide="addExpenseModal">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
+        </button>
+      </div>
+      <!-- Modal body -->
+      <form method="POST" action="/trips/guest/{{ trip.id }}/expenses" class="p-4 md:p-5 space-y-4">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+        <div>
+          <label for="guest-amount" class="block mb-2 text-sm font-medium text-gray-900">
+            Amount <span class="text-red-600">*</span>
+          </label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{{ currency_symbol }}</span>
+            <input type="text" id="guest-amount" name="amount" inputmode="decimal" required placeholder="0.00"
+                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full pl-8 p-2.5">
+          </div>
+        </div>
+
+        <div>
+          <label for="guest-description" class="block mb-2 text-sm font-medium text-gray-900">Where / What</label>
+          <input type="text" id="guest-description" name="description" required placeholder="e.g., Spar, Netflix, birthday supplies"
+                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5">
+        </div>
+
+        <div>
+          <label for="guest-date" class="block mb-2 text-sm font-medium text-gray-900">Date</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+              <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+            </div>
+            <input datepicker datepicker-format="yyyy-mm-dd" datepicker-autohide id="guest-date" name="date" type="text" value="{{ today }}" placeholder="Select date"
+                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full ps-10 p-2.5">
+          </div>
+        </div>
+
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900">Split With</label>
+          <div class="max-h-36 overflow-y-auto space-y-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            {% for p in participants %}
+            <div class="flex items-center">
+              <input id="split-{{ p.id }}" type="checkbox" name="split_with_ids" value="{{ p.id }}" checked
+                     class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2">
+              <label for="split-{{ p.id }}" class="ms-2 text-sm font-medium text-gray-900">{{ p.name }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <button type="submit" class="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5">
+          Save Expense
         </button>
       </form>
     </div>
-
-    <form method="POST" action="/trips/guest/{{ trip.id }}/expenses" class="p-6 space-y-4 overflow-y-auto">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-
-      <div>
-        <label for="guest-amount" class="block text-sm font-medium text-stone-700 mb-1">
-          Amount <span class="text-red-600">*</span>
-        </label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{ currency_symbol }}</span>
-          <input type="text" id="guest-amount" name="amount" inputmode="decimal" autofocus required placeholder="0.00"
-                 class="w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
-        </div>
-      </div>
-
-      <div>
-        <label for="guest-description" class="block text-sm font-medium text-stone-700 mb-1">
-          Where / What
-        </label>
-        <input type="text" id="guest-description" name="description" required placeholder="e.g., Spar, Netflix, birthday supplies"
-               class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
-      </div>
-
-      <div>
-        <label for="guest-date" class="block text-sm font-medium text-stone-700 mb-1">
-          Date
-        </label>
-        <div class="relative">
-          <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-            <svg class="w-4 h-4 text-stone-500" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
-          </div>
-          <input datepicker datepicker-format="yyyy-mm-dd" datepicker-autohide id="guest-date" name="date" type="text" value="{{ today }}" placeholder="Select date"
-                 class="w-full ps-10 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-stone-700 mb-1">Split With</label>
-        <div class="max-h-32 overflow-y-auto space-y-1 bg-stone-50 rounded-xl p-3">
-          {% for p in participants %}
-          <label class="flex items-center gap-2 cursor-pointer py-1">
-            <input type="checkbox" name="split_with_ids" value="{{ p.id }}" checked class="w-4 h-4 text-primary-600 border-stone-300 rounded focus:ring-primary-500">
-            <span class="text-sm text-stone-700">{{ p.name }}</span>
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="pt-4 pb-2">
-        <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium flex items-center justify-center py-2.5 rounded-lg shadow-sm transition">
-          Save Expense
-        </button>
-      </div>
-
-    </form>
   </div>
-</dialog>
-
-<style>
-/* For overriding standard scrollbar for inner containers if desired */
-.override-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.override-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.override-scrollbar::-webkit-scrollbar-thumb {
-  background: #e7e5e4; /* stone-200 */
-  border-radius: 4px;
-}
-</style>
+</div>
 {% endblock %}
