@@ -168,19 +168,34 @@
 
 <script>
 function copyToClipboard(text) {
+  console.log('copyToClipboard called with:', text);
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).then(function() {
+      console.log('Clipboard API: success');
+    }).catch(function(err) {
+      console.warn('Clipboard API failed:', err, '— trying fallback');
+      legacyCopy(text);
+    });
   } else {
     console.log('Clipboard API unavailable (requires HTTPS), falling back to legacy copy');
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
+    legacyCopy(text);
   }
+}
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  ta.setAttribute('readonly', '');
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  var ok = document.execCommand('copy');
+  console.log('execCommand("copy") returned:', ok);
+  console.log('Selection was:', window.getSelection().toString().substring(0, 50) + '...');
+  document.body.removeChild(ta);
 }
 </script>
 
