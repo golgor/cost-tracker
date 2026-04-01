@@ -19,7 +19,7 @@ from app.domain.models import (
     TripExpenseSplitPublic,
     TripPublic,
 )
-from app.domain.ports import UNSET, UpdateValue, Unset
+from app.domain.ports import UNSET, Unset, UpdateValue
 
 
 class SqlAlchemyGuestAdapter:

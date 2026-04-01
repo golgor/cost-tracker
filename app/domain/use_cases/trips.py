@@ -27,7 +27,7 @@ from app.domain.models import (
     TripExpensePublic,
     TripPublic,
 )
-from app.domain.ports import UNSET, UpdateValue, UnitOfWorkPort, Unset
+from app.domain.ports import UNSET, UnitOfWorkPort, Unset, UpdateValue
 
 
 def _get_trip_or_raise(uow: UnitOfWorkPort, trip_id: int) -> TripPublic:
