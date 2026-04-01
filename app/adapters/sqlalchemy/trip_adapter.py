@@ -3,13 +3,20 @@ from decimal import Decimal
 
 from sqlmodel import Session, select
 
-from app.adapters.sqlalchemy.orm_models import GuestRow, TripExpenseRow, TripParticipantRow, TripRow
+from app.adapters.sqlalchemy.orm_models import (
+    GuestRow,
+    TripExpenseRow,
+    TripExpenseSplitRow,
+    TripParticipantRow,
+    TripRow,
+)
 from app.domain.models import (
     GuestBase,
     GuestPublic,
     TripBase,
     TripExpenseBase,
     TripExpensePublic,
+    TripExpenseSplitPublic,
     TripPublic,
 )
 
@@ -177,6 +184,32 @@ class SqlAlchemyTripAdapter:
         if row:
             self._session.delete(row)
             self._session.flush()
+
+    def save_expense_split(self, expense_id: int, guest_id: int, amount: Decimal) -> None:
+        row = TripExpenseSplitRow(
+            trip_expense_id=expense_id,
+            guest_id=guest_id,
+            amount=amount,
+        )
+        self._session.add(row)
+        self._session.flush()
+
+    def list_expense_splits(self, expense_id: int) -> list[TripExpenseSplitPublic]:
+        statement = select(TripExpenseSplitRow).where(
+            TripExpenseSplitRow.trip_expense_id == expense_id
+        )
+        rows = self._session.exec(statement).all()
+        return [
+            TripExpenseSplitPublic(
+                id=r.id,
+                trip_expense_id=r.trip_expense_id,
+                guest_id=r.guest_id,
+                amount=r.amount,
+                share_value=r.share_value,
+                created_at=r.created_at,
+            )
+            for r in rows
+        ]
 
     def _to_public(self, row: TripRow) -> TripPublic:
         if row.id is None:

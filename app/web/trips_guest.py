@@ -3,6 +3,7 @@
 import json
 from datetime import date
 from decimal import Decimal
+from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -180,6 +181,7 @@ async def add_guest_expense(
     uow: UowDep,
     description: str = Form(...),
     amount: str = Form(...),
+    split_with_ids: Annotated[list[int] | None, Form()] = None,
     costtracker_guest_session: str | None = Cookie(None),
 ):
     """Add a new expense. Handled via standard HTMX POST."""
@@ -199,6 +201,7 @@ async def add_guest_expense(
             expense_date=date.today(),
             paid_by_id=active_guest.id,
             created_by_guest_id=active_guest.id,
+            split_with_ids=split_with_ids,
         )
 
     if "hx-request" in request.headers:

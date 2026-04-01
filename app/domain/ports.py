@@ -23,6 +23,7 @@ from app.domain.models import (
     TripBase,
     TripExpenseBase,
     TripExpensePublic,
+    TripExpenseSplitPublic,
     TripPublic,
     UserPublic,
 )
@@ -262,6 +263,10 @@ class TripPort(Protocol):
         paid_by_id: int | None = None,
     ) -> TripExpensePublic: ...
     def delete_expense(self, expense_id: int) -> None: ...
+
+    # Expense Splits
+    def save_expense_split(self, expense_id: int, guest_id: int, amount: Decimal) -> None: ...
+    def list_expense_splits(self, expense_id: int) -> list[TripExpenseSplitPublic]: ...
 
 
 class UnitOfWorkPort(Protocol):

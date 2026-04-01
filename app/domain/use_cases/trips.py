@@ -103,10 +103,16 @@ def add_expense(
     expense_date: date,
     paid_by_id: int,
     created_by_guest_id: int,
+    split_with_ids: list[int] | None = None,
 ) -> TripExpensePublic:
-    """Add a new expense to a trip."""
+    """Add a new expense to a trip with even splits among selected participants."""
     trip = _get_trip_or_raise(uow, trip_id)
     _assert_trip_active(trip)
+
+    # Default to all participants if none specified
+    if not split_with_ids:
+        participants = uow.trips.get_participants(trip_id)
+        split_with_ids = [p.id for p in participants]
 
     expense = TripExpenseBase(
         trip_id=trip_id,
@@ -116,7 +122,18 @@ def add_expense(
         paid_by_id=paid_by_id,
         created_by_guest_id=created_by_guest_id,
     )
-    return uow.trips.save_expense(expense)
+    saved = uow.trips.save_expense(expense)
+
+    # Save even splits among selected participants
+    num = len(split_with_ids)
+    if num > 0:
+        per_person = round(amount / num, 2)
+        remainder = amount - (per_person * num)
+        for i, pid in enumerate(split_with_ids):
+            share = per_person + (remainder if i == 0 else Decimal("0"))
+            uow.trips.save_expense_split(saved.id, pid, share)
+
+    return saved
 
 
 def update_expense(
@@ -245,22 +262,27 @@ def calculate_trip_settlement(
         )
         expenses.append(exp)
 
-        # In a Trip, all expenses are evenly split among all active participants
-        splits: list[tuple[int, Decimal]] = []
-        num_participants = len(member_ids)
-        if num_participants == 0:
-            continue
+        # Use stored splits if available, otherwise fall back to even split
+        stored_splits = uow.trips.list_expense_splits(tx.id)
+        if stored_splits:
+            splits_by_expense[tx.id] = [(s.guest_id, s.amount) for s in stored_splits]
+        else:
+            # Backward compat: even split among all participants
+            splits: list[tuple[int, Decimal]] = []
+            num_participants = len(member_ids)
+            if num_participants == 0:
+                continue
 
-        amount_per_person = round(tx.amount / num_participants, 2)
-        remainder = tx.amount - (amount_per_person * num_participants)
+            amount_per_person = round(tx.amount / num_participants, 2)
+            remainder = tx.amount - (amount_per_person * num_participants)
 
-        for i, pid in enumerate(member_ids):
-            share = amount_per_person
-            if i == 0:
-                share += remainder
-            splits.append((pid, share))
+            for i, pid in enumerate(member_ids):
+                share = amount_per_person
+                if i == 0:
+                    share += remainder
+                splits.append((pid, share))
 
-        splits_by_expense[tx.id] = splits
+            splits_by_expense[tx.id] = splits
 
     balances = calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
     transactions = minimize_transactions(balances)

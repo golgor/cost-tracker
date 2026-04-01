@@ -112,6 +112,75 @@ async def inline_create_guest(
     )
 
 
+def _render_participant_manage(request: Request, uow: UowDep, trip_id: int) -> HTMLResponse:
+    """Render the participant management partial for the drawer."""
+    all_guests = uow.guests.list_all()
+    participants = uow.trips.get_participants(trip_id)
+    participant_ids = {p.id for p in participants}
+    return templates.TemplateResponse(
+        request,
+        "trips/_participant_manage.html",
+        {
+            "trip": uow.trips.get_by_id(trip_id),
+            "all_guests": all_guests,
+            "participant_ids": participant_ids,
+        },
+    )
+
+
+@router.get("/{trip_id}/participants/manage", response_class=HTMLResponse)
+async def manage_participants(request: Request, trip_id: int, user_id: CurrentUserId, uow: UowDep):
+    """Render the participant management partial for the drawer."""
+    with uow:
+        trip = uow.trips.get_by_id(trip_id)
+        if not trip:
+            raise HTTPException(status_code=404)
+        trip_uc._assert_trip_owner(trip, user_id)
+        return _render_participant_manage(request, uow, trip_id)
+
+
+@router.post("/{trip_id}/participants/{guest_id}/add", response_class=HTMLResponse)
+async def add_participant(
+    request: Request, trip_id: int, guest_id: int, user_id: CurrentUserId, uow: UowDep
+):
+    """Add a guest to the trip and return updated participant list."""
+    with uow:
+        trip_uc.add_participant(uow, trip_id, user_id, [guest_id])
+        return _render_participant_manage(request, uow, trip_id)
+
+
+@router.post("/{trip_id}/participants/{guest_id}/remove", response_class=HTMLResponse)
+async def remove_participant(
+    request: Request, trip_id: int, guest_id: int, user_id: CurrentUserId, uow: UowDep
+):
+    """Remove a guest from the trip and return updated participant list."""
+    with uow:
+        trip_uc.remove_participant(uow, trip_id, user_id, guest_id)
+        return _render_participant_manage(request, uow, trip_id)
+
+
+@router.post("/{trip_id}/guests", response_class=HTMLResponse)
+async def inline_create_guest_for_trip(
+    request: Request,
+    trip_id: int,
+    user_id: CurrentUserId,
+    uow: UowDep,
+    guest_name: Annotated[str, Form()],
+):
+    """Create a guest and add them to the trip, return updated participant list."""
+    with uow:
+        trip = uow.trips.get_by_id(trip_id)
+        if not trip:
+            raise HTTPException(status_code=404)
+        trip_uc._assert_trip_owner(trip, user_id)
+
+        with contextlib.suppress(Exception):
+            new_guest = trip_uc.create_guest(uow, name=guest_name)
+            uow.trips.add_participants(trip_id, [new_guest.id])
+
+        return _render_participant_manage(request, uow, trip_id)
+
+
 @router.get("/{trip_id}/settlement", response_class=HTMLResponse)
 async def trip_settlement_preview(
     request: Request, trip_id: int, user_id: CurrentUserId, uow: UowDep
