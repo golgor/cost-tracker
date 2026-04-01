@@ -9,12 +9,12 @@
     {% set my_balance = balances.get(active_guest_id) %}
     
     <div class="text-center py-4">
-      {% if my_balance and my_balance.net_balance > 0 %}
+      {% if my_balance and my_balance.net_balance.amount > 0 %}
         <p class="text-stone-500 text-sm font-medium mb-1">You are owed</p>
-        <p class="text-4xl font-bold text-green-600">{{ trip.currency }} {{ my_balance.net_balance|round(2) }}</p>
-      {% elif my_balance and my_balance.net_balance < 0 %}
+        <p class="text-4xl font-bold text-green-600">{{ trip.currency }} {{ my_balance.net_balance.amount|round(2) }}</p>
+      {% elif my_balance and my_balance.net_balance.amount < 0 %}
         <p class="text-stone-500 text-sm font-medium mb-1">You owe</p>
-        <p class="text-4xl font-bold text-red-600">{{ trip.currency }} {{ (my_balance.net_balance * -1)|round(2) }}</p>
+        <p class="text-4xl font-bold text-red-600">{{ trip.currency }} {{ (my_balance.net_balance.amount * -1)|round(2) }}</p>
       {% else %}
         <p class="text-stone-500 font-medium pb-2">You are completely settled up!</p>
         <div class="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto">
