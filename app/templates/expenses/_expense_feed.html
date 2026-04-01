@@ -1,70 +1,55 @@
 <!-- Expense Feed (HTMX partial) -->
 <div id="expense-feed" class="space-y-6">
-  <!-- Result count / search context -->
   {% if count_message %}
     <p class="text-sm text-stone-600 px-1">{{ count_message }}</p>
   {% endif %}
 
   {% if not unsettled_expenses and not settled_expenses %}
-    <!-- Empty State - No expenses at all -->
-    <div class="bg-surface-card rounded-lg shadow-sm overflow-hidden">
+    <div class="bg-white border border-stone-200 rounded-lg shadow-sm overflow-hidden">
       <div class="px-6 py-4 border-b border-stone-200">
         <h2 class="text-lg font-semibold text-stone-900">All Expenses</h2>
       </div>
       <div class="px-6 py-12 text-center">
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-4">
-          <span class="text-2xl">💰</span>
+          <svg class="w-6 h-6 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
         {% if has_active_search %}
-          <!-- Search empty state -->
           <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses match your search</h3>
-          <p class="text-stone-600 mb-6">Try a different search term or clear the search to see all expenses.</p>
+          <p class="text-sm text-stone-600 mb-6">Try a different search term or clear the search to see all expenses.</p>
         {% elif has_active_filters %}
-          <!-- Filtered empty state -->
           <h3 class="text-lg font-semibold text-stone-900 mb-2">No expenses match your filters</h3>
-          <p class="text-stone-600 mb-6">Try adjusting your date range or clearing filters to see more expenses.</p>
-          <a
-            href="/expenses"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md hover:shadow-lg active:scale-95 transition-all"
-          >
+          <p class="text-sm text-stone-600 mb-6">Try adjusting your date range or clearing filters to see more expenses.</p>
+          <a href="/expenses"
+             class="text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center gap-2">
             Clear All Filters
           </a>
         {% else %}
-          <!-- No expenses at all -->
           <h3 class="text-lg font-semibold text-stone-900 mb-2">No shared expenses yet</h3>
-          <p class="text-stone-600 mb-6">Start tracking your shared expenses and see them appear here.</p>
+          <p class="text-sm text-stone-600 mb-6">Start tracking your shared expenses and see them appear here.</p>
 
-          <!-- Mobile: Open bottom sheet -->
-          <button
-            type="button"
-            hx-get="/expenses/capture-form"
-            hx-target="#expense-bottom-sheet"
-            hx-swap="innerHTML"
-            class="inline-flex md:hidden items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium touch-target shadow-md hover:shadow-lg active:scale-95 transition-all"
-          >
-            <span>+</span> Add Your First Expense
+          <button type="button"
+                  hx-get="/expenses/capture-form"
+                  hx-target="#expense-bottom-sheet"
+                  hx-swap="innerHTML"
+                  class="md:hidden text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none inline-flex items-center gap-2">
+            + Add Your First Expense
           </button>
 
-          <!-- Desktop: Focus sidebar form -->
-          <button
-            type="button"
-            onclick="document.getElementById('desktop-amount').focus()"
-            class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md hover:shadow-lg active:scale-95 transition-all"
-          >
-            <span>+</span> Add Your First Expense
+          <button type="button"
+                  onclick="document.getElementById('desktop-amount').focus()"
+                  class="hidden md:inline-flex text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none items-center gap-2">
+            + Add Your First Expense
           </button>
         {% endif %}
       </div>
     </div>
   {% else %}
-    <!-- Pending Expenses Section -->
     {% set section_title = "Pending Expenses" %}
     {% set expenses = unsettled_expenses %}
     {% set is_settled_section = false %}
     {% set empty_message = "No pending expenses" %}
     {% include "expenses/_expense_list_section.html" %}
 
-    <!-- Settled Expenses Section -->
     {% set section_title = "Settled Expenses" %}
     {% set expenses = settled_expenses %}
     {% set is_settled_section = true %}

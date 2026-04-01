@@ -1,191 +1,107 @@
-{# Edit Expense Modal #}
-<div
-  id="edit-modal"
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 htmx-swapping:opacity-0 htmx-settling:opacity-100 transition-opacity duration-150"
-  onclick="if(event.target === this) { this.remove(); }"
->
-  <div
-    class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto htmx-swapping:scale-95 htmx-settling:scale-100 transition-transform duration-150"
-  >
-    <!-- Header -->
-    <div class="px-6 pt-6 pb-4 border-b border-stone-200">
-      <div class="flex items-start justify-between">
+{# Edit Expense Modal - Flowbite Modal style #}
+<div id="edit-modal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+     onclick="if(event.target === this) { this.remove(); }">
+  <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="relative bg-white rounded-lg shadow-lg max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-stone-200 rounded-t">
         <div>
           <h3 class="text-lg font-semibold text-stone-900">Edit Expense</h3>
           {% if is_settled %}
-            <p class="mt-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              ⚠️ This expense is settled and cannot be edited. All fields are read-only.
-            </p>
+            <div class="flex items-center mt-2 p-2 text-sm text-amber-800 rounded-lg bg-amber-50 border border-amber-200" role="alert">
+              <svg class="shrink-0 inline w-4 h-4 me-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/></svg>
+              This expense is settled and cannot be edited.
+            </div>
           {% endif %}
         </div>
-        <button
-          type="button"
-          class="text-stone-400 hover:text-stone-600 transition-colors"
-          onclick="document.getElementById('edit-modal').remove();"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <button type="button" onclick="document.getElementById('edit-modal').remove();"
+                class="text-stone-400 bg-transparent hover:bg-stone-200 hover:text-stone-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
         </button>
       </div>
-    </div>
 
-    <!-- Form -->
-    <form
-      method="post"
-      action="/expenses/{{ expense.id }}/update"
-      class="p-6 space-y-6"
-    >
-      <!-- CSRF token -->
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-      
-      <!-- Amount field -->
-      <div>
-        <label for="amount" class="block text-sm font-medium text-stone-700 mb-1">
-          Amount <span class="text-red-600">*</span>
-        </label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{ currency_symbol }}</span>
-          <input
-            type="text"
-            id="amount"
-            name="amount"
-            value="{{ expense.amount }}"
-            inputmode="decimal"
-            required
-            {% if is_settled %}disabled{% endif %}
-            class="w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-stone-50 disabled:text-stone-600"
-          >
+      <!-- Form -->
+      <form method="post" action="/expenses/{{ expense.id }}/update" class="p-4 md:p-5 space-y-4">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+        <div>
+          <label for="amount" class="block mb-2 text-sm font-medium text-stone-700">Amount <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">{{ currency_symbol }}</span>
+            <input type="text" id="amount" name="amount" value="{{ expense.amount }}" inputmode="decimal" required
+                   {% if is_settled %}disabled{% endif %}
+                   class="{% if is_settled %}bg-stone-50 text-stone-600{% else %}bg-white{% endif %} border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-8 p-2.5 disabled:bg-stone-50 disabled:text-stone-600">
+          </div>
+          {% if errors and errors.amount %}<p class="mt-2 text-sm text-red-600">{{ errors.amount }}</p>{% endif %}
         </div>
-        {% if errors and errors.amount %}
-          <p class="mt-1 text-sm text-red-600">{{ errors.amount }}</p>
-        {% endif %}
-      </div>
 
-      <!-- Where/What field -->
-      <div>
-        <label for="description" class="block text-sm font-medium text-stone-700 mb-1">
-          Where / What
-        </label>
-        <input
-          type="text"
-          id="description"
-          name="description"
-          value="{{ expense.description }}"
-          {% if is_settled %}disabled{% endif %}
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-stone-50 disabled:text-stone-600"
-        >
-        {% if errors and errors.description %}
-          <p class="mt-1 text-sm text-red-600">{{ errors.description }}</p>
-        {% endif %}
-      </div>
+        <div>
+          <label for="description" class="block mb-2 text-sm font-medium text-stone-700">Where / What</label>
+          <input type="text" id="description" name="description" value="{{ expense.description }}"
+                 {% if is_settled %}disabled{% endif %}
+                 class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 disabled:bg-stone-50 disabled:text-stone-600">
+          {% if errors and errors.description %}<p class="mt-2 text-sm text-red-600">{{ errors.description }}</p>{% endif %}
+        </div>
 
-      <!-- Date field -->
-      <div>
-        <label for="date" class="block text-sm font-medium text-stone-700 mb-1">
-          Date
-        </label>
-        <input
-          type="date"
-          id="date"
-          name="date"
-          value="{{ expense.date.isoformat() }}"
-          max="{{ today }}"
-          {% if is_settled %}disabled{% endif %}
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-stone-50 disabled:text-stone-600"
-        >
-        {% if errors and errors.date %}
-          <p class="mt-1 text-sm text-red-600">{{ errors.date }}</p>
-        {% endif %}
-      </div>
+        <div>
+          <label for="date" class="block mb-2 text-sm font-medium text-stone-700">Date</label>
+          <input type="date" id="date" name="date" value="{{ expense.date.isoformat() }}" max="{{ today }}"
+                 {% if is_settled %}disabled{% endif %}
+                 class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 disabled:bg-stone-50 disabled:text-stone-600">
+          {% if errors and errors.date %}<p class="mt-2 text-sm text-red-600">{{ errors.date }}</p>{% endif %}
+        </div>
 
-      <!-- Paid by field -->
-      <div>
-        <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
-          Paid by <span class="text-red-600">*</span>
-        </label>
-        <select
-          id="payer_id"
-          name="payer_id"
-          required
-          {% if is_settled %}disabled{% endif %}
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-stone-50 disabled:text-stone-600"
-        >
-          {% for member in users_list %}
-            {% set member_user = users.get(member.id) %}
-            {% if member_user %}
-            <option value="{{ member.id }}" {% if member.id == expense.payer_id %}selected{% endif %}>
-              {{ member_user.display_name }}
-            </option>
-            {% endif %}
-          {% endfor %}
-        </select>
-        {% if errors and errors.payer_id %}
-          <p class="mt-1 text-sm text-red-600">{{ errors.payer_id }}</p>
-        {% endif %}
-      </div>
+        <div>
+          <label for="payer_id" class="block mb-2 text-sm font-medium text-stone-700">Paid by <span class="text-red-500">*</span></label>
+          <select id="payer_id" name="payer_id" required {% if is_settled %}disabled{% endif %}
+                  class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 disabled:bg-stone-50 disabled:text-stone-600">
+            {% for member in users_list %}
+              {% set member_user = users.get(member.id) %}
+              {% if member_user %}
+              <option value="{{ member.id }}" {% if member.id == expense.payer_id %}selected{% endif %}>{{ member_user.display_name }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+          {% if errors and errors.payer_id %}<p class="mt-2 text-sm text-red-600">{{ errors.payer_id }}</p>{% endif %}
+        </div>
 
-      <!-- Currency (display only) -->
-      <div>
-        <label for="currency" class="block text-sm font-medium text-stone-700 mb-1">
-          Currency
-        </label>
-        <input
-          type="text"
-          id="currency"
-          name="currency"
-          value="{{ expense.currency }}"
-          readonly
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
-        >
-      </div>
+        <div>
+          <label for="currency" class="block mb-2 text-sm font-medium text-stone-700">Currency</label>
+          <input type="text" id="currency" name="currency" value="{{ expense.currency }}" readonly
+                 class="bg-stone-50 border border-stone-300 text-stone-600 text-sm rounded-lg block w-full p-2.5">
+        </div>
 
-      <!-- Split type selector -->
-      <div>
-        <label for="edit-split-type" class="block text-sm font-medium text-stone-700 mb-1">
-          Split Mode
-        </label>
-        <select
-          id="edit-split-type"
-          name="split_type"
-          {% if is_settled %}disabled{% endif %}
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 disabled:bg-stone-50 disabled:text-stone-600"
-        >
-          <option value="even" {% if expense.split_type.value == 'EVEN' %}selected{% endif %}>Even (50/50)</option>
-          <option value="shares" {% if expense.split_type.value == 'SHARES' %}selected{% endif %}>By Shares</option>
-          <option value="percentage" {% if expense.split_type.value == 'PERCENTAGE' %}selected{% endif %}>By Percentage</option>
-          <option value="exact" {% if expense.split_type.value == 'EXACT' %}selected{% endif %}>Exact Amounts</option>
-        </select>
-        {% if errors and errors.split_type %}
-          <p class="mt-1 text-sm text-red-600">{{ errors.split_type }}</p>
-        {% endif %}
-      </div>
+        <div>
+          <label for="edit-split-type" class="block mb-2 text-sm font-medium text-stone-700">Split Mode</label>
+          <select id="edit-split-type" name="split_type" {% if is_settled %}disabled{% endif %}
+                  class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 disabled:bg-stone-50 disabled:text-stone-600">
+            <option value="even" {% if expense.split_type.value == 'EVEN' %}selected{% endif %}>Even (50/50)</option>
+            <option value="shares" {% if expense.split_type.value == 'SHARES' %}selected{% endif %}>By Shares</option>
+            <option value="percentage" {% if expense.split_type.value == 'PERCENTAGE' %}selected{% endif %}>By Percentage</option>
+            <option value="exact" {% if expense.split_type.value == 'EXACT' %}selected{% endif %}>Exact Amounts</option>
+          </select>
+          {% if errors and errors.split_type %}<p class="mt-2 text-sm text-red-600">{{ errors.split_type }}</p>{% endif %}
+        </div>
 
-      <!-- Dynamic split fields (populated by JavaScript) -->
-      <div id="edit-split-fields" class="space-y-2 hidden"></div>
+        <div id="edit-split-fields" class="space-y-2 hidden"></div>
+        <input type="hidden" id="edit-split-config" name="split_config" value="">
 
-      <!-- Hidden field for split configuration JSON -->
-      <input type="hidden" id="edit-split-config" name="split_config" value="">
-
-      <!-- Action buttons -->
-      <div class="flex gap-3 pt-4 border-t border-stone-200">
-        <button
-          type="button"
-          class="flex-1 px-4 py-2 border border-stone-300 text-stone-700 text-center rounded-lg hover:bg-stone-50 transition-colors"
-          onclick="document.getElementById('edit-modal').remove();"
-        >
-          Cancel
-        </button>
-        {% if not is_settled %}
-          <button
-            type="submit"
-            class="flex-1 px-4 py-2 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 shadow-md hover:shadow-lg active:scale-95 transition-all"
-          >
-            Save Changes
+        <!-- Actions -->
+        <div class="flex gap-3 pt-4 border-t border-stone-200">
+          <button type="button" onclick="document.getElementById('edit-modal').remove();"
+                  class="flex-1 text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 focus:ring-4 focus:ring-stone-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+            Cancel
           </button>
-        {% endif %}
-      </div>
-    </form>
+          {% if not is_settled %}
+            <button type="submit"
+                    class="flex-1 text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">
+              Save Changes
+            </button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -193,17 +109,9 @@
 (function() {
   const modal = document.getElementById('edit-modal');
   if (!modal) return;
-
-  // Close modal on Escape key
-  const handleEscape = function(e) {
-    if (e.key === 'Escape') {
-      modal.remove();
-      document.removeEventListener('keydown', handleEscape);
-    }
-  };
+  const handleEscape = function(e) { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', handleEscape); } };
   document.addEventListener('keydown', handleEscape);
 
-  // ── Split type editing ──────────────────────────────────────────────────
   const splitSelect = document.getElementById('edit-split-type');
   const splitFields = document.getElementById('edit-split-fields');
   const splitConfig = document.getElementById('edit-split-config');
@@ -219,56 +127,25 @@
     {% endfor %}
   ];
 
-  // Pre-loaded split config from server
   const initConfig = {{ split_config | tojson }};
+  const inputClass = 'bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2';
 
   function renderSplitFields(mode) {
     const total = parseFloat((amountInput ? amountInput.value : '0').replace(',', '.')) || 0;
-
-    if (mode === 'even') {
-      splitFields.classList.add('hidden');
-      splitFields.innerHTML = '';
-      splitConfig.value = '';
-      return;
-    }
-
+    if (mode === 'even') { splitFields.classList.add('hidden'); splitFields.innerHTML = ''; splitConfig.value = ''; return; }
     splitFields.classList.remove('hidden');
-
     if (mode === 'shares') {
       splitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
-        members.map(function(m) {
-          var val = initConfig[m.id] || 1;
-          return '<div class="flex items-center gap-2">' +
-            '<label class="w-24 text-sm font-medium text-stone-700 truncate">' + m.name + '</label>' +
-            '<input type="number" min="0" step="1" value="' + val + '" data-member="' + m.id + '"' +
-            ' class="edit-share-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">' +
-            '</div>';
-        }).join('');
+        members.map(m => `<div class="flex items-center gap-2"><label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label><input type="number" min="0" step="1" value="${initConfig[m.id] || 1}" data-member="${m.id}" class="edit-share-input flex-1 ${inputClass}"></div>`).join('');
     } else if (mode === 'percentage') {
-      var defaultPct = Math.floor(100 / members.length);
-      splitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter percentage for each person. Must sum to 100%.</p>' +
-        members.map(function(m) {
-          var val = initConfig[m.id] || defaultPct;
-          return '<div class="flex items-center gap-2">' +
-            '<label class="w-24 text-sm font-medium text-stone-700 truncate">' + m.name + '</label>' +
-            '<input type="number" min="0" max="100" step="1" value="' + val + '" data-member="' + m.id + '"' +
-            ' class="edit-pct-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">' +
-            '<span class="text-sm text-stone-500">%</span></div>';
-        }).join('');
+      var dp = Math.floor(100 / members.length);
+      splitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Percentages must sum to 100%.</p>' +
+        members.map(m => `<div class="flex items-center gap-2"><label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label><input type="number" min="0" max="100" step="1" value="${initConfig[m.id] || dp}" data-member="${m.id}" class="edit-pct-input flex-1 ${inputClass}"><span class="text-sm text-stone-500">%</span></div>`).join('');
     } else if (mode === 'exact') {
       var half = (total / members.length).toFixed(2);
-      splitFields.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter exact amount for each person. Must sum to ' + total.toFixed(2) + '.</p>' +
-        members.map(function(m) {
-          var val = initConfig[m.id] || half;
-          return '<div class="flex items-center gap-2">' +
-            '<label class="w-24 text-sm font-medium text-stone-700 truncate">' + m.name + '</label>' +
-            '<span class="text-stone-500">{{ currency_symbol }}</span>' +
-            '<input type="number" min="0" step="0.01" value="' + val + '" data-member="' + m.id + '"' +
-            ' class="edit-exact-input flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600">' +
-            '</div>';
-        }).join('');
+      splitFields.innerHTML = `<p class="text-xs text-stone-500 mb-2">Exact amounts must sum to ${total.toFixed(2)}.</p>` +
+        members.map(m => `<div class="flex items-center gap-2"><label class="w-24 text-sm font-medium text-stone-700 truncate">${m.name}</label><span class="text-stone-500">{{ currency_symbol }}</span><input type="number" min="0" step="0.01" value="${initConfig[m.id] || half}" data-member="${m.id}" class="edit-exact-input flex-1 ${inputClass}"></div>`).join('');
     }
-
     updateSplitConfig();
   }
 
@@ -276,22 +153,13 @@
     var mode = splitSelect.value;
     if (mode === 'even') { splitConfig.value = ''; return; }
     var config = {};
-    var selector = mode === 'shares' ? '.edit-share-input' :
-                   mode === 'percentage' ? '.edit-pct-input' : '.edit-exact-input';
-    document.querySelectorAll(selector).forEach(function(input) {
-      var val = parseFloat(input.value) || 0;
-      if (val > 0 || mode === 'exact') config[input.dataset.member] = val;
-    });
+    var sel = mode === 'shares' ? '.edit-share-input' : mode === 'percentage' ? '.edit-pct-input' : '.edit-exact-input';
+    document.querySelectorAll(sel).forEach(input => { var v = parseFloat(input.value) || 0; if (v > 0 || mode === 'exact') config[input.dataset.member] = v; });
     splitConfig.value = JSON.stringify(config);
   }
 
-  splitSelect.addEventListener('change', function() {
-    renderSplitFields(splitSelect.value);
-  });
-
+  splitSelect.addEventListener('change', () => renderSplitFields(splitSelect.value));
   splitFields.addEventListener('input', updateSplitConfig);
-
-  // Initial render
   renderSplitFields(splitSelect.value);
 })();
 </script>

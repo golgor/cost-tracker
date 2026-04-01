@@ -5,7 +5,7 @@
 {% block content %}
 <div class="max-w-xl mx-auto">
   <!-- Back link -->
-  <a href="/recurring" class="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 mb-6 focus-ring rounded">
+  <a href="/recurring" class="inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 mb-6">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
     </svg>
@@ -16,17 +16,19 @@
     {% if is_edit %}Edit Recurring Cost{% else %}Add Recurring Cost{% endif %}
   </h1>
 
-  <!-- Edit-forward info banner (edit mode only) -->
+  <!-- Edit-forward info banner - Flowbite Alert -->
   {% if is_edit %}
-  <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
-    <p>Changes apply to future expenses only. Existing expenses in the feed are unchanged.</p>
+  <div class="flex items-center p-4 mb-6 text-sm text-blue-800 rounded-lg bg-blue-50 border border-blue-200" role="alert">
+    <svg class="shrink-0 inline w-4 h-4 me-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/></svg>
+    <div>Changes apply to future expenses only. Existing expenses in the feed are unchanged.</div>
   </div>
   {% endif %}
 
-  <!-- Global error message -->
+  <!-- Global error - Flowbite Alert -->
   {% if errors.__all__ %}
-  <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm text-red-800">
-    {{ errors.__all__ }}
+  <div class="flex items-center p-4 mb-6 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200" role="alert">
+    <svg class="shrink-0 inline w-4 h-4 me-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/></svg>
+    <div>{{ errors.__all__ }}</div>
   </div>
   {% endif %}
 
@@ -38,112 +40,77 @@
     id="recurring-form"
   >
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-    <!-- Name -->
+
+    <!-- Name - Flowbite Input -->
     <div>
-      <label for="name" class="block text-sm font-medium text-stone-700 mb-1">
+      <label for="name" class="block mb-2 text-sm font-medium {% if errors.name %}text-red-700{% else %}text-stone-700{% endif %}">
         What recurring cost? <span class="text-red-500" aria-hidden="true">*</span>
       </label>
-      <input
-        type="text"
-        id="name"
-        name="name"
-        value="{{ form_data.name }}"
-        placeholder="Netflix, Car Insurance, Rent…"
-        required
-        maxlength="255"
-        class="w-full px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.name %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
-      >
-      {% if errors.name %}<p class="mt-1 text-xs text-red-600">{{ errors.name }}</p>{% endif %}
+      <input type="text" id="name" name="name" value="{{ form_data.name }}" placeholder="Netflix, Car Insurance, Rent…"
+             required maxlength="255"
+             class="{% if errors.name %}bg-red-50 border-red-500 text-red-900 placeholder-red-400 focus:ring-red-500 focus:border-red-500{% else %}bg-white border-stone-300 text-stone-900 focus:ring-primary-500 focus:border-primary-500{% endif %} border text-sm rounded-lg block w-full p-2.5">
+      {% if errors.name %}<p class="mt-2 text-sm text-red-600">{{ errors.name }}</p>{% endif %}
     </div>
 
-    <!-- Amount -->
+    <!-- Amount - Flowbite Input -->
     <div>
-      <label for="amount" class="block text-sm font-medium text-stone-700 mb-1">
+      <label for="amount" class="block mb-2 text-sm font-medium {% if errors.amount %}text-red-700{% else %}text-stone-700{% endif %}">
         Amount <span class="text-red-500" aria-hidden="true">*</span>
       </label>
-      <input
-        type="text"
-        id="amount"
-        name="amount"
-        value="{{ form_data.amount }}"
-        placeholder="0.00"
-        required
-        inputmode="decimal"
-        class="w-full px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.amount %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
-      >
-      {% if errors.amount %}<p class="mt-1 text-xs text-red-600">{{ errors.amount }}</p>{% endif %}
+      <input type="text" id="amount" name="amount" value="{{ form_data.amount }}" placeholder="0.00"
+             required inputmode="decimal"
+             class="{% if errors.amount %}bg-red-50 border-red-500 text-red-900 placeholder-red-400 focus:ring-red-500 focus:border-red-500{% else %}bg-white border-stone-300 text-stone-900 focus:ring-primary-500 focus:border-primary-500{% endif %} border text-sm rounded-lg block w-full p-2.5">
+      {% if errors.amount %}<p class="mt-2 text-sm text-red-600">{{ errors.amount }}</p>{% endif %}
     </div>
 
-    <!-- Frequency pills -->
+    <!-- Frequency pills - Flowbite Radio Button Group style -->
     <div>
-      <label class="block text-sm font-medium text-stone-700 mb-2">
+      <label class="block mb-2 text-sm font-medium text-stone-700">
         Frequency <span class="text-red-500" aria-hidden="true">*</span>
       </label>
       <div class="flex flex-wrap gap-2" role="group" aria-label="Billing frequency">
         {% for opt in frequency_options %}
         <label class="cursor-pointer">
-          <input
-            type="radio"
-            name="frequency"
-            value="{{ opt.value }}"
-            {% if opt.is_selected %}checked{% endif %}
-            class="sr-only"
-            onchange="handleFrequencyChange(this.value)"
-          >
-          <span class="frequency-pill inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border transition-colors {% if opt.is_selected %}bg-primary-500 text-white border-primary-500{% else %}bg-white text-stone-600 border-stone-300 hover:border-primary-400{% endif %}" data-value="{{ opt.value }}">
+          <input type="radio" name="frequency" value="{{ opt.value }}" {% if opt.is_selected %}checked{% endif %}
+                 class="sr-only peer" onchange="handleFrequencyChange(this.value)">
+          <span class="frequency-pill inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border transition-colors peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 bg-white text-stone-600 border-stone-300 hover:border-primary-400" data-value="{{ opt.value }}">
             {{ opt.label }}
           </span>
         </label>
         {% endfor %}
       </div>
-      {% if errors.frequency %}<p class="mt-1 text-xs text-red-600">{{ errors.frequency }}</p>{% endif %}
+      {% if errors.frequency %}<p class="mt-2 text-sm text-red-600">{{ errors.frequency }}</p>{% endif %}
 
-      <!-- Interval months field (Every N Months only) — shown/hidden by JS -->
+      <!-- Interval months field -->
       <div id="interval-months-row" class="mt-3 {% if is_every_n_months %}{% else %}hidden{% endif %}">
-        <label for="interval_months" class="block text-sm font-medium text-stone-700 mb-1">
+        <label for="interval_months" class="block mb-2 text-sm font-medium text-stone-700">
           Every how many months? <span class="text-red-500" aria-hidden="true">*</span>
         </label>
-        <input
-          type="number"
-          id="interval_months"
-          name="interval_months"
-          value="{{ form_data.interval_months }}"
-          min="1"
-          step="1"
-          placeholder="3"
-          {% if is_every_n_months %}required{% endif %}
-          class="w-32 px-3 py-2 border rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.interval_months %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
-        >
-        {% if errors.interval_months %}<p class="mt-1 text-xs text-red-600">{{ errors.interval_months }}</p>{% endif %}
+        <input type="number" id="interval_months" name="interval_months" value="{{ form_data.interval_months }}"
+               min="1" step="1" placeholder="3" {% if is_every_n_months %}required{% endif %}
+               class="{% if errors.interval_months %}bg-red-50 border-red-500 text-red-900 focus:ring-red-500 focus:border-red-500{% else %}bg-white border-stone-300 text-stone-900 focus:ring-primary-500 focus:border-primary-500{% endif %} border text-sm rounded-lg block w-32 p-2.5">
+        {% if errors.interval_months %}<p class="mt-2 text-sm text-red-600">{{ errors.interval_months }}</p>{% endif %}
       </div>
     </div>
 
-    <!-- Make Personal toggle -->
+    <!-- Make Personal button -->
     <div class="mb-2">
-      <button
-        type="button"
-        id="make-personal-btn"
-        onclick="toggleMakePersonal()"
-        class="px-4 py-2 text-sm rounded-lg border transition-colors {% if is_personal_edit %}border-pink-400 bg-pink-50 text-pink-700{% else %}border-stone-300 bg-white text-stone-700 hover:bg-stone-50{% endif %}"
-      >
+      <button type="button" id="make-personal-btn" onclick="toggleMakePersonal()"
+              class="font-medium rounded-lg text-sm px-4 py-2 border transition-colors {% if is_personal_edit %}border-pink-400 bg-pink-50 text-pink-700{% else %}text-stone-900 bg-white border-stone-300 hover:bg-stone-100{% endif %}">
         {% if is_personal_edit %}Undo — make shared{% else %}Make Personal{% endif %}
       </button>
-      <p class="text-xs text-stone-500 mt-1">One click to assign 100% of the cost to yourself.</p>
+      <p class="mt-2 text-xs text-stone-500">One click to assign 100% of the cost to yourself.</p>
     </div>
 
     <div id="split-fields-section">
-      <!-- Payer & Split Method -->
+      <!-- Payer & Split Method - Flowbite Select -->
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label for="payer_id" class="block text-sm font-medium text-stone-700 mb-1">
+          <label for="payer_id" class="block mb-2 text-sm font-medium text-stone-700">
             Who Pays <span class="text-red-500" aria-hidden="true">*</span>
           </label>
-          <select
-            id="payer_id"
-            name="payer_id"
-            required
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-          >
+          <select id="payer_id" name="payer_id" required
+                  class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
             {% for member in members %}
             <option value="{{ member.id }}" {% if form_data.payer_id == member.id %}selected{% endif %}>
               {{ member.display_name }}
@@ -153,37 +120,28 @@
         </div>
 
         <div>
-          <label for="split_type" class="block text-sm font-medium text-stone-700 mb-1">
+          <label for="split_type" class="block mb-2 text-sm font-medium text-stone-700">
             Split Method <span class="text-red-500" aria-hidden="true">*</span>
           </label>
-          <select
-            id="split_type"
-            name="split_type"
-            required
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-            onchange="handleSplitTypeChange(this.value)"
-          >
+          <select id="split_type" name="split_type" required onchange="handleSplitTypeChange(this.value)"
+                  class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
             {% for opt in split_type_options %}
             <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
             {% endfor %}
           </select>
-          {% if errors.split_type %}<p class="mt-1 text-xs text-red-600">{{ errors.split_type }}</p>{% endif %}
+          {% if errors.split_type %}<p class="mt-2 text-sm text-red-600">{{ errors.split_type }}</p>{% endif %}
         </div>
       </div>
 
-      <!-- Dynamic split config fields (shown for non-EVEN splits) -->
-      <div id="split-fields" class="{% if is_even_split %}hidden{% endif %}">
-        <!-- Populated by JavaScript -->
-      </div>
+      <!-- Dynamic split config fields -->
+      <div id="split-fields" class="{% if is_even_split %}hidden{% endif %}"></div>
       <input type="hidden" id="split-config" name="split_config" value="{{ form_data.split_config }}">
 
-      <!-- Split preview (reuses the same endpoint as the expense form) -->
+      <!-- Split preview -->
       <div id="split-preview-container" class="{% if is_even_split %}hidden{% endif %}">
         <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
           <h4 class="text-xs font-medium text-stone-500 uppercase mb-2">Split Preview</h4>
-          <div id="split-preview-content" class="space-y-1 text-sm">
-            <!-- Populated by JavaScript fetch -->
-          </div>
+          <div id="split-preview-content" class="space-y-1 text-sm"></div>
         </div>
       </div>
     </div>
@@ -195,40 +153,28 @@
       <div class="flex-grow border-t border-stone-200"></div>
     </div>
 
-    <!-- Next Due Date -->
+    <!-- Next Due Date - Flowbite Input -->
     <div>
-      <label for="next_due_date" class="block text-sm font-medium text-stone-700 mb-1">
+      <label for="next_due_date" class="block mb-2 text-sm font-medium {% if errors.next_due_date %}text-red-700{% else %}text-stone-700{% endif %}">
         Next Due Date <span class="text-red-500" aria-hidden="true">*</span>
       </label>
-      <input
-        type="date"
-        id="next_due_date"
-        name="next_due_date"
-        value="{{ form_data.next_due_date }}"
-        required
-        class="w-full px-3 py-2 border rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 {% if errors.next_due_date %}border-red-400 bg-red-50{% else %}border-stone-300{% endif %}"
-      >
-      {% if errors.next_due_date %}<p class="mt-1 text-xs text-red-600">{{ errors.next_due_date }}</p>{% endif %}
+      <input type="date" id="next_due_date" name="next_due_date" value="{{ form_data.next_due_date }}" required
+             class="{% if errors.next_due_date %}bg-red-50 border-red-500 text-red-900 focus:ring-red-500 focus:border-red-500{% else %}bg-white border-stone-300 text-stone-900 focus:ring-primary-500 focus:border-primary-500{% endif %} border text-sm rounded-lg block w-full p-2.5">
+      {% if errors.next_due_date %}<p class="mt-2 text-sm text-red-600">{{ errors.next_due_date }}</p>{% endif %}
     </div>
 
-    <!-- Auto-Generate toggle -->
+    <!-- Auto-Generate toggle - Flowbite Toggle -->
     <div>
       <div class="flex items-center justify-between">
         <label for="auto_generate" class="text-sm font-medium text-stone-700">Auto-Generate</label>
         <label class="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            id="auto_generate"
-            name="auto_generate"
-            value="on"
-            {% if form_data.auto_generate %}checked{% endif %}
-            class="sr-only peer"
-            onchange="handleAutoGenerateChange(this.checked)"
-          >
-          <div class="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+          <input type="checkbox" id="auto_generate" name="auto_generate" value="on"
+                 {% if form_data.auto_generate %}checked{% endif %}
+                 class="sr-only peer" onchange="handleAutoGenerateChange(this.checked)">
+          <div class="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
         </label>
       </div>
-      <p id="auto-generate-hint" class="mt-1 text-xs text-stone-500">
+      <p id="auto-generate-hint" class="mt-2 text-xs text-stone-500">
         {% if form_data.auto_generate %}
         Expenses created automatically on billing date as proposed
         {% else %}
@@ -237,25 +183,19 @@
       </p>
     </div>
 
-    <!-- More options toggle (category) -->
+    <!-- More options toggle -->
     <div>
-      <button
-        type="button"
-        class="text-sm text-primary-600 hover:text-primary-700 font-medium focus-ring rounded"
-        onclick="toggleMoreOptions()"
-        id="more-options-btn"
-        aria-expanded="{% if has_category %}true{% else %}false{% endif %}"
-      >
+      <button type="button"
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline"
+              onclick="toggleMoreOptions()" id="more-options-btn"
+              aria-expanded="{% if has_category %}true{% else %}false{% endif %}">
         <span id="more-options-arrow">{% if has_category %}▾{% else %}▸{% endif %}</span> More options
       </button>
 
       <div id="more-options-panel" class="{% if has_category %}{% else %}hidden{% endif %} mt-4">
-        <label for="category" class="block text-sm font-medium text-stone-700 mb-1">Category</label>
-        <select
-          id="category"
-          name="category"
-          class="w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-        >
+        <label for="category" class="block mb-2 text-sm font-medium text-stone-700">Category</label>
+        <select id="category" name="category"
+                class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5">
           {% for opt in category_options %}
           <option value="{{ opt.value }}" {% if opt.is_selected %}selected{% endif %}>{{ opt.label }}</option>
           {% endfor %}
@@ -263,12 +203,10 @@
       </div>
     </div>
 
-    <!-- Submit -->
+    <!-- Submit - Flowbite Button -->
     <div class="pt-2">
-      <button
-        type="submit"
-        class="w-full px-4 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 focus-ring font-medium transition-colors"
-      >
+      <button type="submit"
+              class="w-full text-white bg-primary-500 hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-3 focus:outline-none transition-colors">
         {% if is_edit %}Save Changes{% else %}Add Recurring Cost{% endif %}
       </button>
     </div>
@@ -324,9 +262,7 @@ async function fetchSplitPreview() {
       splitPreviewContent.innerHTML = await response.text();
       splitPreviewContainer.classList.remove('hidden');
     }
-  } catch (_) {
-    // Silently ignore network errors in the preview
-  }
+  } catch (_) {}
 }
 
 const debouncedFetchPreview = debounce(fetchSplitPreview, 300);
@@ -350,7 +286,7 @@ function renderSplitFields(mode, existing) {
   }
   splitFieldsDiv.classList.remove('hidden');
 
-  const inputClass = 'w-24 px-2 py-1.5 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none';
+  const inputClass = 'bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-24 p-2';
 
   if (mode === 'shares') {
     splitFieldsDiv.innerHTML = '<p class="text-xs text-stone-500 mb-2">Enter share count for each person.</p>' +
@@ -387,15 +323,6 @@ function handleSplitTypeChange(value) {
 function handleFrequencyChange(value) {
   const row = document.getElementById('interval-months-row');
   const input = document.getElementById('interval_months');
-  document.querySelectorAll('.frequency-pill').forEach(pill => {
-    const active = pill.dataset.value === value;
-    pill.classList.toggle('bg-primary-500', active);
-    pill.classList.toggle('text-white', active);
-    pill.classList.toggle('border-primary-500', active);
-    pill.classList.toggle('bg-white', !active);
-    pill.classList.toggle('text-stone-600', !active);
-    pill.classList.toggle('border-stone-300', !active);
-  });
   if (value === 'EVERY_N_MONTHS') {
     row.classList.remove('hidden');
     input.required = true;
@@ -453,7 +380,7 @@ splitFieldsDiv.addEventListener('input', () => {
 
     if (personal) {
       btn.textContent = 'Undo \u2014 make shared';
-      btn.classList.remove('border-stone-300', 'bg-white', 'text-stone-700', 'hover:bg-stone-50');
+      btn.classList.remove('text-stone-900', 'bg-white', 'border-stone-300', 'hover:bg-stone-100');
       btn.classList.add('border-pink-400', 'bg-pink-50', 'text-pink-700');
       if (splitSection) splitSection.style.display = 'none';
       if (splitTypeSelect) splitTypeSelect.value = 'PERCENTAGE';
@@ -465,7 +392,7 @@ splitFieldsDiv.addEventListener('input', () => {
     } else {
       btn.textContent = 'Make Personal';
       btn.classList.remove('border-pink-400', 'bg-pink-50', 'text-pink-700');
-      btn.classList.add('border-stone-300', 'bg-white', 'text-stone-700', 'hover:bg-stone-50');
+      btn.classList.add('text-stone-900', 'bg-white', 'border-stone-300', 'hover:bg-stone-100');
       if (splitSection) splitSection.style.display = '';
       if (splitTypeSelect) splitTypeSelect.value = 'EVEN';
       if (splitConfigInput) splitConfigInput.value = '';
