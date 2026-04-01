@@ -83,9 +83,32 @@
   }
 }
 
-/* Flowbite datepicker — ensure it renders above modals and use primary colors */
+/* Flowbite datepicker — force light mode and use primary colors */
 .datepicker-picker {
   z-index: 99 !important;
+  background-color: white !important;
+  color: #1f2937 !important;
+}
+
+.datepicker-header {
+  background-color: white !important;
+}
+
+.datepicker-controls .button {
+  background-color: white !important;
+  color: #1f2937 !important;
+}
+
+.datepicker-controls .button:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.datepicker-cell {
+  color: #1f2937 !important;
+}
+
+.datepicker-cell.disabled {
+  color: #9ca3af !important;
 }
 
 .datepicker-cell.selected,
@@ -101,6 +124,7 @@
 
 .datepicker-cell.range {
   background-color: var(--color-primary-50) !important;
+  color: var(--color-primary-600) !important;
 }
 
 /* Focus ring utilities for accessibility */
