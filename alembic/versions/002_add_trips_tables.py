@@ -9,7 +9,6 @@ Create Date: 2026-03-31
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-import sqlmodel.sql.sqltypes
 
 from alembic import op
 
@@ -24,7 +23,7 @@ def upgrade() -> None:
     # ── 1. guests (global address book) ──────────────────────────────
     op.create_table(
         "guests",
-        sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=True),
         sa.Column("id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
@@ -34,11 +33,11 @@ def upgrade() -> None:
     # ── 2. trips ─────────────────────────────────────────────────────
     op.create_table(
         "trips",
-        sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
-        sa.Column("currency", sqlmodel.sql.sqltypes.AutoString(length=3), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("currency", sa.String(length=3), nullable=False),
         sa.Column(
             "sharing_token",
-            sqlmodel.sql.sqltypes.AutoString(length=64),
+            sa.String(length=64),
             nullable=False,
         ),
         sa.Column("is_active", sa.Boolean(), nullable=False),
@@ -77,7 +76,7 @@ def upgrade() -> None:
         sa.Column("trip_id", sa.Integer(), nullable=False),
         sa.Column(
             "description",
-            sqlmodel.sql.sqltypes.AutoString(length=255),
+            sa.String(length=255),
             nullable=False,
         ),
         sa.Column("date", sa.Date(), nullable=False),
