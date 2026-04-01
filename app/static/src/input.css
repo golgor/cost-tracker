@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Disable dark mode — app is light-only. This makes all dark: variants no-ops,
+   which fixes Flowbite components that ship with dark: classes. */
+@custom-variant dark (&:is(.force-dark *));
+
 /* Custom theme tokens go here using @theme {} blocks.
    Tailwind v4 uses CSS-first config — no tailwind.config.js needed.
    Content detection is automatic.
@@ -83,50 +87,9 @@
   }
 }
 
-/* Flowbite datepicker — force light mode and use primary colors.
-   Flowbite applies dark: variants via Tailwind classes on inner elements.
-   We neutralize them by setting color-scheme and overriding backgrounds
-   on the picker wrapper so all children inherit light-mode values. */
+/* Flowbite datepicker — z-index for modals + primary color accents */
 .datepicker-picker {
   z-index: 99 !important;
-  color-scheme: light !important;
-}
-
-/* Undo dark:bg-gray-700 on all elements inside the picker */
-.datepicker-picker,
-.datepicker-picker .datepicker-header,
-.datepicker-picker .datepicker-title,
-.datepicker-picker .view-switch,
-.datepicker-picker .prev-btn,
-.datepicker-picker .next-btn {
-  --tw-bg-opacity: 1 !important;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity)) !important;
-}
-
-/* Undo dark:text-white — restore gray text */
-.datepicker-picker .view-switch,
-.datepicker-picker .datepicker-title {
-  color: #111827 !important; /* gray-900 */
-}
-
-.datepicker-picker .prev-btn,
-.datepicker-picker .next-btn {
-  color: #6b7280 !important; /* gray-500 */
-}
-
-.datepicker-picker .prev-btn:hover,
-.datepicker-picker .next-btn:hover,
-.datepicker-picker .view-switch:hover {
-  background-color: #f3f4f6 !important; /* gray-100 */
-  color: #111827 !important;
-}
-
-.datepicker-cell {
-  color: #111827 !important;
-}
-
-.datepicker-cell.disabled {
-  color: #9ca3af !important;
 }
 
 .datepicker-cell.selected,
@@ -142,7 +105,6 @@
 
 .datepicker-cell.range {
   background-color: var(--color-primary-50) !important;
-  color: var(--color-primary-600) !important;
 }
 
 /* Focus ring utilities for accessibility */
