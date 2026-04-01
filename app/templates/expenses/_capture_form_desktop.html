@@ -147,13 +147,7 @@
                 {% for member in users_list %}
                 <option
                     value="{{ member.id }}"
-                    {%
-                    if
-                    member.id=""
-                    ="current_user_id"
-                    %}selected{%
-                    endif
-                    %}
+                    {% if member.id == current_user_id %}selected{% endif %}
                 >
                     {{ member.display_name }}
                 </option>
