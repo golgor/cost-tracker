@@ -1,3 +1,6 @@
+from datetime import date
+from decimal import Decimal
+
 from sqlmodel import Session, select
 
 from app.adapters.sqlalchemy.orm_models import GuestRow, TripExpenseRow, TripParticipantRow, TripRow
@@ -73,18 +76,31 @@ class SqlAlchemyTripAdapter:
         return [self._to_public(r) for r in rows]
 
     def update(
-        self, trip_id: int, *, name: str | None = None, is_active: bool | None = None
+        self,
+        trip_id: int,
+        *,
+        name: str | None = None,
+        currency: str | None = None,
+        is_active: bool | None = None,
     ) -> TripPublic:
         row = self._session.get(TripRow, trip_id)
         if not row:
             raise ValueError(f"Trip {trip_id} not found")
         if name is not None:
             row.name = name
+        if currency is not None:
+            row.currency = currency
         if is_active is not None:
             row.is_active = is_active
         self._session.add(row)
         self._session.flush()
         return self._to_public(row)
+
+    def delete(self, trip_id: int) -> None:
+        row = self._session.get(TripRow, trip_id)
+        if row:
+            self._session.delete(row)
+            self._session.flush()
 
     def add_participants(self, trip_id: int, guest_ids: list[int]) -> None:
         statement = select(TripParticipantRow.guest_id).where(TripParticipantRow.trip_id == trip_id)
@@ -131,6 +147,30 @@ class SqlAlchemyTripAdapter:
         )
         rows = self._session.exec(statement).all()
         return [self._expense_to_public(r) for r in rows]
+
+    def update_expense(
+        self,
+        expense_id: int,
+        *,
+        description: str | None = None,
+        amount: Decimal | None = None,
+        expense_date: date | None = None,
+        paid_by_id: int | None = None,
+    ) -> TripExpensePublic:
+        row = self._session.get(TripExpenseRow, expense_id)
+        if not row:
+            raise ValueError(f"Trip expense {expense_id} not found")
+        if description is not None:
+            row.description = description
+        if amount is not None:
+            row.amount = amount
+        if expense_date is not None:
+            row.date = expense_date
+        if paid_by_id is not None:
+            row.paid_by_id = paid_by_id
+        self._session.add(row)
+        self._session.flush()
+        return self._expense_to_public(row)
 
     def delete_expense(self, expense_id: int) -> None:
         row = self._session.get(TripExpenseRow, expense_id)

@@ -1,11 +1,13 @@
 """Guest view routes for Trips feature (Magic Links)."""
 
 import json
+from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Cookie, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.domain.models import GuestPublic, TripPublic
 from app.domain.use_cases import trips as trip_uc
 from app.web.expenses._shared import UowDep, templates
 
@@ -34,6 +36,30 @@ def _set_guest_session(response: Response, session_data: dict[str, int]) -> None
         httponly=True,
         samesite="lax",
     )
+
+
+def _validate_guest_access(
+    uow: UowDep,
+    trip_id: int,
+    cookie: str | None,
+) -> tuple[TripPublic, GuestPublic, list[GuestPublic]]:
+    """Validate guest session and return (trip, active_guest, participants).
+
+    Raises HTTPException(403) if guest is not identified or not a participant.
+    """
+    session_data = _get_guest_session(cookie)
+    active_guest_id = session_data.get(str(trip_id))
+
+    if not active_guest_id:
+        raise HTTPException(status_code=403, detail="Not identified. Please use magic link.")
+
+    trip, participants, _expenses = trip_uc.get_trip_details(uow, trip_id)
+
+    active_guest = next((p for p in participants if p.id == active_guest_id), None)
+    if not active_guest:
+        raise HTTPException(status_code=403, detail="Guest no longer in trip")
+
+    return trip, active_guest, participants
 
 
 @router.get("/t/{sharing_token}", response_class=HTMLResponse)
@@ -127,21 +153,11 @@ async def guest_summary(
     costtracker_guest_session: str | None = Cookie(None),
 ):
     """The main Guest Trip view."""
-    session_data = _get_guest_session(costtracker_guest_session)
-    active_guest_id = session_data.get(str(trip_id))
-
-    if not active_guest_id:
-        raise HTTPException(status_code=403, detail="Not identified. Please use magic link.")
-
     with uow:
-        try:
-            trip, participants, expenses = trip_uc.get_trip_details(uow, trip_id)
-        except ValueError:
-            raise HTTPException(status_code=404)
-
-        active_guest = next((p for p in participants if p.id == active_guest_id), None)
-        if not active_guest:
-            raise HTTPException(status_code=403, detail="Guest no longer in trip")
+        trip, active_guest, participants = _validate_guest_access(
+            uow, trip_id, costtracker_guest_session
+        )
+        expenses = uow.trips.list_expenses(trip_id)
 
     return templates.TemplateResponse(
         request,
@@ -166,14 +182,13 @@ async def add_guest_expense(
     costtracker_guest_session: str | None = Cookie(None),
 ):
     """Add a new expense. Handled via standard HTMX POST."""
-    session_data = _get_guest_session(costtracker_guest_session)
-    active_guest_id = session_data.get(str(trip_id))
-
-    if not active_guest_id:
-        raise HTTPException(status_code=403)
-
     with uow:
-        from datetime import date
+        trip, active_guest, _participants = _validate_guest_access(
+            uow, trip_id, costtracker_guest_session
+        )
+
+        if not trip.is_active:
+            raise HTTPException(status_code=403, detail="Trip is settled")
 
         trip_uc.add_expense(
             uow,
@@ -181,8 +196,8 @@ async def add_guest_expense(
             description=description,
             amount=Decimal(amount),
             expense_date=date.today(),
-            paid_by_id=active_guest_id,
-            created_by_guest_id=active_guest_id,
+            paid_by_id=active_guest.id,
+            created_by_guest_id=active_guest.id,
         )
 
     response = HTMLResponse()
@@ -198,14 +213,11 @@ async def guest_balances(
     costtracker_guest_session: str | None = Cookie(None),
 ):
     """Read-only view showing optimized settlements."""
-    session_data = _get_guest_session(costtracker_guest_session)
-    active_guest_id = session_data.get(str(trip_id))
-
-    if not active_guest_id:
-        raise HTTPException(status_code=403)
-
     with uow:
-        trip = uow.trips.get_by_id(trip_id)
+        trip, active_guest, _participants = _validate_guest_access(
+            uow, trip_id, costtracker_guest_session
+        )
+
         transactions, balances = trip_uc.calculate_trip_settlement(uow, trip_id)
         participants = uow.trips.get_participants(trip_id)
         part_dict = {p.id: p.name for p in participants}
@@ -218,7 +230,7 @@ async def guest_balances(
             "transactions": transactions,
             "balances": balances,
             "participants": part_dict,
-            "active_guest_id": active_guest_id,
+            "active_guest_id": active_guest.id,
             "csrf_token": getattr(request.state, "csrf_token", ""),
         },
     )

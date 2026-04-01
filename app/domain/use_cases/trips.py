@@ -10,6 +10,12 @@ from app.domain.balance import (
     calculate_balances_from_splits,
     minimize_transactions,
 )
+from app.domain.errors import (
+    TripAuthorizationError,
+    TripExpenseNotFoundError,
+    TripNotActiveError,
+    TripNotFoundError,
+)
 from app.domain.models import (
     ExpensePublic,
     ExpenseStatus,
@@ -22,6 +28,26 @@ from app.domain.models import (
     TripPublic,
 )
 from app.domain.ports import UnitOfWorkPort
+
+
+def _get_trip_or_raise(uow: UnitOfWorkPort, trip_id: int) -> TripPublic:
+    """Fetch trip by ID or raise TripNotFoundError."""
+    trip = uow.trips.get_by_id(trip_id)
+    if not trip:
+        raise TripNotFoundError(trip_id)
+    return trip
+
+
+def _assert_trip_active(trip: TripPublic) -> None:
+    """Raise TripNotActiveError if trip is settled."""
+    if not trip.is_active:
+        raise TripNotActiveError(trip.id)
+
+
+def _assert_trip_owner(trip: TripPublic, user_id: int) -> None:
+    """Raise TripAuthorizationError if user does not own the trip."""
+    if trip.created_by_id != user_id:
+        raise TripAuthorizationError()
 
 
 def create_guest(uow: UnitOfWorkPort, name: str, user_id: int | None = None) -> GuestPublic:
@@ -63,9 +89,7 @@ def get_trip_details(
     uow: UnitOfWorkPort, trip_id: int
 ) -> tuple[TripPublic, list[GuestPublic], list[TripExpensePublic]]:
     """Load trip along with participants and expenses."""
-    trip = uow.trips.get_by_id(trip_id)
-    if not trip:
-        raise ValueError(f"Trip {trip_id} not found")
+    trip = _get_trip_or_raise(uow, trip_id)
     participants = uow.trips.get_participants(trip_id)
     expenses = uow.trips.list_expenses(trip_id)
     return trip, participants, expenses
@@ -81,6 +105,9 @@ def add_expense(
     created_by_guest_id: int,
 ) -> TripExpensePublic:
     """Add a new expense to a trip."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_active(trip)
+
     expense = TripExpenseBase(
         trip_id=trip_id,
         description=description,
@@ -92,6 +119,97 @@ def add_expense(
     return uow.trips.save_expense(expense)
 
 
+def update_expense(
+    uow: UnitOfWorkPort,
+    trip_id: int,
+    expense_id: int,
+    user_id: int,
+    *,
+    description: str | None = None,
+    amount: Decimal | None = None,
+    expense_date: date | None = None,
+    paid_by_id: int | None = None,
+) -> TripExpensePublic:
+    """Update a trip expense (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    _assert_trip_active(trip)
+
+    existing = uow.trips.get_expense_by_id(expense_id)
+    if not existing or existing.trip_id != trip_id:
+        raise TripExpenseNotFoundError(expense_id)
+
+    return uow.trips.update_expense(
+        expense_id,
+        description=description,
+        amount=amount,
+        expense_date=expense_date,
+        paid_by_id=paid_by_id,
+    )
+
+
+def delete_expense(
+    uow: UnitOfWorkPort,
+    trip_id: int,
+    expense_id: int,
+    user_id: int,
+) -> None:
+    """Delete a trip expense (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    _assert_trip_active(trip)
+
+    existing = uow.trips.get_expense_by_id(expense_id)
+    if not existing or existing.trip_id != trip_id:
+        raise TripExpenseNotFoundError(expense_id)
+
+    uow.trips.delete_expense(expense_id)
+
+
+def update_trip(
+    uow: UnitOfWorkPort,
+    trip_id: int,
+    user_id: int,
+    *,
+    name: str | None = None,
+    currency: str | None = None,
+) -> TripPublic:
+    """Update trip details (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    return uow.trips.update(trip_id, name=name, currency=currency)
+
+
+def settle_trip(uow: UnitOfWorkPort, trip_id: int, user_id: int) -> TripPublic:
+    """Mark a trip as settled, locking it from further changes."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    return uow.trips.update(trip_id, is_active=False)
+
+
+def delete_trip(uow: UnitOfWorkPort, trip_id: int, user_id: int) -> None:
+    """Delete a trip entirely (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    uow.trips.delete(trip_id)
+
+
+def add_participant(uow: UnitOfWorkPort, trip_id: int, user_id: int, guest_ids: list[int]) -> None:
+    """Add participants to a trip (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    _assert_trip_active(trip)
+    uow.trips.add_participants(trip_id, guest_ids)
+
+
+def remove_participant(uow: UnitOfWorkPort, trip_id: int, user_id: int, guest_id: int) -> None:
+    """Remove a participant from a trip (admin only)."""
+    trip = _get_trip_or_raise(uow, trip_id)
+    _assert_trip_owner(trip, user_id)
+    _assert_trip_active(trip)
+    uow.trips.remove_participant(trip_id, guest_id)
+
+
 def calculate_trip_settlement(
     uow: UnitOfWorkPort, trip_id: int
 ) -> tuple[list[SettlementTransaction], dict[int, MemberBalance]]:
@@ -101,9 +219,7 @@ def calculate_trip_settlement(
     Maps TripExpense models into the expected ExpensePublic interface
     so that balance.py can optimize them transparently using Guest IDs.
     """
-    trip = uow.trips.get_by_id(trip_id)
-    if not trip:
-        raise ValueError(f"Trip {trip_id} not found")
+    trip = _get_trip_or_raise(uow, trip_id)
 
     participants = uow.trips.get_participants(trip_id)
     member_ids = [p.id for p in participants]

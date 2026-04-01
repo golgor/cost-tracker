@@ -90,6 +90,14 @@ class ExpenseRow(ExpenseBase, table=True):
             ondelete="SET NULL",
             name="fk_expenses_recurring_definition_id",
         ),
+        sa.CheckConstraint(
+            "split_type IN ('EVEN', 'SHARES', 'PERCENTAGE', 'EXACT')",
+            name="ck_expenses_split_type",
+        ),
+        sa.CheckConstraint(
+            "status IN ('PENDING', 'GIFT', 'SETTLED')",
+            name="ck_expenses_status",
+        ),
         sa.Index("ix_expenses_date", "date"),
         sa.Index("ix_expenses_creator_id", "creator_id"),
         sa.Index("ix_expenses_payer_id", "payer_id"),
@@ -111,8 +119,8 @@ class ExpenseSplitRow(ExpenseSplitBase, table=True):
     __tablename__ = "expense_splits"
 
     id: int | None = Field(default=None, primary_key=True)
-    expense_id: int = Field(foreign_key="expenses.id", index=True)
-    user_id: int = Field(foreign_key="users.id", index=True)
+    expense_id: int = Field(index=True)
+    user_id: int = Field(index=True)
     amount: Decimal = Field(
         sa_type=sa.Numeric(precision=19, scale=2),  # type: ignore[arg-type]
     )
@@ -142,8 +150,8 @@ class ExpenseNoteRow(ExpenseNoteBase, table=True):
     __tablename__ = "expense_notes"
 
     id: int | None = Field(default=None, primary_key=True)
-    expense_id: int = Field(foreign_key="expenses.id", index=True)
-    author_id: int = Field(foreign_key="users.id", index=True)
+    expense_id: int = Field(index=True)
+    author_id: int = Field(index=True)
     content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -189,7 +197,7 @@ class SettlementTransactionRow(SettlementTransactionBase, table=True):
     __tablename__ = "settlement_transactions"
 
     id: int | None = Field(default=None, primary_key=True)
-    settlement_id: int = Field(foreign_key="settlements.id", index=True)
+    settlement_id: int = Field(index=True)
     amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},
@@ -272,6 +280,14 @@ class RecurringDefinitionRow(RecurringDefinitionBase, table=True):
 
     __table_args__ = (
         sa.ForeignKeyConstraint(["payer_id"], ["users.id"]),
+        sa.CheckConstraint(
+            "frequency IN ('MONTHLY', 'QUARTERLY', 'SEMI_ANNUALLY', 'YEARLY', 'EVERY_N_MONTHS')",
+            name="ck_recurring_definitions_frequency",
+        ),
+        sa.CheckConstraint(
+            "split_type IN ('EVEN', 'SHARES', 'PERCENTAGE', 'EXACT')",
+            name="ck_recurring_definitions_split_type",
+        ),
         sa.Index("ix_recurring_definitions_next_due_date", "next_due_date"),
     )
 
@@ -371,8 +387,8 @@ class TripExpenseSplitRow(TripExpenseSplitBase, table=True):
     __tablename__ = "trip_expense_splits"
 
     id: int | None = Field(default=None, primary_key=True)
-    trip_expense_id: int = Field(foreign_key="trip_expenses.id", index=True)
-    guest_id: int = Field(foreign_key="guests.id", index=True)
+    trip_expense_id: int = Field(index=True)
+    guest_id: int = Field(index=True)
     amount: Decimal = Field(sa_type=sa.Numeric(precision=19, scale=2))  # type: ignore[arg-type]
     share_value: Decimal | None = Field(
         default=None,
@@ -396,8 +412,8 @@ class TripExpenseNoteRow(TripExpenseNoteBase, table=True):
     __tablename__ = "trip_expense_notes"
 
     id: int | None = Field(default=None, primary_key=True)
-    trip_expense_id: int = Field(foreign_key="trip_expenses.id", index=True)
-    author_id: int = Field(foreign_key="guests.id", index=True)
+    trip_expense_id: int = Field(index=True)
+    author_id: int = Field(index=True)
     content: str = Field(sa_type=sa.Text)  # type: ignore[arg-type]
     created_at: datetime = Field(
         sa_column_kwargs={"server_default": func.now()},

@@ -44,12 +44,18 @@
     </ul>
   </div>
 
+  {% if trip.is_active %}
   <div class="mt-4">
     <button onclick="document.getElementById('addExpenseModal').showModal()" class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold py-3.5 px-6 rounded-xl shadow-sm transition">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
       Add Expense
     </button>
   </div>
+  {% else %}
+  <div class="mt-4 text-center py-3 px-4 bg-stone-100 text-stone-500 rounded-xl text-sm font-medium">
+    This trip has been settled. No more expenses can be added.
+  </div>
+  {% endif %}
 
 </div>
 

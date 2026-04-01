@@ -41,7 +41,7 @@ def process_revision_directives(context, revision, directives):
         try:
             num = int(rev.revision)
             max_num = max(max_num, num)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             # Skip non-numeric revisions
             continue
 
