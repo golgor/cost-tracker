@@ -53,6 +53,15 @@ class TestCSRFValidation:
         response = client.get("/health/live")
         assert response.status_code == 200
 
+    def test_guest_post_routes_still_require_csrf(self, client: TestClient):
+        """Guest POST routes are auth-exempt but still require CSRF validation."""
+        # Get initial CSRF cookie
+        client.get("/health/live")
+
+        # POST without CSRF token should fail CSRF check (not auth redirect)
+        response = client.post("/trips/guest/1/identify", follow_redirects=False)
+        assert response.status_code == 403
+
     def test_csrf_cookie_is_httponly(self, client: TestClient):
         """CSRF cookie has httponly flag."""
         response = client.get("/health/live")

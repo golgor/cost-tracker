@@ -55,6 +55,18 @@ class TestProtectedRoutes:
         assert response.status_code == 302
         assert response.headers.get("location") == "/auth/login"
 
+    def test_magic_link_does_not_redirect_to_login(self, client: TestClient):
+        """Magic link landing page is accessible without authentication."""
+        response = client.get("/t/some-token", follow_redirects=False)
+        # Should NOT redirect to /auth/login (will be 404 for invalid token, not 302)
+        assert response.headers.get("location") != "/auth/login"
+
+    def test_guest_route_does_not_redirect_to_login(self, client: TestClient):
+        """Guest trip routes are accessible without authentication."""
+        response = client.get("/trips/guest/1/summary", follow_redirects=False)
+        # Should NOT redirect to /auth/login (will be 403 for missing guest session)
+        assert response.headers.get("location") != "/auth/login"
+
     def test_htmx_request_gets_hx_redirect_header(self, client: TestClient):
         """HTMX request to protected route gets HX-Redirect header."""
         response = client.get(

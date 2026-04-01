@@ -11,6 +11,7 @@ from app.settings import settings
 PUBLIC_PATHS = {"/auth/login", "/auth/callback", "/health", "/static", "/api/v1"}
 # Exact-match public paths (no prefix matching) — for internal webhook endpoints
 EXACT_PUBLIC_PATHS = {"/api/internal/generate-recurring"}
+AUTH_EXEMPT_PATHS = {"/t/", "/trips/guest/"}
 SETUP_PATHS = {"/setup"}
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
@@ -25,6 +26,11 @@ def is_htmx_request(request: Request) -> bool:
 def is_public_path(path: str) -> bool:
     """Check if path is public (no auth required)."""
     return path in EXACT_PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PATHS)
+
+
+def is_auth_exempt_path(path: str) -> bool:
+    """Check if path is exempt from authentication but still subject to CSRF."""
+    return any(path.startswith(p) for p in AUTH_EXEMPT_PATHS)
 
 
 def is_setup_path(path: str) -> bool:
@@ -49,7 +55,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
 
         # Skip auth for public paths
-        if is_public_path(request.url.path):
+        if is_public_path(request.url.path) or is_auth_exempt_path(request.url.path):
             return await call_next(request)
 
         # Check session cookie
