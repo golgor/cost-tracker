@@ -171,6 +171,7 @@ function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text);
   } else {
+    console.log('Clipboard API unavailable (requires HTTPS), falling back to legacy copy');
     var ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
