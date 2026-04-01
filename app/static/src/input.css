@@ -83,36 +83,46 @@
   }
 }
 
-/* Flowbite datepicker — force light mode and use primary colors */
+/* Flowbite datepicker — force light mode and use primary colors.
+   Flowbite applies dark: variants via Tailwind classes on inner elements.
+   We neutralize them by setting color-scheme and overriding backgrounds
+   on the picker wrapper so all children inherit light-mode values. */
 .datepicker-picker {
   z-index: 99 !important;
-  background-color: white !important;
-  color: #1f2937 !important;
+  color-scheme: light !important;
 }
 
-.datepicker-header {
-  background-color: white !important;
+/* Undo dark:bg-gray-700 on all elements inside the picker */
+.datepicker-picker,
+.datepicker-picker .datepicker-header,
+.datepicker-picker .datepicker-title,
+.datepicker-picker .view-switch,
+.datepicker-picker .prev-btn,
+.datepicker-picker .next-btn {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity)) !important;
 }
 
-.datepicker-controls button,
-.datepicker-controls .button,
-.datepicker-controls .view-switch,
-.datepicker-controls .prev-btn,
-.datepicker-controls .next-btn {
-  background-color: white !important;
-  color: #1f2937 !important;
+/* Undo dark:text-white — restore gray text */
+.datepicker-picker .view-switch,
+.datepicker-picker .datepicker-title {
+  color: #111827 !important; /* gray-900 */
 }
 
-.datepicker-controls button:hover,
-.datepicker-controls .button:hover,
-.datepicker-controls .view-switch:hover,
-.datepicker-controls .prev-btn:hover,
-.datepicker-controls .next-btn:hover {
-  background-color: #f3f4f6 !important;
+.datepicker-picker .prev-btn,
+.datepicker-picker .next-btn {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+.datepicker-picker .prev-btn:hover,
+.datepicker-picker .next-btn:hover,
+.datepicker-picker .view-switch:hover {
+  background-color: #f3f4f6 !important; /* gray-100 */
+  color: #111827 !important;
 }
 
 .datepicker-cell {
-  color: #1f2937 !important;
+  color: #111827 !important;
 }
 
 .datepicker-cell.disabled {
