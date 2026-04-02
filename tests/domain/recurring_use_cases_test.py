@@ -253,7 +253,7 @@ class TestCreateExpenseFromDefinition:
             user1.id,
             amount=Decimal("50.00"),
             split_type=SplitType.SHARES,
-            split_config={user1.id: Decimal("1"), user2.id: Decimal("0")},
+            split_config={user1.id: 1, user2.id: 0},
         )
         uow.session.commit()
 
