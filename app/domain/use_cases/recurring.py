@@ -19,8 +19,8 @@ from app.domain.models import (
     SplitType,
 )
 from app.domain.ports import UnitOfWorkPort
-from app.domain.use_cases.expenses import calculate_splits
 from app.domain.recurring import advance_due_date, billing_period_for, format_expense_description
+from app.domain.use_cases.expenses import calculate_splits
 
 
 def create_recurring_definition(
@@ -190,9 +190,7 @@ def create_expense_from_definition(
         if definition.split_config
         else None
     )
-    expense_for_splits = ExpensePublic.model_construct(
-        id=expense_pub.id, **expense.model_dump()
-    )
+    expense_for_splits = ExpensePublic.model_construct(id=expense_pub.id, **expense.model_dump())
     splits = calculate_splits(
         expense=expense_for_splits,
         member_ids=member_ids,

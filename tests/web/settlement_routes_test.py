@@ -259,13 +259,9 @@ class TestCalculateTotalEdgeCases:
     def test_calculate_total_sign_flip(self, authenticated_client, user1, user2, uow):
         """Balance direction flip produces correct non-zero total."""
         # Expense A: Bob pays €30 → Alice owes Bob €15
-        exp_a = self._create_expense_with_splits(
-            uow, user1, user2, Decimal("30.00"), user2.id
-        )
+        exp_a = self._create_expense_with_splits(uow, user1, user2, Decimal("30.00"), user2.id)
         # Expense B: Alice pays €50 → flips direction, Bob now owes Alice €10
-        exp_b = self._create_expense_with_splits(
-            uow, user1, user2, Decimal("50.00"), user1.id
-        )
+        exp_b = self._create_expense_with_splits(uow, user1, user2, Decimal("50.00"), user1.id)
 
         csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
         response = authenticated_client.post(
@@ -280,9 +276,7 @@ class TestCalculateTotalEdgeCases:
 
     def test_calculate_total_duplicate_ids(self, authenticated_client, user1, user2, uow):
         """Duplicate expense IDs are deduplicated — total is not inflated."""
-        expense = self._create_expense_with_splits(
-            uow, user1, user2, Decimal("100.00"), user1.id
-        )
+        expense = self._create_expense_with_splits(uow, user1, user2, Decimal("100.00"), user1.id)
 
         csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
         # Send same ID twice

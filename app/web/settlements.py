@@ -1,9 +1,9 @@
 """Settlement routes for the monthly settlement workflow."""
 
-import structlog
 from decimal import Decimal
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
