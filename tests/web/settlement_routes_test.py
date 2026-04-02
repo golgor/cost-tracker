@@ -144,7 +144,7 @@ class TestConfirmPage:
         csrf_token = review_response.cookies.get("csrf_token")
         response = authenticated_client.post(
             "/settlements/confirm",
-            data=f"expense_ids={test_expense.id}&_csrf_token={csrf_token}",
+            content=f"expense_ids={test_expense.id}&_csrf_token={csrf_token}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
@@ -266,7 +266,7 @@ class TestCalculateTotalEdgeCases:
         csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
         response = authenticated_client.post(
             "/settlements/calculate-total",
-            data=f"expense_ids={exp_a.id}&expense_ids={exp_b.id}&_csrf_token={csrf_token}",
+            content=f"expense_ids={exp_a.id}&expense_ids={exp_b.id}&_csrf_token={csrf_token}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
@@ -282,7 +282,7 @@ class TestCalculateTotalEdgeCases:
         # Send same ID twice
         response = authenticated_client.post(
             "/settlements/calculate-total",
-            data=f"expense_ids={expense.id}&expense_ids={expense.id}&_csrf_token={csrf_token}",
+            content=f"expense_ids={expense.id}&expense_ids={expense.id}&_csrf_token={csrf_token}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
