@@ -123,3 +123,13 @@ def test_entity(uow: UnitOfWork):
 
 - When changing CTA copy for UX reasons, preserve existing test hooks unless tests are intentionally updated (for example keep legacy text in `sr-only` labels).
 - Run `mise run test:unit` after substantial template/UI changes, not only lint checks.
+
+## Second Write-Path Parity
+
+- When an entity has mandatory side effects at creation (e.g., expenses → splits), **every code path** that creates that entity must replicate those side effects. The recurring expense bug was caused by `create_expense_from_definition()` saving an `ExpenseRow` without creating `ExpenseSplitRow` entries, while the regular `create_expense()` path did. This broke the closed-system invariant in balance calculations.
+- Before adding a new "save" path for an existing entity, check the canonical creation function for side effects (child rows, event publishing, cache invalidation) and replicate them — or extract a shared helper.
+
+## Test Fixture Data Integrity
+
+- Test fixtures must produce data that matches the production shape, including required child rows. The settlement test fixture created an `ExpenseRow` without `ExpenseSplitRow` entries. The test only asserted `status_code == 200`, so it passed silently with €0.00 — masking the real bug for all settlement calculation tests.
+- When a test fixture creates a parent entity, always create the expected child entities too (e.g., expenses need splits). Assert on **values**, not just status codes, for endpoints that compute results.
