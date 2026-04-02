@@ -102,6 +102,7 @@ def preview_settlement(
         SettlementError: If an expense doesn't exist
         StaleExpenseError: If an expense is already settled
     """
+    expense_ids = list(dict.fromkeys(expense_ids))  # deduplicate, preserve order
     expenses: list[ExpensePublic] = []
     for expense_id in expense_ids:
         expense = uow.expenses.get_by_id(expense_id)
@@ -143,6 +144,7 @@ def confirm_settlement(
     if not expense_ids:
         raise EmptySettlementError()
 
+    expense_ids = list(dict.fromkeys(expense_ids))  # deduplicate, preserve order
     expenses: list[ExpensePublic] = []
     for expense_id in expense_ids:
         expense = uow.expenses.get_by_id(expense_id)

@@ -8,6 +8,7 @@ from starlette.testclient import TestClient
 
 from app.adapters.sqlalchemy.orm_models import (
     ExpenseRow,
+    ExpenseSplitRow,
 )
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.auth.session import encode_session
@@ -42,7 +43,7 @@ def user2(uow: UnitOfWork):
 
 @pytest.fixture
 def test_expense(user1, user2, uow: UnitOfWork):
-    """Create a test expense directly via SQLAlchemy."""
+    """Create a test expense with proper even splits."""
     expense = ExpenseRow(
         amount=Decimal("100.00"),
         description="Test expense",
@@ -54,6 +55,12 @@ def test_expense(user1, user2, uow: UnitOfWork):
         status=ExpenseStatus.PENDING,
     )
     uow.session.add(expense)
+    uow.session.flush()
+
+    # Create even splits — required for balance calculation
+    split1 = ExpenseSplitRow(expense_id=expense.id, user_id=user1.id, amount=Decimal("50.00"))
+    split2 = ExpenseSplitRow(expense_id=expense.id, user_id=user2.id, amount=Decimal("50.00"))
+    uow.session.add_all([split1, split2])
     uow.session.flush()
     return expense
 
@@ -96,7 +103,7 @@ class TestCalculateTotalEndpoint:
     """Tests for HTMX calculate total endpoint."""
 
     def test_calculate_total_htmx(self, authenticated_client, user1, test_expense):
-        """Test HTMX endpoint returns updated total."""
+        """Test HTMX endpoint returns correct non-zero total."""
         # Get CSRF token from review page
         get_response = authenticated_client.get("/settlements/review")
         csrf_token = get_response.cookies.get("csrf_token")
@@ -110,6 +117,9 @@ class TestCalculateTotalEndpoint:
         )
 
         assert response.status_code == 200
+        # Alice paid €100, even split → Bob owes €50
+        assert b"50.00" in response.content
+        assert b"No payment needed" not in response.content
 
     def test_calculate_total_no_selection(self, authenticated_client, user1):
         """Test HTMX endpoint with no selection."""
@@ -134,7 +144,7 @@ class TestConfirmPage:
         csrf_token = review_response.cookies.get("csrf_token")
         response = authenticated_client.post(
             "/settlements/confirm",
-            data=f"expense_ids={test_expense.id}&_csrf_token={csrf_token}",
+            content=f"expense_ids={test_expense.id}&_csrf_token={csrf_token}",
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
@@ -208,3 +218,74 @@ class TestSettlementDetail:
         response = authenticated_client.get("/settlements/99999")
 
         assert response.status_code == 404
+
+
+class TestCalculateTotalEdgeCases:
+    """Edge-case tests for settlement total calculation."""
+
+    def _create_expense_with_splits(self, uow, user1, user2, amount, payer_id):
+        """Helper: create an expense with even splits."""
+        expense = ExpenseRow(
+            amount=amount,
+            description="Edge case expense",
+            date=date.today(),
+            creator_id=user1.id,
+            payer_id=payer_id,
+            currency="EUR",
+            split_type=SplitType.EVEN,
+            status=ExpenseStatus.PENDING,
+        )
+        uow.session.add(expense)
+        uow.session.flush()
+
+        half = (amount / 2).quantize(Decimal("0.01"))
+        remainder = amount - half * 2
+        payer_share = half + remainder
+
+        split_payer = ExpenseSplitRow(
+            expense_id=expense.id,
+            user_id=payer_id,
+            amount=payer_share,
+        )
+        split_other = ExpenseSplitRow(
+            expense_id=expense.id,
+            user_id=user2.id if payer_id == user1.id else user1.id,
+            amount=half,
+        )
+        uow.session.add_all([split_payer, split_other])
+        uow.session.flush()
+        return expense
+
+    def test_calculate_total_sign_flip(self, authenticated_client, user1, user2, uow):
+        """Balance direction flip produces correct non-zero total."""
+        # Expense A: Bob pays €30 → Alice owes Bob €15
+        exp_a = self._create_expense_with_splits(uow, user1, user2, Decimal("30.00"), user2.id)
+        # Expense B: Alice pays €50 → flips direction, Bob now owes Alice €10
+        exp_b = self._create_expense_with_splits(uow, user1, user2, Decimal("50.00"), user1.id)
+
+        csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
+        response = authenticated_client.post(
+            "/settlements/calculate-total",
+            content=f"expense_ids={exp_a.id}&expense_ids={exp_b.id}&_csrf_token={csrf_token}",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+        assert response.status_code == 200
+        assert b"10.00" in response.content
+        assert b"No payment needed" not in response.content
+
+    def test_calculate_total_duplicate_ids(self, authenticated_client, user1, user2, uow):
+        """Duplicate expense IDs are deduplicated — total is not inflated."""
+        expense = self._create_expense_with_splits(uow, user1, user2, Decimal("100.00"), user1.id)
+
+        csrf_token = authenticated_client.get("/settlements/review").cookies.get("csrf_token")
+        # Send same ID twice
+        response = authenticated_client.post(
+            "/settlements/calculate-total",
+            content=f"expense_ids={expense.id}&expense_ids={expense.id}&_csrf_token={csrf_token}",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+        assert response.status_code == 200
+        # Should show €50 (single expense), not €100 (double-counted)
+        assert b"50.00" in response.content

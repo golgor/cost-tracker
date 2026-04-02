@@ -35,7 +35,7 @@ def get_unsettled_expenses_grouped(
     """
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.status != ExpenseStatus.SETTLED)
+        .where(ExpenseRow.status == ExpenseStatus.PENDING)
         .order_by(ExpenseRow.date.desc())  # type: ignore[attr-defined]
     )
     rows = session.exec(statement).all()
@@ -57,7 +57,7 @@ def get_unsettled_count(session: Session) -> int:
     statement = (
         select(func.count())
         .select_from(ExpenseRow)
-        .where(ExpenseRow.status != ExpenseStatus.SETTLED)
+        .where(ExpenseRow.status == ExpenseStatus.PENDING)
     )
     return session.exec(statement).one()
 
@@ -66,7 +66,7 @@ def get_oldest_unsettled_date(session: Session) -> date | None:
     """Get date of oldest unsettled expense for escalation check."""
     statement = (
         select(ExpenseRow)
-        .where(ExpenseRow.status != ExpenseStatus.SETTLED)
+        .where(ExpenseRow.status == ExpenseStatus.PENDING)
         .order_by(ExpenseRow.date.asc())  # type: ignore[attr-defined]
         .limit(1)
     )

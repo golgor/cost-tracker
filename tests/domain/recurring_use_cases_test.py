@@ -9,6 +9,7 @@ from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.domain.errors import DomainError, RecurringDefinitionNotFoundError
 from app.domain.models import RecurringFrequency, SplitType
 from app.domain.use_cases.recurring import (
+    create_expense_from_definition,
     create_recurring_definition,
     update_recurring_definition,
 )
@@ -217,3 +218,53 @@ class TestUpdateRecurringDefinition:
 
         assert updated.amount == Decimal("14.99")
         assert updated.category == "subscription"
+
+
+class TestCreateExpenseFromDefinition:
+    """Tests for create_expense_from_definition — verifies splits are created."""
+
+    def test_creates_even_splits(self, uow: UnitOfWork):
+        """Even-split recurring expense creates splits for all members."""
+        user1 = create_test_user(uow.session, "auth0|rc_exp_even1", "rc_exp_even1@test.com")
+        user2 = create_test_user(uow.session, "auth0|rc_exp_even2", "rc_exp_even2@test.com")
+        uow.session.commit()
+
+        defn = _create(uow, user1.id, amount=Decimal("100.00"), split_type=SplitType.EVEN)
+        uow.session.commit()
+
+        expense = create_expense_from_definition(uow, defn)
+        uow.session.commit()
+
+        splits = uow.expenses.get_splits(expense.id)
+        assert len(splits) == 2
+
+        splits_by_user = {s.user_id: s.amount for s in splits}
+        assert splits_by_user[user1.id] == Decimal("50.00")
+        assert splits_by_user[user2.id] == Decimal("50.00")
+
+    def test_creates_personal_splits(self, uow: UnitOfWork):
+        """Personal recurring expense (100% to payer) creates splits for all members."""
+        user1 = create_test_user(uow.session, "auth0|rc_exp_pers1", "rc_exp_pers1@test.com")
+        user2 = create_test_user(uow.session, "auth0|rc_exp_pers2", "rc_exp_pers2@test.com")
+        uow.session.commit()
+
+        defn = _create(
+            uow,
+            user1.id,
+            amount=Decimal("50.00"),
+            split_type=SplitType.SHARES,
+            split_config={user1.id: 1, user2.id: 0},
+        )
+        uow.session.commit()
+
+        expense = create_expense_from_definition(uow, defn)
+        uow.session.commit()
+
+        splits = uow.expenses.get_splits(expense.id)
+        assert len(splits) == 2
+
+        splits_by_user = {s.user_id: s.amount for s in splits}
+        # Payer bears 100% — net effect is zero (paid 50, fair_share 50)
+        assert splits_by_user[user1.id] == Decimal("50.00")
+        # Other user bears 0% — net effect is zero (paid 0, fair_share 0)
+        assert splits_by_user[user2.id] == Decimal("0.00")
