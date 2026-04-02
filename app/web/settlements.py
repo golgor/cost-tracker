@@ -1,5 +1,6 @@
 """Settlement routes for the monthly settlement workflow."""
 
+import structlog
 from decimal import Decimal
 from typing import Annotated
 
@@ -25,6 +26,7 @@ from app.web.filters import get_currency_symbol
 from app.web.templates import setup_templates
 from app.web.view_models import SettlementHistoryViewModel
 
+logger = structlog.get_logger()
 router = APIRouter(tags=["settlements"])
 templates = setup_templates("app/templates")
 
@@ -95,9 +97,19 @@ async def calculate_settlement_total(
             transactions, _balances = preview_settlement(uow, expense_ids, member_ids)
             total_amount = sum(tx.amount.amount for tx in transactions)
             transfer_message = format_transfer_message(transactions, display_names)
+            logger.debug(
+                "settlement_calculate_total",
+                expense_count=len(expense_ids),
+                total_amount=str(total_amount),
+                transaction_count=len(transactions),
+            )
         except SettlementError, StaleExpenseError:
             total_amount = Decimal("0.00")
             transfer_message = "Some expenses are no longer available"
+            logger.warning(
+                "settlement_calculate_total_error",
+                expense_count=len(expense_ids),
+            )
     else:
         total_amount = Decimal("0.00")
         transfer_message = "Select expenses to see total"

@@ -11,6 +11,7 @@ from app.domain.errors import (
 from app.domain.models import (
     ExpenseBase,
     ExpensePublic,
+    ExpenseSplitPublic,
     ExpenseStatus,
     RecurringDefinitionBase,
     RecurringDefinitionPublic,
@@ -18,6 +19,7 @@ from app.domain.models import (
     SplitType,
 )
 from app.domain.ports import UnitOfWorkPort
+from app.domain.use_cases.expenses import calculate_splits
 from app.domain.recurring import advance_due_date, billing_period_for, format_expense_description
 
 
@@ -180,6 +182,34 @@ def create_expense_from_definition(
     )
 
     expense_pub = uow.expenses.save(expense)
+
+    # Calculate and persist splits (matches create_expense() in expenses.py)
+    member_ids = [u.id for u in uow.users.get_all()]
+    split_config = (
+        {int(k): Decimal(str(v)) for k, v in definition.split_config.items()}
+        if definition.split_config
+        else None
+    )
+    expense_for_splits = ExpensePublic.model_construct(
+        id=expense_pub.id, **expense.model_dump()
+    )
+    splits = calculate_splits(
+        expense=expense_for_splits,
+        member_ids=member_ids,
+        split_type=definition.split_type,
+        split_config=split_config,
+    )
+    split_publics = [
+        ExpenseSplitPublic.model_construct(
+            id=0,
+            expense_id=expense_pub.id,
+            user_id=user_id,
+            amount=split_amount,
+            share_value=share_value,
+        )
+        for user_id, split_amount, share_value in splits
+    ]
+    uow.expenses.save_splits(expense_pub.id, split_publics)
 
     new_due_date = advance_due_date(
         definition.next_due_date,
