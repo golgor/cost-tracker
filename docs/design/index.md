@@ -36,6 +36,17 @@ One-time architecture evaluation documents from the design phase.
 - [Architecture Validation Results](architecture/architecture-validation-results.md) — Design-phase
   validation and readiness assessment
 
+## Product Planning
+
+Distilled planning artifacts — lossless compressions of the original BMAD planning outputs, preserved as
+reference context for future development or onboarding.
+
+- [Product Requirements](product-requirements.md) — Distillate of PRD, product brief, and brainstorming:
+  all functional/non-functional requirements, architectural constraints, user journeys, and rejected
+  alternatives
+- [Epics Overview](epics-overview.md) — Distillate of the epic/story breakdown: all 18 stories with
+  final status, key domain model decisions, and binding technical constraints per story
+
 ## Implementation Specs
 
 Detailed implementation specifications for specific features.
