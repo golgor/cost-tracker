@@ -17,9 +17,9 @@ from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
     UpdateExpenseForm,
-    _get_currency_symbol,
     templates,
 )
+from app.web.filters import get_currency_symbol
 from app.web.form_parsing import parse_amount, parse_date, parse_split_config
 
 router = APIRouter(tags=["expenses"])
@@ -117,7 +117,7 @@ async def create_expense_endpoint(
                 "current_user_id": user_id,
                 "selected_payer_id": selected_payer_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
                 "default_currency": settings.DEFAULT_CURRENCY,
             },
             status_code=400,
@@ -164,7 +164,7 @@ async def create_expense_endpoint(
                 "current_user_id": user_id,
                 "selected_payer_id": payer_id if payer_id else user_id,
                 "today": date.today().isoformat(),
-                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
                 "default_currency": settings.DEFAULT_CURRENCY,
             },
             status_code=400,
@@ -275,7 +275,7 @@ async def update_expense_endpoint(
                 "today": date.today().isoformat(),
                 "csrf_token": getattr(request.state, "csrf_token", ""),
                 "is_settled": expense.status == "SETTLED",
-                "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+                "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
                 "default_currency": settings.DEFAULT_CURRENCY,
                 "split_config": {},
             },

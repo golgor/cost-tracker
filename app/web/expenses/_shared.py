@@ -13,7 +13,6 @@ from app.adapters.sqlalchemy.queries.dashboard_queries import get_all_users
 from app.adapters.sqlalchemy.unit_of_work import UnitOfWork
 from app.dependencies import get_current_user_id, get_uow
 from app.domain.models import ExpenseStatus, UserPublic
-from app.web.filters import get_currency_symbol
 from app.web.templates import setup_templates
 
 templates = setup_templates("app/templates")
@@ -62,14 +61,6 @@ def _has_active_expense_filters(
 ) -> bool:
     """Check if any expense filters are active."""
     return any([date_from, date_to, payer_id])
-
-
-def _get_currency_symbol(default_currency: str) -> str:
-    """Get currency symbol for a given currency code.
-
-    Delegates to the canonical implementation in app.web.filters.
-    """
-    return get_currency_symbol(default_currency)
 
 
 def _render_expense_notes_section(

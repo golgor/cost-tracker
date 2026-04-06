@@ -18,11 +18,11 @@ from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
     _build_expense_count_message,
-    _get_currency_symbol,
     _has_active_expense_filters,
     _parse_date_filters,
     templates,
 )
+from app.web.filters import get_currency_symbol
 from app.web.view_models import ExpenseCardViewModel
 
 router = APIRouter(tags=["expenses"])
@@ -119,7 +119,7 @@ async def expenses_list(
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
         # Transform to view models
-        currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
+        currency_symbol = get_currency_symbol(settings.DEFAULT_CURRENCY)
         unsettled_vms = _to_card_view_models(
             unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
         )
@@ -210,7 +210,7 @@ async def expenses_filtered(
         recurring_names = get_recurring_definition_names(uow.session, definition_ids)
 
     # Transform to view models
-    currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
+    currency_symbol = get_currency_symbol(settings.DEFAULT_CURRENCY)
     unsettled_vms = _to_card_view_models(
         unsettled_expenses, users_by_id, currency_symbol, user_id, recurring_names
     )

@@ -6,6 +6,7 @@ from app.adapters.sqlalchemy.orm_models import (
     SettlementRow,
     SettlementTransactionRow,
 )
+from app.adapters.sqlalchemy.queries.mappings import transaction_row_to_public
 from app.domain.models import (
     ExpenseStatus,
     SettlementBase,
@@ -94,7 +95,7 @@ class SqlAlchemySettlementAdapter:
             .order_by(SettlementTransactionRow.id)  # ty: ignore[invalid-argument-type]
         )
         rows = self._session.exec(statement).all()
-        return [self._to_transaction_public(row) for row in rows]
+        return [transaction_row_to_public(row) for row in rows]
 
     def reference_exists(self, reference_id: str) -> bool:
         """Check if a reference_id already exists (unbounded query)."""
@@ -113,17 +114,4 @@ class SqlAlchemySettlementAdapter:
             settled_by_id=row.settled_by_id,
             settled_at=row.settled_at,
             created_at=row.created_at,
-        )
-
-    def _to_transaction_public(self, row: SettlementTransactionRow) -> SettlementTransactionPublic:
-        """Convert transaction row to public domain model."""
-        if row.id is None:
-            raise RuntimeError("Row ID must not be None for persisted rows")
-
-        return SettlementTransactionPublic(
-            id=row.id,
-            settlement_id=row.settlement_id,
-            from_user_id=row.from_user_id,
-            to_user_id=row.to_user_id,
-            amount=row.amount,
         )

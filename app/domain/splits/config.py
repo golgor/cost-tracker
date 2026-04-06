@@ -46,21 +46,3 @@ class BalanceConfig:
                 f"Invalid rounding mode: {self.rounding_mode}. "
                 f"Must be one of: {sorted(VALID_ROUNDING_MODES)}"
             )
-
-    @classmethod
-    def default(cls) -> BalanceConfig:
-        """Get default configuration (cents precision, banker's rounding).
-
-        Returns:
-            Default BalanceConfig instance
-        """
-        return cls()
-
-    @classmethod
-    def dimes(cls) -> BalanceConfig:
-        """Get configuration with dimes precision (0.1).
-
-        Returns:
-            BalanceConfig with 0.1 precision
-        """
-        return cls(rounding_precision=Decimal("0.1"))

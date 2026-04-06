@@ -1,6 +1,6 @@
 """Read-only queries module."""
 
-from app.adapters.sqlalchemy.queries.admin_queries import (
+from app.adapters.sqlalchemy.queries.dashboard_queries import (
     get_all_users,
 )
 

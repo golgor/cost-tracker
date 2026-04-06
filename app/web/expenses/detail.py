@@ -13,9 +13,9 @@ from app.settings import settings
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
-    _get_currency_symbol,
     templates,
 )
+from app.web.filters import get_currency_symbol
 from app.web.view_models import ExpenseCardViewModel
 
 router = APIRouter(tags=["expenses"])
@@ -110,7 +110,7 @@ async def collapse_expense_detail(
     # Transform to view model for template
     payer = users_dict.get(expense.payer_id)
     payer_name = payer.display_name if payer else "Unknown User"
-    currency_symbol = _get_currency_symbol(settings.DEFAULT_CURRENCY)
+    currency_symbol = get_currency_symbol(settings.DEFAULT_CURRENCY)
     rec_name = (
         recurring_names.get(expense.recurring_definition_id)
         if expense.recurring_definition_id
@@ -175,7 +175,7 @@ async def edit_expense_page(
             "today": date.today().isoformat(),
             "csrf_token": getattr(request.state, "csrf_token", ""),
             "is_settled": expense.status == "SETTLED",
-            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+            "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "default_currency": settings.DEFAULT_CURRENCY,
             "split_config": split_config_dict,
         },

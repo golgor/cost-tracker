@@ -5,7 +5,6 @@ Immutable objects that represent values with no identity.
 
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Self
 
 
 @dataclass(frozen=True)
@@ -41,31 +40,6 @@ class Money:
 
         # Use object.__setattr__ because dataclass is frozen
         object.__setattr__(self, "amount", decimal_amount)
-
-    @classmethod
-    def from_string(cls, amount: str, currency: str = "EUR") -> Self:
-        """Create Money from string representation.
-
-        Useful for JSON deserialization.
-
-        Args:
-            amount: String representation of decimal amount
-            currency: Currency code (default: EUR)
-
-        Returns:
-            New Money instance
-        """
-        return cls(Decimal(amount), currency)
-
-    def to_string(self) -> str:
-        """Serialize to string representation.
-
-        Useful for JSON serialization to avoid precision loss.
-
-        Returns:
-            String representation of amount
-        """
-        return str(self.amount)
 
     def __add__(self, other: Money) -> Money:
         """Add two Money amounts.
@@ -113,9 +87,6 @@ class Money:
 
     def __truediv__(self, divisor: int | Decimal) -> Money:
         """Divide Money by a scalar.
-
-        Note: This performs exact division. For rounded division,
-        use the round_to method with a BalanceConfig.
 
         Args:
             divisor: Integer or Decimal divisor
@@ -182,17 +153,3 @@ class Money:
     def abs(self) -> Money:
         """Return absolute value."""
         return Money(abs(self.amount), self.currency)
-
-    def round_to(self, precision: Decimal) -> Money:
-        """Round to specified precision.
-
-        Args:
-            precision: Decimal precision (e.g., Decimal("0.01"))
-
-        Returns:
-            New Money rounded to precision
-        """
-        from decimal import ROUND_HALF_EVEN
-
-        rounded = self.amount.quantize(precision, rounding=ROUND_HALF_EVEN)
-        return Money(rounded, self.currency)

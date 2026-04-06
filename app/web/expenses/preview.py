@@ -15,9 +15,9 @@ from app.settings import settings
 from app.web.expenses._shared import (
     CurrentUserId,
     UowDep,
-    _get_currency_symbol,
     templates,
 )
+from app.web.filters import get_currency_symbol
 from app.web.form_parsing import parse_amount, parse_split_config
 
 router = APIRouter(tags=["expenses"])
@@ -49,7 +49,7 @@ async def get_mobile_capture_form(
             "current_user_id": user_id,
             "selected_payer_id": selected_payer_id,
             "today": date.today().isoformat(),
-            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+            "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
             "default_currency": settings.DEFAULT_CURRENCY,
         },
     )
@@ -123,6 +123,6 @@ async def get_split_preview(
             "splits": splits,
             "users": users_dict,
             "error_message": error_message,
-            "currency_symbol": _get_currency_symbol(settings.DEFAULT_CURRENCY),
+            "currency_symbol": get_currency_symbol(settings.DEFAULT_CURRENCY),
         },
     )

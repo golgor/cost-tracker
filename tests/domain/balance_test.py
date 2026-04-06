@@ -165,17 +165,6 @@ class TestMoneyValueObject:
         with pytest.raises(ValueError, match="cannot be infinite"):
             Money(Decimal("Infinity"))
 
-    def test_money_to_string(self):
-        """to_string serializes correctly."""
-        m = Money(Decimal("100.50"))
-        assert m.to_string() == "100.50"
-
-    def test_money_from_string(self):
-        """from_string deserializes correctly."""
-        m = Money.from_string("100.50", "EUR")
-        assert m.amount == Decimal("100.50")
-        assert m.currency == "EUR"
-
 
 class TestBalanceConfig:
     """Test BalanceConfig validation."""
@@ -215,16 +204,6 @@ class TestBalanceConfig:
         """Invalid rounding mode is rejected."""
         with pytest.raises(ValueError, match="Invalid rounding mode"):
             BalanceConfig(rounding_mode="ROUND_RANDOM")
-
-    def test_default_factory_method(self):
-        """default() class method returns default config."""
-        config = BalanceConfig.default()
-        assert config.rounding_precision == Decimal("0.01")
-
-    def test_dimes_factory_method(self):
-        """dimes() class method returns 0.1 precision."""
-        config = BalanceConfig.dimes()
-        assert config.rounding_precision == Decimal("0.1")
 
     @pytest.mark.parametrize("rounding_mode", sorted(VALID_ROUNDING_MODES))
     def test_all_supported_rounding_modes_are_accepted(self, rounding_mode):
