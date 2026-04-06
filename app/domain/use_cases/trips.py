@@ -136,7 +136,7 @@ def add_expense(
         per_person = round(amount / num, 2)
         remainder = amount - (per_person * num)
         for i, pid in enumerate(split_with_ids):
-            share = per_person + (remainder if i == 0 else Decimal("0"))
+            share = per_person + (remainder if i == 0 else 0)
             uow.trips.save_expense_split(saved.id, pid, share)
 
     return saved
@@ -278,27 +278,9 @@ def calculate_trip_settlement(
         )
         expenses.append(exp)
 
-        # Use stored splits if available, otherwise fall back to even split
         stored_splits = uow.trips.list_expense_splits(tx.id)
-        if stored_splits:
-            splits_by_expense[tx.id] = [(s.guest_id, s.amount) for s in stored_splits]
-        else:
-            # Backward compat: even split among all participants
-            splits: list[tuple[int, Decimal]] = []
-            num_participants = len(member_ids)
-            if num_participants == 0:
-                continue
-
-            amount_per_person = round(tx.amount / num_participants, 2)
-            remainder = tx.amount - (amount_per_person * num_participants)
-
-            for i, pid in enumerate(member_ids):
-                share = amount_per_person
-                if i == 0:
-                    share += remainder
-                splits.append((pid, share))
-
-            splits_by_expense[tx.id] = splits
+        assert stored_splits, f"Trip expense {tx.id} has no stored splits — invariant violated"
+        splits_by_expense[tx.id] = [(s.guest_id, s.amount) for s in stored_splits]
 
     balances = calculate_balances_from_splits(expenses, splits_by_expense, member_ids)
     transactions = minimize_transactions(balances)
