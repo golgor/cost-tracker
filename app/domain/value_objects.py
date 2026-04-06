@@ -42,107 +42,38 @@ class Money:
         object.__setattr__(self, "amount", decimal_amount)
 
     def __add__(self, other: Money) -> Money:
-        """Add two Money amounts.
-
-        Args:
-            other: Money to add
-
-        Returns:
-            New Money with sum
-
-        Raises:
-            ValueError: If currencies don't match
-        """
         self._assert_same_currency(other)
         return Money(self.amount + other.amount, self.currency)
 
     def __sub__(self, other: Money) -> Money:
-        """Subtract one Money from another.
-
-        Args:
-            other: Money to subtract
-
-        Returns:
-            New Money with difference
-
-        Raises:
-            ValueError: If currencies don't match
-        """
         self._assert_same_currency(other)
         return Money(self.amount - other.amount, self.currency)
 
     def __mul__(self, multiplier: int | Decimal) -> Money:
-        """Multiply Money by a scalar.
-
-        Args:
-            multiplier: Integer or Decimal multiplier
-
-        Returns:
-            New Money with multiplied amount
-        """
-        if isinstance(multiplier, int):
-            multiplier = Decimal(multiplier)
-        result = self.amount * multiplier
-        return Money(result, self.currency)
+        return Money(self.amount * multiplier, self.currency)
 
     def __truediv__(self, divisor: int | Decimal) -> Money:
-        """Divide Money by a scalar.
-
-        Args:
-            divisor: Integer or Decimal divisor
-
-        Returns:
-            New Money with divided amount
-
-        Raises:
-            ValueError: If divisor is zero
-        """
-        if isinstance(divisor, int):
-            divisor = Decimal(divisor)
         if divisor == 0:
             raise ValueError("Cannot divide by zero")
-        result = self.amount / divisor
-        return Money(result, self.currency)
-
-    def __eq__(self, other: object) -> bool:
-        """Check equality with another Money."""
-        if not isinstance(other, Money):
-            return NotImplemented
-        return self.amount == other.amount and self.currency == other.currency
-
-    def __hash__(self) -> int:
-        """Hash for use in sets and dicts."""
-        return hash((self.amount, self.currency))
+        return Money(self.amount / divisor, self.currency)
 
     def __lt__(self, other: Money) -> bool:
-        """Less than comparison."""
         self._assert_same_currency(other)
         return self.amount < other.amount
 
     def __le__(self, other: Money) -> bool:
-        """Less than or equal comparison."""
         self._assert_same_currency(other)
         return self.amount <= other.amount
 
     def __gt__(self, other: Money) -> bool:
-        """Greater than comparison."""
         self._assert_same_currency(other)
         return self.amount > other.amount
 
     def __ge__(self, other: Money) -> bool:
-        """Greater than or equal comparison."""
         self._assert_same_currency(other)
         return self.amount >= other.amount
 
     def _assert_same_currency(self, other: Money) -> None:
-        """Assert that other Money has same currency.
-
-        Args:
-            other: Money to compare currency with
-
-        Raises:
-            ValueError: If currencies don't match
-        """
         if self.currency != other.currency:
             raise ValueError(f"Currency mismatch: {self.currency} vs {other.currency}")
 
